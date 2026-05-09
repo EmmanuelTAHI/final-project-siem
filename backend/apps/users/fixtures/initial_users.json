@@ -1,0 +1,65 @@
+[
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "password": "pbkdf2_sha256$720000$logplus2025salt01$8mHJmBHCsQl7Pf5/HBMx2ynzXPAbfpKiHY0v3WsStmQ=",
+      "last_login": null,
+      "is_superuser": true,
+      "username": "admin@logplus.ci",
+      "first_name": "Admin",
+      "last_name": "Log+",
+      "email": "admin@logplus.ci",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2025-01-01T00:00:00Z",
+      "role": "admin",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000002",
+    "fields": {
+      "password": "pbkdf2_sha256$720000$logplus2025salt02$9nIKnCIDtRm8Qg6/ICNy3zoaYQBcgqLjIZ1w4XtTunR=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "analyst@logplus.ci",
+      "first_name": "Analyste",
+      "last_name": "SOC",
+      "email": "analyst@logplus.ci",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2025-01-01T00:00:00Z",
+      "role": "analyst",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000003",
+    "fields": {
+      "password": "pbkdf2_sha256$720000$logplus2025salt03$7lGJlBGBrPk6Pe4/GBLx1xmyWOAafpJhGX9u2VrRslP=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "viewer@logplus.ci",
+      "first_name": "Observateur",
+      "last_name": "Log+",
+      "email": "viewer@logplus.ci",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2025-01-01T00:00:00Z",
+      "role": "viewer",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  }
+]

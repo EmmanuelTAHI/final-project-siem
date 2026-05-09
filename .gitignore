@@ -1,0 +1,39 @@
+# ===== Python / Django =====
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/htmlcov/
+backend/.coverage
+backend/coverage.xml
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+backend/logs/
+
+# Variables d'environnement (sensibles)
+backend/.env
+
+# ===== Next.js / Node =====
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/tsconfig.tsbuildinfo
+
+# ===== Claude Code =====
+.claude/
+backend/.claude/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Divers =====
+prompt.txt
+*.log
+*.tmp

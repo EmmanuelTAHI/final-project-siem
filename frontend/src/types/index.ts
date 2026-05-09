@@ -1,0 +1,572 @@
+// ─── Authentication ───────────────────────────────────────────────────────────
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  avatar?: string;
+  date_joined: string;
+  last_login: string;
+}
+
+export interface Session {
+  id: string;
+  device: string;
+  ip: string;
+  location: string;
+  current: boolean;
+  created_at: string;
+  expires_at: string;
+}
+
+// ─── Linked accounts ──────────────────────────────────────────────────────────
+
+export type OAuthProvider = "google" | "microsoft" | "github";
+
+export type LinkedAccountStatus = "active" | "paused" | "revoked" | "error";
+
+export interface LinkedAccount {
+  id: string;
+  provider: OAuthProvider;
+  provider_user_id: string;
+  provider_email: string;
+  provider_display_name: string;
+  avatar_url: string;
+  scopes: string;
+  status: LinkedAccountStatus;
+  last_polled_at: string | null;
+  linked_at: string;
+}
+
+export interface ProviderLoginEvent {
+  id: string;
+  event_type:
+    | "login_success"
+    | "login_failure"
+    | "mfa_challenge"
+    | "mfa_failure"
+    | "password_reset"
+    | "suspicious_activity"
+    | "token_revoked"
+    | "unknown";
+  occurred_at: string;
+  ip_address: string | null;
+  browser: string;
+  os: string;
+  device_type: string;
+  geo_country: string;
+  geo_city: string;
+  is_known_device: boolean;
+  is_known_location: boolean;
+  risk_score: number;
+}
+
+// ─── Security notifications ───────────────────────────────────────────────────
+
+export type SecurityNotificationLevel = "info" | "warning" | "critical";
+
+export type SecurityNotificationKind =
+  | "login_new_device"
+  | "login_new_location"
+  | "brute_force"
+  | "account_locked"
+  | "account_unlinked"
+  | "provider_error"
+  | "info";
+
+export interface SecurityNotification {
+  id: string;
+  kind: SecurityNotificationKind;
+  level: SecurityNotificationLevel;
+  title: string;
+  body: string;
+  metadata: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
+  read_at: string | null;
+  confirmation_token: string | null;
+  confirmation_status: "pending" | "approved" | "rejected" | "expired" | null;
+}
+
+export interface LoginConfirmationDetails {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "expired";
+  ip_address: string | null;
+  browser: string;
+  os: string;
+  device_type: string;
+  geo_city: string;
+  geo_country: string;
+  created_at: string;
+  expires_at: string;
+  user_email: string;
+  provider: OAuthProvider | null;
+  provider_email: string | null;
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export type UserRole = "admin" | "analyst" | "viewer";
+
+export interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  avatar?: string;
+  date_joined: string;
+  last_login: string;
+}
+
+export interface AuditTrailEntry {
+  id: number;
+  user: string;
+  user_email: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  details: Record<string, unknown>;
+  ip_address: string;
+  timestamp: string;
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+export type AlertSeverity = "low" | "medium" | "high" | "critical";
+export type AlertStatus = "open" | "in_progress" | "resolved" | "false_positive";
+
+export interface Alert {
+  id: number;
+  title: string;
+  description: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  rule_name: string;
+  rule_id: number;
+  source_ip: string;
+  destination_ip?: string;
+  user_email?: string;
+  mitre_tactic?: string;
+  mitre_technique?: string;
+  event_count: number;
+  assigned_to?: number;
+  assigned_to_name?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  log_sources: AlertLogSource[];
+  comments: AlertComment[];
+}
+
+export interface AlertLogSource {
+  id: number;
+  log_id: number;
+  source_type: string;
+  action: string;
+  timestamp: string;
+  raw_data: Record<string, unknown>;
+}
+
+export interface AlertComment {
+  id: number;
+  author: string;
+  author_email: string;
+  content: string;
+  created_at: string;
+}
+
+export interface AlertStats {
+  total: number;
+  open: number;
+  in_progress: number;
+  resolved: number;
+  false_positive: number;
+  by_severity: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+}
+
+// ─── Logs ─────────────────────────────────────────────────────────────────────
+
+export type LogSeverity = "info" | "warning" | "error" | "critical";
+
+export interface NormalizedLog {
+  id: number;
+  source_type: string;
+  action: string;
+  user_email?: string;
+  source_ip?: string;
+  destination_ip?: string;
+  geo_country?: string;
+  geo_country_code?: string;
+  geo_city?: string;
+  severity: LogSeverity;
+  timestamp: string;
+  raw_data: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+}
+
+export interface LogStats {
+  total_24h: number;
+  total_7d: number;
+  by_source: Record<string, number>;
+  by_severity: Record<LogSeverity, number>;
+  by_action: Array<{ action: string; count: number }>;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export interface DashboardSummary {
+  open_alerts: number;
+  open_alerts_change: number;
+  logs_24h: number;
+  logs_24h_change: number;
+  active_connectors: number;
+  total_connectors: number;
+  ml_anomalies_24h: number;
+  ml_anomalies_change: number;
+  critical_alerts: number;
+  high_alerts: number;
+  medium_alerts: number;
+  low_alerts: number;
+}
+
+export interface TimelineDataPoint {
+  timestamp: string;
+  logs: number;
+  alerts: number;
+  anomalies: number;
+}
+
+export interface TopThreat {
+  name: string;
+  count: number;
+  severity: AlertSeverity;
+  trend: "up" | "down" | "stable";
+}
+
+export interface GeoData {
+  country: string;
+  country_code: string;
+  count: number;
+  percentage: number;
+  threat_count: number;
+}
+
+// ─── Correlation Rules ────────────────────────────────────────────────────────
+
+export type RuleType = "threshold" | "impossible_travel" | "time_based" | "sequence";
+export type RuleSeverity = AlertSeverity;
+
+export interface CorrelationRule {
+  id: number;
+  name: string;
+  description: string;
+  severity: RuleSeverity;
+  rule_type: RuleType;
+  condition_logic: Record<string, unknown>;
+  mitre_tactic?: string;
+  mitre_technique?: string;
+  is_active: boolean;
+  alert_count: number;
+  last_triggered?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface RuleTestResult {
+  matched_logs: number;
+  sample_matches: NormalizedLog[];
+  would_trigger: boolean;
+  execution_time_ms: number;
+}
+
+// ─── Machine Learning ─────────────────────────────────────────────────────────
+
+export interface MLModel {
+  id: number;
+  name: string;
+  version: string;
+  algorithm: string;
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  contamination: number;
+  is_active: boolean;
+  trained_at: string;
+  training_samples: number;
+  features: string[];
+}
+
+export interface MLPrediction {
+  id: number;
+  log_id: number;
+  log: NormalizedLog;
+  anomaly_score: number;
+  is_anomaly: boolean;
+  prediction_time: string;
+  model_version: string;
+  top_features: Array<{ feature: string; importance: number }>;
+}
+
+export interface MLTrainingJob {
+  id: number;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: number;
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metrics?: {
+    accuracy: number;
+    f1_score: number;
+    training_samples: number;
+  };
+}
+
+// ─── Collectors ───────────────────────────────────────────────────────────────
+
+export type ConnectorStatus = "active" | "inactive" | "error" | "connecting";
+export type ConnectorType = "microsoft365" | "google_workspace" | "wazuh" | "syslog" | "custom";
+
+export interface Connector {
+  id: string;
+  name: string;
+  source_type: ConnectorType;
+  connector_type: ConnectorType;
+  display_name: string;
+  description: string;
+  status: ConnectorStatus;
+  is_active: boolean;
+  logs_collected: number;
+  logs_collected_24h: number;
+  last_job_status: "success" | "failed" | "running" | "pending" | null;
+  last_job_at: string | null;
+  polling_interval_seconds: number;
+  last_collected_at: string | null;
+  created_at: string;
+}
+
+export interface CollectorJob {
+  id: string;
+  connector: string;
+  connector_name: string;
+  connector_type: string;
+  status: "success" | "failed" | "running" | "pending";
+  logs_collected: number;
+  logs_collected_count: number;
+  started_at: string;
+  completed_at?: string | null;
+  finished_at?: string | null;
+  error_message?: string | null;
+  duration_seconds?: number | null;
+}
+
+// ─── API Pagination ───────────────────────────────────────────────────────────
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export interface ApiError {
+  message: string;
+  code?: string;
+  details?: Record<string, string[]>;
+}
+
+// ─── UI Types ─────────────────────────────────────────────────────────────────
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: number;
+}
+
+export interface FilterState {
+  search: string;
+  status?: AlertStatus;
+  severity?: AlertSeverity;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+// ─── Threat Intelligence ──────────────────────────────────────────────────────
+
+export type IndicatorType = "ip" | "domain" | "hash_md5" | "hash_sha256" | "url" | "email";
+export type CTISource = "abuseipdb" | "virustotal" | "manual" | "otx";
+
+export interface ThreatIndicator {
+  id: string;
+  indicator_type: IndicatorType;
+  value: string;
+  reputation_score: number;
+  confidence: number;
+  source: CTISource;
+  tags: string[];
+  is_malicious: boolean;
+  last_seen: string;
+  first_seen: string;
+  raw_data: Record<string, unknown>;
+}
+
+export interface EnrichedLog {
+  id: string;
+  log_id: string;
+  source_ip: string;
+  user_email: string;
+  indicators: ThreatIndicator[];
+  max_score: number;
+  is_threat: boolean;
+  enriched_at: string;
+}
+
+export interface CTIStats {
+  total_indicators: number;
+  malicious_indicators: number;
+  threats_24h: number;
+  threats_7d: number;
+  avg_score_malicious: number;
+  by_source: Array<{ source: string; count: number }>;
+  by_type: Array<{ indicator_type: string; count: number }>;
+  top_malicious_ips: Array<{ value: string; reputation_score: number; source: string }>;
+}
+
+// ─── SOAR ─────────────────────────────────────────────────────────────────────
+
+export type TriggerType = "severity" | "rule_match" | "ml_anomaly" | "cti_match" | "manual";
+
+export interface PlaybookAction {
+  type: "send_email" | "webhook" | "block_ip" | "create_ticket";
+  params: Record<string, unknown>;
+}
+
+export interface Playbook {
+  id: string;
+  name: string;
+  description: string;
+  trigger_type: TriggerType;
+  trigger_conditions: Record<string, unknown>;
+  actions: PlaybookAction[];
+  is_active: boolean;
+  execution_count: number;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaybookExecution {
+  id: string;
+  playbook: string;
+  playbook_name: string;
+  alert: string | null;
+  alert_title: string;
+  status: "pending" | "running" | "success" | "partial" | "failed";
+  actions_taken: Array<{ type: string; status: string; [key: string]: unknown }>;
+  error_message: string;
+  triggered_by: string;
+  started_at: string;
+  finished_at: string | null;
+  duration_seconds: number | null;
+}
+
+export interface SOARStats {
+  total_playbooks: number;
+  active_playbooks: number;
+  executions_24h: number;
+  executions_7d: number;
+  success_rate: number;
+  by_status: Array<{ status: string; count: number }>;
+  top_playbooks: Array<{ name: string; execution_count: number }>;
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+export interface ComplianceFramework {
+  id: string;
+  label: string;
+  description: string;
+}
+
+// ─── Threat Hunting ───────────────────────────────────────────────────────────
+
+export interface HuntingQuery {
+  id: string;
+  name: string;
+  description: string;
+  query_params: Record<string, unknown>;
+  mitre_tactic: string;
+  mitre_technique: string;
+  last_run_at: string | null;
+  last_results_count: number;
+  run_count: number;
+  is_scheduled: boolean;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HuntingResult {
+  count: number;
+  returned: number;
+  results: NormalizedLog[];
+}
+
+// ─── WebSocket Notifications ─────────────────────────────────────────────────
+
+export type NotificationType = "new_alert" | "alert_updated" | "cti_threat" | "playbook_executed" | "system";
+
+export interface WSNotification {
+  type: NotificationType;
+  alert?: Partial<Alert>;
+  data?: Record<string, unknown>;
+  message?: string;
+  level?: "info" | "warning" | "error" | "success";
+  timestamp: string;
+}
+
+// ─── User Risk Score ──────────────────────────────────────────────────────────
+
+export interface UserRiskScore {
+  user_email: string;
+  risk_score: number;
+  ml_anomalies: number;
+  correlation_hits: number;
+  cti_threats: number;
+  failed_logins: number;
+  computed_at: string;
+}

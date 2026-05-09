@@ -1,0 +1,703 @@
+﻿================================================================
+DOCUMENTATION DE PRÉSENTATION — Log+
+TAHI Ezan Franck Emmanuel — 2025-2026
+================================================================
+
+
+================================================================
+PARTIE 1 — COMMENT FONCTIONNE LA Log+
+================================================================
+
+------------------------------------------------------------------------
+1.1 — VUE D'ENSEMBLE DU SYSTÈME
+------------------------------------------------------------------------
+
+Le projet est une Log+ (Security Information and Event
+Management) complète, conçue pour centraliser, analyser et corréler
+les événements de sécurité provenant de différentes sources afin de
+détecter des menaces en temps quasi-réel.
+
+Le système est composé de 3 grandes couches :
+
+  COUCHE 1 — Collecte des logs (sources externes)
+  COUCHE 2 — Traitement, normalisation et corrélation
+  COUCHE 3 — Présentation (dashboard, alertes, ML)
+
+Architecture globale :
+
+  [Microsoft 365]    [Google Workspace]    [Wazuh / VM Attaquante]
+        |                   |                        |
+        v                   v                        v
+  +---------------------------------------------------------+
+  |              COLLECTEURS (Celery, toutes les 5 min)     |
+  |   microsoft_collector.py  |  google_collector.py        |
+  |   wazuh_collector.py                                    |
+  +---------------------------------------------------------+
+                             |
+                             v
+  +---------------------------------------------------------+
+  |         NORMALISATION (normalizer.py — format CEF)      |
+  |   RawLog  -->  NormalizedLog (champs standardisés)      |
+  +---------------------------------------------------------+
+                             |
+              +--------------+--------------+
+              |                             |
+              v                             v
+  +----------------------+    +---------------------------+
+  |  MOTEUR CORRÉLATION  |    |   MODULE ML (Isolation    |
+  |  (toutes les 2 min)  |    |   Forest, toutes les      |
+  |  5 règles MITRE ATT&CK    |   10 min d'inférence)     |
+  +----------------------+    +---------------------------+
+              |                             |
+              v                             v
+  +---------------------------------------------------------+
+  |                    ALERTES SOC                          |
+  |   (severity: low / medium / high / critical)            |
+  |   Assignation, commentaires, statuts, MTTR              |
+  +---------------------------------------------------------+
+              |
+              v
+  +---------------------------------------------------------+
+  |            DASHBOARD FRONTEND (React / Next.js)         |
+  |   KPIs, timeline, carte géo, top menaces                |
+  +---------------------------------------------------------+
+
+
+------------------------------------------------------------------------
+1.2 — STACK TECHNIQUE
+------------------------------------------------------------------------
+
+Backend      : Django 5.x + Django REST Framework
+Base de données : PostgreSQL (logs, alertes, règles, users)
+Cache/Broker : Redis
+Async        : Celery + Celery Beat (tâches planifiées)
+Auth         : JWT (djangorestframework-simplejwt) + OAuth2 PKCE
+Chiffrement  : AES-256 via Fernet (bibliothèque cryptography)
+ML           : Isolation Forest (scikit-learn)
+Container    : Docker + docker-compose
+Tests        : pytest + pytest-django + factory-boy
+Frontend     : React / Next.js (séparé, consomme l'API Django)
+
+
+------------------------------------------------------------------------
+1.3 — FLUX COMPLET D'UN ÉVÉNEMENT DE SÉCURITÉ
+------------------------------------------------------------------------
+
+ÉTAPE 1 — COLLECTE (toutes les 5 minutes via Celery Beat)
+  - Les collecteurs interrogent les APIs externes :
+      * Microsoft Graph API : /auditLogs/signIns, /security/alerts
+      * Google Admin Reports API : activities/login
+      * Wazuh REST API : alertes Wazuh
+  - Chaque événement collecté est stocké en base dans RawLog
+    (données brutes JSON telles que reçues de l'API source)
+
+ÉTAPE 2 — NORMALISATION (immédiate après collecte)
+  - Le normalizer.py convertit chaque RawLog en NormalizedLog
+  - Format standardisé inspiré CEF (Common Event Format) :
+      * event_time   : horodatage de l'événement source
+      * source_ip    : adresse IP de l'attaquant/utilisateur
+      * user_email   : email de l'utilisateur concerné
+      * action       : type d'action (login_success, login_failure,
+                       privilege_change, mfa_bypass...)
+      * outcome      : success / failure / unknown
+      * geo_country  : pays d'origine (code ISO 3166)
+      * severity     : info / low / medium / high / critical
+
+ÉTAPE 3 — CORRÉLATION (toutes les 2 minutes via Celery Beat)
+  - Le moteur de corrélation (engine.py) analyse les nouveaux logs
+  - Il applique chacune des 5 règles de détection actives :
+      1. Brute Force       (≥5 échecs en 5 min)
+      2. Impossible Travel (2 pays différents en < 2h)
+      3. Off-Hours Login   (connexion entre 20h et 7h UTC)
+      4. Privilege Escalation (attribution d'un rôle admin)
+      5. MFA Bypass        (connexion sans MFA)
+  - Si une règle déclenche, une Alerte est créée automatiquement
+  - Déduplication : pas de doublon si alerte identique déjà ouverte
+
+ÉTAPE 4 — MACHINE LEARNING (toutes les 10 minutes)
+  - Le module ML charge les NormalizedLog sans prédiction associée
+  - Il extrait des features : heure, jour, pays nouveau, taux d'échec...
+  - L'Isolation Forest détecte les comportements anormaux (anomaly_score)
+  - Si is_anomaly=True et score > 0.7, une alerte de sévérité HIGH
+    est créée même sans règle de corrélation explicite
+
+ÉTAPE 5 — GESTION DES ALERTES (interface SOC)
+  - L'analyste voit les alertes dans le dashboard
+  - Il peut :
+      * Assigner une alerte à un collègue
+      * Changer le statut (open → in_progress → resolved)
+      * Ajouter des commentaires d'investigation
+      * Marquer comme faux positif
+  - Tout est tracé dans AuditTrail (qui a fait quoi et quand)
+
+ÉTAPE 6 — DASHBOARD ET MÉTRIQUES
+  - KPIs temps réel : alertes ouvertes, logs/24h, connecteurs actifs
+  - Timeline : courbe logs + alertes sur 24h / 7j / 30j
+  - Carte géographique : origine des connexions par pays
+  - Top menaces : règles les plus déclenchées
+  - MTTR : temps moyen de résolution des alertes
+
+
+------------------------------------------------------------------------
+1.4 — LES 5 RÈGLES DE CORRÉLATION MITRE ATT&CK
+------------------------------------------------------------------------
+
+RÈGLE 1 — BRUTE FORCE
+  Fichier   : apps/correlation/rules/brute_force.py
+  Déclencheur : ≥ 5 login_failure du même utilisateur en 5 minutes
+  Sévérité  : HIGH
+  MITRE     : T1110 - Brute Force / Credential Access
+  Alerte    : "Tentative de brute force sur {user_email}"
+
+RÈGLE 2 — IMPOSSIBLE TRAVEL
+  Fichier   : apps/correlation/rules/impossible_travel.py
+  Déclencheur : login_success depuis 2 pays différents en < 2 heures
+                (physiquement impossible sans téléportation)
+  Sévérité  : CRITICAL
+  MITRE     : T1078 - Valid Accounts / Initial Access
+  Alerte    : "Connexion impossible depuis {pays1} et {pays2}"
+
+RÈGLE 3 — OFF-HOURS LOGIN
+  Fichier   : apps/correlation/rules/off_hours_login.py
+  Déclencheur : login_success entre 20h00 et 07h00 UTC
+  Sévérité  : MEDIUM
+  Alerte    : "Connexion hors horaires pour {user_email}"
+
+RÈGLE 4 — PRIVILEGE ESCALATION
+  Fichier   : apps/correlation/rules/privilege_escalation.py
+  Déclencheur : action "privilege_change" ou "role_assigned"
+                avec nouveau rôle contenant "admin", "root", "global"
+  Sévérité  : HIGH
+  MITRE     : T1078.003 - Local Accounts / Privilege Escalation
+  Alerte    : "Élévation de privilèges détectée pour {user_email}"
+
+RÈGLE 5 — MFA BYPASS
+  Fichier   : apps/correlation/rules/mfa_bypass.py
+  Déclencheur : login_success sans MFA (authMethod null ou bypassed)
+  Sévérité  : CRITICAL
+  Alerte    : "Contournement MFA détecté pour {user_email}"
+
+
+------------------------------------------------------------------------
+1.5 — SÉCURITÉ DE LA PLATEFORME ELLE-MÊME
+------------------------------------------------------------------------
+
+  * Chiffrement AES-256 (Fernet) : tous les tokens OAuth et credentials
+    des connecteurs sont chiffrés en base, jamais en clair
+  * JWT : access token 15 min, refresh token 7 jours, blacklist à logout
+  * OAuth2 PKCE (RFC 7636) : flux sécurisé pour connexion Microsoft/Google
+  * Rate limiting : max 10 tentatives login/IP/min
+  * Audit trail complet : chaque action admin tracée en base
+  * CORS strict : uniquement le frontend autorisé
+  * Headers sécurité HTTP : XSS filter, X-Frame-Options DENY, NOSNIFF
+
+
+================================================================
+PARTIE 2 — SCÉNARIOS DE TEST ET DÉMONSTRATION EN LIVE
+================================================================
+
+------------------------------------------------------------------------
+2.1 — ARCHITECTURE DE LA VM ATTAQUANTE
+------------------------------------------------------------------------
+
+CONFIGURATION RECOMMANDÉE :
+  - VM Attaquante  : Kali Linux (ou Ubuntu avec outils installés)
+  - VM Cible/Log+  : Machine hébergeant votre backend Django + Wazuh
+  - Réseau         : même réseau virtuel (host-only ou LAN)
+
+CONNEXION à Log+ :
+  - Wazuh est installé sur la machine cible
+  - Son collecteur (wazuh_collector.py) remonte les alertes Wazuh
+    vers Log+ toutes les 2 minutes
+  - Les attaques de la VM Kali génèrent des logs Wazuh
+    → normalisés → corrélés → alertes dans le dashboard
+
+
+------------------------------------------------------------------------
+2.2 — TEST 1 : SCAN RÉSEAU (Nmap) → DÉTECTION WAZUH
+------------------------------------------------------------------------
+
+OBJECTIF : Montrer que Log+ remonte les scans réseau
+
+SUR LA VM KALI (attaquante) :
+  # Scan simple (SYN scan)
+  nmap -sS 192.168.X.X
+
+  # Scan agressif avec détection OS et services
+  nmap -A -T4 192.168.X.X
+
+  # Scan de plage réseau complète
+  nmap -sn 192.168.X.0/24
+
+CE QUI SE PASSE :
+  1. Wazuh détecte le scan réseau (règle Wazuh 40101 / 40102)
+  2. Wazuh génère une alerte avec source_ip = IP de la VM Kali
+  3. Votre wazuh_collector.py la remonte dans les 2 prochaines minutes
+  4. Le normalizer crée un NormalizedLog avec action="port_scan"
+  5. Le dashboard affiche le log, la carte géo montre l'IP source
+
+CE QUE VOUS MONTREZ DANS LE DASHBOARD :
+  → Logs récents : nouveau log "port_scan" avec l'IP de Kali
+  → KPI logs/24h : le compteur a augmenté
+  → Carte géo : point sur le réseau local (ou pays si IP publique)
+
+
+------------------------------------------------------------------------
+2.3 — TEST 2 : BRUTE FORCE SSH → RÈGLE CORRÉLATION DÉCLENCHÉE
+------------------------------------------------------------------------
+
+OBJECTIF : Déclencher la règle Brute Force et voir l'alerte
+
+SUR LA VM KALI :
+  # Brute force SSH avec Hydra
+  hydra -l admin -P /usr/share/wordlists/rockyou.txt \
+        ssh://192.168.X.X -t 4
+
+  # Alternative avec Medusa
+  medusa -h 192.168.X.X -u root -P /usr/share/wordlists/rockyou.txt \
+         -M ssh
+
+  # Alternative : script Python simple simulant 10 échecs de connexion
+  # (injecter directement via l'API Log+ pour démo rapide)
+
+SIMULATION DIRECTE VIA L'API (plus rapide pour la démo) :
+  curl -X POST http://localhost:8000/api/logs/simulate/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "events": [
+        {"action": "login_failure", "user_email": "victim@test.com",
+         "source_ip": "192.168.1.100", "count": 6, "window_seconds": 120}
+      ]
+    }'
+
+CE QUI SE PASSE :
+  1. 5+ login_failure du même user_email en moins de 5 minutes
+  2. Le moteur de corrélation (toutes les 2 min) détecte le pattern
+  3. La règle BruteForce crée une alerte severity=HIGH
+  4. Dashboard : nouvelle alerte "Tentative de brute force sur victim@test.com"
+
+CE QUE VOUS MONTREZ :
+  → Onglet Alertes : alerte HIGH en rouge, ouverte
+  → Clic sur l'alerte : voir les logs sources liés (les 6 échecs)
+  → Assigner l'alerte à l'analyste, changer le statut
+  → Montrer l'Audit Trail de l'action
+
+
+------------------------------------------------------------------------
+2.4 — TEST 3 : PRIVILEGE ESCALATION → RÈGLE MITRE T1078.003
+------------------------------------------------------------------------
+
+OBJECTIF : Simuler un attaquant qui obtient des droits admin
+
+SCÉNARIO RÉALISTE :
+  Un utilisateur compromis exécute une commande sur le serveur
+  qui lui donne des droits administrateur (ex: sudo usermod ou
+  ajout au groupe wheel). Wazuh détecte la commande et génère
+  un log avec action="privilege_change".
+
+SUR LA VM CIBLE (à faire devant le jury) :
+  # L'attaquant a un compte standard et tente :
+  sudo usermod -aG sudo compromised_user
+  # ou
+  sudo passwd root
+  # ou dans un contexte AD/Azure : attribution d'un rôle Global Admin
+
+SIMULATION DIRECTE VIA L'API Log+ :
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "wazuh",
+      "event_time": "2025-04-19T14:32:00Z",
+      "user_email": "hacker@victim-corp.com",
+      "source_ip": "192.168.1.100",
+      "action": "privilege_change",
+      "outcome": "success",
+      "severity": "high",
+      "extra_fields": {
+        "new_role": "administrator",
+        "previous_role": "user",
+        "command": "usermod -aG sudo hacker"
+      }
+    }'
+
+  # Déclencher manuellement le moteur de corrélation :
+  curl -X POST http://localhost:8000/api/correlation/engine/run/ \
+    -H "Authorization: Bearer <votre_jwt>"
+
+CE QUI SE PASSE :
+  1. La règle PrivilegeEscalationRule détecte action="privilege_change"
+     avec new_role contenant "administrator"
+  2. Alerte severity=HIGH créée : "Élévation de privilèges détectée
+     pour hacker@victim-corp.com"
+  3. Context MITRE : T1078.003 - Local Accounts
+
+CE QUE VOUS MONTREZ :
+  → Alerte HIGH dans le dashboard, avec le tag MITRE ATT&CK
+  → Détail de l'alerte : IP source, user, rôle avant/après
+  → Expliquer la correspondance avec la matrice MITRE ATT&CK
+
+
+------------------------------------------------------------------------
+2.5 — TEST 4 : IMPOSSIBLE TRAVEL → RÈGLE CRITIQUE
+------------------------------------------------------------------------
+
+OBJECTIF : Montrer la détection d'une connexion géographiquement
+           impossible (compte compromis utilisé simultanément
+           depuis 2 pays différents)
+
+SIMULATION VIA L'API :
+  # Connexion 1 depuis la France
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "microsoft365",
+      "event_time": "2025-04-19T10:00:00Z",
+      "user_email": "ceo@company.com",
+      "source_ip": "81.56.78.12",
+      "action": "login_success",
+      "outcome": "success",
+      "geo_country": "FR",
+      "geo_city": "Paris",
+      "geo_latitude": 48.8566,
+      "geo_longitude": 2.3522,
+      "severity": "info"
+    }'
+
+  # Connexion 2 depuis la Russie 45 minutes plus tard
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "microsoft365",
+      "event_time": "2025-04-19T10:45:00Z",
+      "user_email": "ceo@company.com",
+      "source_ip": "185.220.101.45",
+      "action": "login_success",
+      "outcome": "success",
+      "geo_country": "RU",
+      "geo_city": "Moscow",
+      "geo_latitude": 55.7558,
+      "geo_longitude": 37.6173,
+      "severity": "info"
+    }'
+
+CE QUI SE PASSE :
+  1. La règle ImpossibleTravelRule détecte 2 login_success pour
+     ceo@company.com depuis FR et RU en 45 minutes
+  2. Alerte severity=CRITICAL créée avec les deux localisations
+  3. Le CEO ne peut physiquement pas être à Paris et Moscou en 45 min
+
+CE QUE VOUS MONTREZ :
+  → Alerte CRITICAL (la plus haute sévérité) dans le dashboard
+  → Voir les 2 logs sources côte à côte (Paris et Moscou)
+  → Carte géo avec les 2 points reliés visuellement
+  → Expliquer le cas réel : credential stuffing, compte piraté
+
+
+------------------------------------------------------------------------
+2.6 — TEST 5 : OFF-HOURS LOGIN → ACTIVITÉ SUSPECTE NOCTURNE
+------------------------------------------------------------------------
+
+OBJECTIF : Montrer la détection d'une connexion hors horaires de bureau
+
+SIMULATION :
+  # Connexion à 02h30 UTC (heure la nuit)
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "google_workspace",
+      "event_time": "2025-04-19T02:30:00Z",
+      "user_email": "employee@company.com",
+      "source_ip": "203.45.67.89",
+      "action": "login_success",
+      "outcome": "success",
+      "geo_country": "NG",
+      "severity": "info"
+    }'
+
+CE QUI SE PASSE :
+  1. La règle OffHoursLoginRule détecte login_success entre 20h et 7h UTC
+  2. Alerte severity=MEDIUM : "Connexion hors horaires pour employee@company.com"
+  3. Note : combiné avec un pays inhabituel (Nigéria), ML peut aussi
+     élever le score d'anomalie
+
+CE QUE VOUS MONTREZ :
+  → Alerte MEDIUM dans le dashboard
+  → Montrer que c'est une règle paramétrable (fenêtre horaire modifiable)
+  → Possibilité de combiner avec d'autres règles (Impossible Travel)
+
+
+------------------------------------------------------------------------
+2.7 — TEST 6 : DÉTECTION ML (ANOMALIE COMPORTEMENTALE)
+------------------------------------------------------------------------
+
+OBJECTIF : Montrer que le ML détecte des anomalies sans règle explicite
+
+SCÉNARIO : Un utilisateur qui se connecte toujours de France le matin
+           se connecte soudainement de nuit depuis un pays jamais vu
+
+SIMULATION :
+  # D'abord, créer un historique "normal" pour l'utilisateur
+  # (plusieurs connexions depuis FR en journée)
+  # Puis injecter un comportement anormal :
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "microsoft365",
+      "event_time": "2025-04-19T03:15:00Z",
+      "user_email": "normal_user@company.com",
+      "source_ip": "117.45.89.23",
+      "action": "login_success",
+      "outcome": "success",
+      "geo_country": "CN",
+      "severity": "info",
+      "extra_fields": {"mfa_detail": {"authMethod": null}}
+    }'
+
+  # Lancer l'inférence ML manuellement :
+  curl -X POST http://localhost:8000/api/ml/predict/run/ \
+    -H "Authorization: Bearer <votre_jwt>"
+
+CE QUI SE PASSE :
+  1. L'Isolation Forest calcule un anomaly_score élevé pour ce log
+  2. is_anomaly=True (comportement déviant du profil normal)
+  3. Si score > 0.7, alerte HIGH créée même sans règle explicite
+
+CE QUE VOUS MONTREZ :
+  → Onglet ML : voir les prédictions avec anomaly_score
+  → Comparer un log normal (score faible) vs anormal (score élevé)
+  → Expliquer l'algorithme Isolation Forest en 2 phrases :
+    "Il apprend le comportement normal et isole les points qui
+     s'écartent de la norme, sans avoir besoin de règles codées"
+
+
+------------------------------------------------------------------------
+2.8 — TEST 7 : MFA BYPASS → ALERTE CRITIQUE
+------------------------------------------------------------------------
+
+OBJECTIF : Détecter une connexion réussie sans authentification multi-facteurs
+
+SIMULATION :
+  curl -X POST http://localhost:8000/api/logs/normalized/ \
+    -H "Authorization: Bearer <votre_jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "source_type": "microsoft365",
+      "event_time": "2025-04-19T09:00:00Z",
+      "user_email": "finance@company.com",
+      "source_ip": "45.33.32.156",
+      "action": "login_success",
+      "outcome": "success",
+      "geo_country": "US",
+      "severity": "info",
+      "extra_fields": {
+        "mfa_detail": {
+          "authMethod": null,
+          "authStepResultDetail": "MFA bypassed"
+        }
+      }
+    }'
+
+CE QUI SE PASSE :
+  1. La règle MFABypassRule détecte authMethod=null avec login_success
+  2. Alerte severity=CRITICAL : "Contournement MFA détecté pour finance@company.com"
+
+CE QUE VOUS MONTREZ :
+  → Alerte CRITICAL (priorité maximale)
+  → Expliquer le risque : si MFA est contourné, le mot de passe seul suffit
+  → Cas réel : attaque de type "MFA fatigue" ou session token volé
+
+
+------------------------------------------------------------------------
+2.9 — TEST 8 : DEMO COMPLÈTE DU WORKFLOW SOC
+------------------------------------------------------------------------
+
+OBJECTIF : Montrer le cycle de vie complet d'une alerte du début à la fin
+
+SCÉNARIO NARRATIF POUR LE JURY :
+  "Imaginons qu'une attaque de brute force vient d'être détectée.
+   Voici comment l'analyste SOC traite l'incident."
+
+ÉTAPES À DÉMONTRER :
+
+  1. Le dashboard affiche une alerte HIGH rouge : Brute Force
+  2. L'analyste clique sur l'alerte et voit :
+       - Les 6 tentatives de connexion échouées
+       - L'IP source (192.168.1.100)
+       - L'email ciblé
+       - Le mapping MITRE ATT&CK : T1110
+  3. Il s'assigne l'alerte (statut : in_progress)
+  4. Il ajoute un commentaire : "IP bloquée en firewall, investigation en cours"
+  5. Il vérifie s'il y a d'autres alertes pour la même IP (pivot)
+  6. Il marque l'alerte comme "resolved" avec une note de résolution
+  7. Montrer l'Audit Trail : chaque action est tracée avec timestamp
+
+CE QUE VOUS MONTREZ :
+  → Log+ n'est pas seulement un détecteur, c'est un outil de travail
+    collaboratif pour les équipes de sécurité
+  → Notion de MTTR (Mean Time To Resolve) visible dans les stats
+
+
+------------------------------------------------------------------------
+2.10 — TEST 9 : DÉMONSTRATION DE L'API REST
+------------------------------------------------------------------------
+
+OBJECTIF : Prouver que la plateforme est headless et consommable
+
+EXEMPLES DE REQUÊTES À MONTRER :
+
+  # Login et récupération du JWT
+  curl -X POST http://localhost:8000/api/auth/login/ \
+    -d '{"email": "admin@logplus.ci", "password": "Admin@2025!"}'
+
+  # Voir les alertes critiques ouvertes
+  curl http://localhost:8000/api/alerts/?severity=critical&status=open \
+    -H "Authorization: Bearer <token>"
+
+  # Voir les stats du dashboard
+  curl http://localhost:8000/api/dashboard/summary/ \
+    -H "Authorization: Bearer <token>"
+
+  # Tester une règle de corrélation sur les 1000 derniers logs
+  curl -X POST http://localhost:8000/api/correlation/rules/{id}/test/ \
+    -H "Authorization: Bearer <token>"
+
+  # Voir les anomalies ML
+  curl "http://localhost:8000/api/ml/predictions/?is_anomaly=true" \
+    -H "Authorization: Bearer <token>"
+
+CE QUE VOUS MONTREZ :
+  → Architecture découplée backend / frontend
+  → Format de réponse standardisé : {"status", "data", "message"}
+  → Possibilité de connecter n'importe quel frontend ou outil tiers
+
+
+================================================================
+PARTIE 3 — CHECKLIST DE PRÉPARATION DE LA PRÉSENTATION
+================================================================
+
+------------------------------------------------------------------------
+3.1 — À PRÉPARER AVANT LA DÉMO
+------------------------------------------------------------------------
+
+  [ ] VM Kali Linux démarrée et réseau configuré
+  [ ] Backend Django démarré (docker-compose up)
+  [ ] Celery Worker et Celery Beat actifs
+  [ ] PostgreSQL et Redis actifs
+  [ ] Wazuh installé sur la machine cible (si dispo)
+  [ ] Au moins 200-300 logs normalisés en base (pour que le ML soit crédible)
+  [ ] Modèle ML entraîné (appeler /api/ml/train/ en avance)
+  [ ] Comptes de démo créés (admin, analyst, viewer)
+  [ ] Les 5 règles de corrélation chargées (loaddata default_rules)
+  [ ] Tous les endpoints testés à l'avance
+  [ ] JWT pré-généré et copié dans le presse-papier
+  [ ] Dashboard ouvert dans le navigateur
+
+------------------------------------------------------------------------
+3.2 — ORDRE RECOMMANDÉ DE LA PRÉSENTATION
+------------------------------------------------------------------------
+
+  1. Introduction (2 min) : "qu'est-ce que Log+ et pourquoi c'est utile"
+  2. Architecture (3 min) : montrer le schéma, expliquer les composants
+  3. Demo Scan Réseau (2 min) : Nmap → Wazuh → Log+
+  4. Demo Brute Force (3 min) : injecter logs → alerte automatique
+  5. Demo Privilege Escalation (3 min) : injection → alerte MITRE
+  6. Demo Impossible Travel (2 min) : Paris + Moscou en 45 min
+  7. Demo ML (2 min) : anomaly_score, comportement déviant
+  8. Workflow SOC (3 min) : cycle de vie d'une alerte
+  9. API REST (1 min) : quelques curl rapides
+  10. Conclusion (2 min) : bilan, améliorations futures
+
+  TOTAL : ~23 minutes + questions
+
+------------------------------------------------------------------------
+3.3 — QUESTIONS PROBABLES DU JURY ET RÉPONSES
+------------------------------------------------------------------------
+
+Q : "Pourquoi Django et pas Node.js ou Next.js pour le backend ?"
+R : Python est l'écosystème naturel de la cybersécurité et du ML.
+    scikit-learn, pandas, Wazuh SDK, tout est Python. Celery + Redis
+    pour le traitement asynchrone de logs en temps réel est bien établi.
+    Next.js est conçu pour le SSR/BFF, pas pour des pipelines de sécurité.
+
+Q : "Comment vous assurez-vous que Log+ lui-même est sécurisé ?"
+R : Chiffrement AES-256 de tous les tokens, JWT avec blacklist,
+    OAuth2 PKCE (le standard le plus sécurisé pour les flux OAuth),
+    rate limiting, audit trail complet, headers de sécurité HTTP,
+    aucun credential en clair en base ou dans le code.
+
+Q : "L'Isolation Forest, c'est supervisé ou non supervisé ?"
+R : Non supervisé. Il n'a pas besoin de données labellisées (attaque/normal).
+    Il apprend la distribution des comportements normaux et isole
+    les points qui s'en écartent le plus. C'est son avantage : il peut
+    détecter des attaques jamais vues auparavant (zero-day behavior).
+
+Q : "Et si Log+ génère trop de faux positifs ?"
+R : C'est un problème réel en SOC. Nos mécanismes de mitigation :
+    1. Déduplication dans le moteur de corrélation
+    2. Seuils configurables dans chaque règle
+    3. Le taux de faux positifs est affiché dans les stats du dashboard
+    4. Les analystes peuvent marquer des alertes comme "false_positive"
+       pour améliorer les règles
+
+Q : "Pourquoi PKCE pour OAuth2 ?"
+R : PKCE (RFC 7636) protège contre l'interception du code d'autorisation.
+    Sans PKCE, un attaquant qui intercepte le code dans l'URL peut
+    l'échanger contre un token. PKCE ajoute un code_verifier/code_challenge
+    que seul le client légitime possède, rendant le code intercepté inutile.
+
+Q : "Votre système peut-il fonctionner en production ?"
+R : Oui, l'architecture est production-ready :
+    Docker pour la portabilité, settings séparés dev/prod,
+    PostgreSQL pour les données, Redis pour le cache,
+    Celery pour l'asynchrone, le tout documenté dans docker-compose.
+    Il faudrait ajouter un reverse proxy (nginx) et un certificat TLS
+    pour un déploiement cloud réel.
+
+Q : "Vous avez testé avec de vraies APIs Microsoft/Google ?"
+R : Le code est conçu pour les vraies APIs mais pour la démo,
+    on utilise l'injection directe de logs normalisés pour éviter
+    la dépendance à des comptes Azure/Google actifs pendant la présentation.
+    Les collecteurs sont testés unitairement avec des mocks des APIs.
+
+
+================================================================
+PARTIE 4 — COMMANDES DE DÉMARRAGE RAPIDE
+================================================================
+
+  # Démarrer tous les services
+  cd backend/
+  docker-compose up --build -d
+
+  # Créer les tables en base
+  docker-compose exec backend python manage.py migrate
+
+  # Charger les fixtures de démo
+  docker-compose exec backend python manage.py loaddata initial_users
+  docker-compose exec backend python manage.py loaddata default_rules
+
+  # Vérifier que tout tourne
+  docker-compose ps
+
+  # Voir les logs Celery en temps réel
+  docker-compose logs -f celery_worker
+
+  # Lancer les tests
+  docker-compose exec backend pytest --cov=apps -v
+
+  # Accéder à l'admin Django
+  http://localhost:8000/admin/
+  (admin@logplus.ci / Admin@2025!)
+
+  # URL de base de l'API
+  http://localhost:8000/api/
+
+
+================================================================
+FIN DU DOCUMENT — TAHI Ezan Franck Emmanuel — PFE Log+ 2025-2026
+================================================================
