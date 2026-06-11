@@ -43,6 +43,14 @@ export function GeoMapLeaflet({ data, height = "400px" }: GeoMapLeafletProps) {
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
+      // React StrictMode monte/démonte l'effet deux fois en dev : Leaflet laisse
+      // un _leaflet_id sur le conteneur, ce qui fait échouer la ré-initialisation.
+      // @ts-ignore
+      if (mapRef.current && mapRef.current._leaflet_id) {
+        // @ts-ignore
+        delete mapRef.current._leaflet_id;
+      }
+
       const map = L.map(mapRef.current!, {
         center: [20, 0],
         zoom: 2,

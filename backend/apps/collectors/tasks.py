@@ -16,11 +16,13 @@ def _collect_for_connector(connector: ConnectorConfig):
     from apps.collectors.sources.microsoft_collector import MicrosoftCollector
     from apps.collectors.sources.google_collector import GoogleCollector
     from apps.collectors.sources.wazuh_collector import WazuhCollector
+    from apps.collectors.sources.syslog_collector import SyslogCollector
 
     collector_map = {
         "microsoft365": MicrosoftCollector,
         "google_workspace": GoogleCollector,
         "wazuh": WazuhCollector,
+        "syslog": SyslogCollector,  # push-based : normalize_all() uniquement
     }
     collector_class = collector_map.get(connector.source_type)
     if not collector_class:
@@ -123,6 +125,44 @@ def refresh_expiring_tokens(self):
                 connector.name,
                 str(exc),
             )
+
+
+@shared_task(name="apps.collectors.tasks.collect_all_syslog_connectors", bind=True, max_retries=1)
+def collect_all_syslog_connectors(self):
+    """
+    Syslog est push-based : les logs arrivent via receive_syslog et sont déjà en RawLog.
+    Cette tâche normalise tous les RawLog syslog en attente.
+    Planifiée toutes les 2 minutes par Celery Beat.
+    """
+    connectors = ConnectorConfig.objects.filter(source_type="syslog", is_active=True)
+    logger.info("Normalisation syslog : %d connecteur(s) actif(s)", connectors.count())
+    for connector in connectors:
+        try:
+            from apps.collectors.sources.syslog_collector import SyslogCollector
+            count = SyslogCollector(connector).normalize_all()
+            logger.info("Syslog normalize %s : %d logs.", connector.name, count)
+        except Exception as exc:
+            logger.error("Erreur normalize syslog %s : %s", connector.name, exc)
+
+
+@shared_task(name="apps.collectors.tasks.normalize_syslog_raw_logs", bind=True, max_retries=2)
+def normalize_syslog_raw_logs(self, connector_id: str):
+    """
+    Normalise les RawLog syslog en attente pour un connecteur donné.
+    Déclenché à la volée par receive_syslog après chaque batch de N logs.
+    """
+    try:
+        connector = ConnectorConfig.objects.get(id=connector_id, is_active=True)
+        from apps.collectors.sources.syslog_collector import SyslogCollector
+        count = SyslogCollector(connector).normalize_all()
+        logger.info("Syslog : %d logs normalisés pour %s.", count, connector.name)
+        return {"normalized": count}
+    except ConnectorConfig.DoesNotExist:
+        logger.error("Connecteur syslog introuvable ou inactif : %s", connector_id)
+        return {"normalized": 0}
+    except Exception as exc:
+        logger.exception("Erreur normalisation syslog %s : %s", connector_id, exc)
+        raise self.retry(exc=exc, countdown=30)
 
 
 @shared_task(name="apps.collectors.tasks.manual_collect", bind=True, max_retries=1)

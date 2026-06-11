@@ -1,0 +1,150 @@
+# ============================================================
+# Log+ — stack complète (backend + frontend + workers)
+#
+# Démarrage :
+#   1. copier .env.example -> .env (ou lancer install.sh / install.ps1)
+#   2. docker compose up -d --build
+#   3. ouvrir http://localhost:3000
+# ============================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-siem_db}
+      POSTGRES_USER: ${DB_USER:-siem_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-siem_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-siem_user} -d ${DB_NAME:-siem_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    volumes:
+      - ./backend:/app
+      - ml_models:/app/ml_models
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Surcharge les valeurs du .env pour pointer vers les services Docker
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A config worker -l info -c 4
+    volumes:
+      - ./backend:/app
+      - ml_models:/app/ml_models
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  syslog_receiver:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Écoute les paquets syslog UDP sur le port 5140 (interne)
+    # Le port 514 de l'hôte est redirigé vers 5140 dans le conteneur
+    command: python manage.py receive_syslog --host 0.0.0.0 --port 5140
+    volumes:
+      - ./backend:/app
+    ports:
+      - "514:5140/udp"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SYSLOG_PORT: "5140"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Le navigateur appelle /api/* sur le frontend (relatif) ; le frontend
+      # relaie ensuite vers le backend via le réseau Docker interne.
+      API_INTERNAL_URL: http://backend:8000
+      NEXT_PUBLIC_APP_NAME: ${APP_NAME:-Log+}
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  ml_models:

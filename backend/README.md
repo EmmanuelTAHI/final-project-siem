@@ -24,12 +24,19 @@
 
 ## Démarrage rapide
 
+> Pour une installation en une commande (frontend + backend), voir le
+> [README à la racine du projet](../README.md) et lancer `./install.sh` (ou
+> `install.ps1` sous Windows). La section ci-dessous détaille le backend, dont
+> le `docker-compose.yml` se trouve désormais à la racine du projet.
+
 ### 1. Prérequis
 
 - Docker et docker-compose installés
 - Python 3.12+ (pour le développement local)
 
 ### 2. Configuration de l'environnement
+
+Depuis la racine du projet :
 
 ```bash
 cp .env.example .env
@@ -46,12 +53,15 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 ### 3. Lancement avec Docker
 
+Depuis la racine du projet :
+
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Services démarrés :
 - Backend Django : http://localhost:8000
+- Frontend : http://localhost:3000
 - PostgreSQL : port 5432
 - Redis : port 6379
 - Celery Worker (4 concurrents)
@@ -61,16 +71,20 @@ Services démarrés :
 
 ```bash
 # Migrations (automatiques au démarrage via entrypoint.sh)
-docker-compose exec backend python manage.py migrate
+docker compose exec backend python manage.py migrate
 
 # Charger les données de démonstration
-docker-compose exec backend python manage.py loaddata initial_users default_rules
+docker compose exec backend python manage.py loaddata initial_users default_rules
 ```
 
 ### 5. Création d'un superutilisateur
 
+Un compte administrateur est créé automatiquement au démarrage si
+`DJANGO_SUPERUSER_EMAIL` / `DJANGO_SUPERUSER_PASSWORD` sont définis dans `.env`
+(c'est le cas par défaut). Pour en créer un supplémentaire :
+
 ```bash
-docker-compose exec backend python manage.py createsuperuser
+docker compose exec backend python manage.py createsuperuser
 ```
 
 ---
@@ -83,7 +97,7 @@ Après `loaddata initial_users` :
 > Utilisez la commande ci-dessous pour créer des comptes avec de vrais mots de passe.
 
 ```bash
-docker-compose exec backend python manage.py shell -c "
+docker compose exec backend python manage.py shell -c "
 from apps.users.models import User
 User.objects.create_user(email='admin@logplus.ci', password='Admin@2025!', first_name='Admin', last_name='Log+', role='admin', is_staff=True, is_superuser=True)
 User.objects.create_user(email='analyst@logplus.ci', password='Analyst@2025!', first_name='Analyste', last_name='SOC', role='analyst')
@@ -203,7 +217,7 @@ celery -A config beat -l info --scheduler django_celery_beat.schedulers:Database
 
 ```bash
 # Avec Docker
-docker-compose exec backend pytest
+docker compose exec backend pytest
 
 # En local
 pytest --cov=apps --cov-report=html

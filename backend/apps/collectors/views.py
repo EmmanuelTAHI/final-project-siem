@@ -108,11 +108,13 @@ class ConnectorConfigViewSet(ModelViewSet):
         from apps.collectors.sources.microsoft_collector import MicrosoftCollector
         from apps.collectors.sources.google_collector import GoogleCollector
         from apps.collectors.sources.wazuh_collector import WazuhCollector
+        from apps.collectors.sources.syslog_collector import SyslogCollector
 
         collector_map = {
             "microsoft365": MicrosoftCollector,
             "google_workspace": GoogleCollector,
             "wazuh": WazuhCollector,
+            "syslog": SyslogCollector,
         }
         collector_class = collector_map.get(connector.source_type)
         if not collector_class:

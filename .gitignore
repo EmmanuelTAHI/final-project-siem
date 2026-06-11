@@ -15,6 +15,7 @@ backend/media/
 backend/logs/
 
 # Variables d'environnement (sensibles)
+.env
 backend/.env
 
 # ===== Next.js / Node =====

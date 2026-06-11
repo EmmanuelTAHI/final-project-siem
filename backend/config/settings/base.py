@@ -293,6 +293,10 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Log+ <noreply@logplus.ci>")
 
+# ─── Syslog Receiver ─────────────────────────────────────────────────────────
+SYSLOG_HOST = env("SYSLOG_HOST", default="0.0.0.0")
+SYSLOG_PORT = int(env("SYSLOG_PORT", default=5140))
+
 # ─── Headers de sécurité HTTP ─────────────────────────────────────────────────
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"

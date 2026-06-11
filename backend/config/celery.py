@@ -31,6 +31,11 @@ app.conf.beat_schedule = {
         "task": "apps.collectors.tasks.collect_all_wazuh_connectors",
         "schedule": crontab(minute="*/2"),
     },
+    # Normalisation syslog — toutes les 2 minutes (push-based : logs déjà en RawLog)
+    "normalize-syslog-logs": {
+        "task": "apps.collectors.tasks.collect_all_syslog_connectors",
+        "schedule": crontab(minute="*/2"),
+    },
     # Moteur de corrélation — toutes les 2 minutes
     "run-correlation-engine": {
         "task": "apps.correlation.tasks.run_correlation_engine",

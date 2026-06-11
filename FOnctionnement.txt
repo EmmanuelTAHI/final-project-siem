@@ -1,0 +1,105 @@
+Comment ton SIEM (Log+) va fonctionner en PME
+
+  Architecture globale
+
+  [Sources de logs] → [Collecteurs] → [Normalisation] → [BDD PostgreSQL]
+                                                                ↓
+                                           [Moteur de corrélation] + [ML Isolation Forest]
+                                                                ↓
+                                                          [Alertes]
+                                                                ↓
+                                                [SOAR] + [Notifications WS] + [Dashboard]
+
+  ---
+  1. Sources de logs & collecteurs
+
+  Ton app collectors gère 4 sources concrètes, configurées via l'interface :
+
+  ┌──────────────────┬───────────────────────────────────────────────────────────────┐
+  │      Source      │                      Ce qui est collecté                      │
+  ├──────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Microsoft 365    │ Connexions, emails suspects, activités Azure AD               │
+  ├──────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Google Workspace │ Connexions Gmail/Drive, accès admin                           │
+  ├──────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Wazuh            │ Logs d'agents installés sur les postes/serveurs Windows/Linux │
+  ├──────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Syslog           │ Routeurs, firewalls, switches qui émettent du syslog          │
+  └──────────────────┴───────────────────────────────────────────────────────────────┘
+
+  Chaque connecteur est configuré avec ses credentials (chiffrés AES-256 Fernet), et Celery poll automatiquement chaque
+  source toutes les N secondes (défaut : 300s). Les CollectionJob tracent l'historique de chaque collecte.
+
+  ---
+  2. Normalisation des logs
+
+  Quand un log arrive (peu importe la source), il passe par logs/normalizer.py qui le transforme en un format commun
+  NormalizedLog : timestamp, IP source, user, action, etc. C'est ce modèle unifié que toute la suite utilise.
+
+  ---
+  3. Détection des menaces : 2 mécanismes en parallèle
+
+  A) Moteur de corrélation (règles)
+  Tourne via Celery Beat toutes les 2 minutes sur les nouveaux logs. Il évalue 5 règles actives :
+
+  - BruteForce — trop de tentatives de connexion échouées (threshold)
+  - ImpossibleTravel — connexion depuis Paris puis Tokyo en 30 min
+  - OffHoursLogin — connexion à 3h du matin
+  - PrivilegeEscalation — un compte standard prend des droits admin
+  - MFABypass — contournement de l'authentification double facteur
+
+  Chaque règle a une logique de condition (JSON stocké en BDD), est taggée MITRE ATT&CK (tactic + technique), et crée
+  une alerte dédupliquée si elle matche.
+
+  B) Machine Learning (Isolation Forest)
+  Le modèle s'entraîne sur les 30 derniers jours de logs normalisés. Il détecte les anomalies comportementales qu'aucune
+   règle ne couvre (patterns inhabituels de volume, horaires, IP...). Un score d'anomalie entre 0 et 1 est assigné à
+  chaque log, et les logs dépassant le seuil (0.7) remontent comme anomalies.
+
+  ---
+  4. Alertes & réponse automatique (SOAR)
+
+  Quand une règle ou le ML déclenche une alerte :
+  1. L'alerte est créée en BDD avec sévérité (low/medium/high/critical)
+  2. Les logs sources sont liés à l'alerte
+  3. Le module soar peut exécuter des actions automatisées (ex. bloquer un compte, isoler une machine)
+  4. Le module notifications pousse une notification en temps réel via WebSocket (Django Channels) sur le dashboard
+  5. L'analyste reçoit la notif dans la cloche en haut à droite et peut investiguer
+
+  ---
+  5. Ce que l'analyste voit dans l'interface
+
+  - Dashboard : KPIs, carte géo des IPs, timeline des alertes, top menaces
+  - Alertes : tableau avec filtre sévérité/statut, panneau de détail avec les logs liés
+  - Logs : recherche/filtre de tous les logs normalisés
+  - Corrélation : CRUD sur les règles, test d'une règle à la volée
+  - Threat Hunting : requêtes manuelles sur les logs
+  - Threat Intel : indicateurs de compromission importés
+  - Rapports : génération PDF/export
+  - Settings : gestion des connecteurs, comptes liés
+
+  ---
+  6. Installation en PME
+
+  Ton projet est conteneurisé avec Docker Compose (docker-compose.yml). Concrètement :
+
+  # Sur un serveur Linux de la PME (ou VM dédiée) :
+  git clone <repo>
+  cp backend/.env.example backend/.env   # configurer BDD, clé Fernet, etc.
+  docker compose up -d
+  # → Lance : Django, PostgreSQL, Redis, Celery worker, Celery Beat
+
+  Ensuite dans l'interface, l'admin configure chaque connecteur (OAuth M365, credentials Google, IP du Wazuh, port
+  Syslog). Les collecteurs démarrent automatiquement.
+
+  Prérequis PME côté infra :
+  - Un serveur/VM avec Docker (2-4 vCPU, 4-8 Go RAM)
+  - Les postes Windows/Linux avec l'agent Wazuh installé
+  - Le pare-feu/switch configuré pour envoyer du Syslog vers l'IP du serveur
+  - Accès OAuth aux tenants M365 / Google Workspace
+
+  ---
+  En résumé : ton SIEM collecte les logs en continu, les normalise, les analyse toutes les 2 minutes avec des règles
+  ciblées + un modèle ML entraîné sur l'historique, génère des alertes déduplicées, et permet à un analyste de les
+  investiguer et d'y répondre depuis une seule interface. L'installation se fait en une commande Docker sur un serveur
+  interne de la PME.

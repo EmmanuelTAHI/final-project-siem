@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.core import signing
+from django.core.cache import cache
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -27,7 +28,11 @@ from .serializers import (
     SecurityNotificationSerializer,
 )
 from .services.link_oauth_service import link_oauth_service
-from .services.login_email_service import send_login_confirmation, verify_login_otp
+from .services.login_email_service import (
+    generate_login_otp,
+    send_login_confirmation,
+    verify_login_otp,
+)
 from .services.notification_service import notify, read_confirmation_token
 from .services.oauth_service import oauth_service
 
@@ -84,44 +89,69 @@ class LoginView(APIView):
                 http_status=status.HTTP_403_FORBIDDEN,
             )
 
-        refresh = RefreshToken.for_user(user)
-        refresh["email"] = user.email
-        refresh["role"] = user.role
-        refresh["full_name"] = user.full_name
+        ip = get_client_ip(request)
+        ua = request.META.get("HTTP_USER_AGENT", "")
 
         AuditTrail.log(
-            action="login",
+            action="login_credentials_ok",
             user=user,
             target_model="User",
             target_id=user.id,
-            ip_address=get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT"),
+            ip_address=ip,
+            user_agent=ua,
         )
 
-        # Email de confirmation + OTP (best-effort, non bloquant)
-        try:
-            send_login_confirmation(
+        # ── Anti-spam : ne pas renvoyer d'email si un OTP est déjà en attente ──
+        cooldown_key = f"otp_cooldown:{user.id}"
+        otp_key = f"login_otp:{user.id}"
+        otp_already_live = cache.get(cooldown_key) and cache.get(otp_key)
+
+        if not otp_already_live:
+            otp_sent = send_login_confirmation(
                 user,
                 method="Mot de passe (compte Log+)",
-                ip=get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                ip=ip,
+                user_agent=ua,
+                extra_intro=(
+                    "Pour finaliser votre connexion, entrez le code ci-dessous "
+                    "sur la plateforme Log+. Ce code est valide 10 minutes. "
+                    "Sans ce code, la connexion ne peut pas aboutir."
+                ),
             )
-        except Exception:
-            logger.exception("login email failed for %s", user.email)
+            if otp_sent is None:
+                if getattr(settings, "DEBUG", False):
+                    otp_sent = generate_login_otp(user.id)
+                    logger.warning(
+                        "[DEV] OTP pour %s : %s  (SMTP non configuré)",
+                        user.email,
+                        otp_sent,
+                    )
+                else:
+                    return error_response(
+                        message=(
+                            "Le service d'envoi d'email est indisponible. "
+                            "Contactez l'administrateur."
+                        ),
+                        http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+            # Cooldown 60s : fenêtre anti-spam inter-rechargements
+            cache.set(cooldown_key, 1, 60)
+            # Réinitialiser le compteur d'échecs OTP pour cette nouvelle session
+            cache.delete(f"otp_attempts:{user.id}")
+
+        # Token de pré-authentification (signé Django, max_age=600s côté verify)
+        pre_auth_token = signing.dumps(
+            {"user_id": str(user.id)},
+            salt="logplus_pre_auth",
+        )
 
         return success_response(
             data={
-                "access_token": str(refresh.access_token),
-                "refresh_token": str(refresh),
-                "token_type": "Bearer",
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role,
-                },
+                "status": "otp_required",
+                "pre_auth_token": pre_auth_token,
             },
-            message="Connexion réussie. Un email de confirmation a été envoyé.",
+            http_status=status.HTTP_200_OK,
+            message="Code de vérification envoyé par email.",
         )
 
 
@@ -788,30 +818,192 @@ class ConfirmLoginView(APIView):
 class VerifyLoginOTPView(APIView):
     """
     POST /api/auth/verify-otp/
-    Vérifie le code OTP envoyé par email lors de la connexion.
-    Body: { "otp": "123456" }
+    Étape 2 du login : vérifie l'OTP reçu par email et émet les tokens JWT.
+    Body: { "pre_auth_token": "<signed>", "otp": "123456" }
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
+        pre_auth_token = str(request.data.get("pre_auth_token", "")).strip()
         otp = str(request.data.get("otp", "")).strip()
-        if not otp:
-            return error_response(message="Le champ 'otp' est requis.", http_status=400)
 
-        if verify_login_otp(request.user.id, otp):
-            AuditTrail.log(
-                action="otp_verified",
-                user=request.user,
-                target_model="User",
-                target_id=request.user.id,
-                ip_address=get_client_ip(request),
+        if not pre_auth_token or not otp:
+            return error_response(
+                message="Les champs 'pre_auth_token' et 'otp' sont requis.",
+                http_status=status.HTTP_400_BAD_REQUEST,
             )
-            return success_response(message="Code OTP vérifié avec succès.")
-        return error_response(
-            message="Code OTP invalide ou expiré.",
-            http_status=status.HTTP_400_BAD_REQUEST,
+
+        # Décoder et valider le token de pré-authentification (max 10 min)
+        try:
+            payload = signing.loads(
+                pre_auth_token,
+                salt="logplus_pre_auth",
+                max_age=600,
+            )
+            user_id = payload["user_id"]
+        except signing.SignatureExpired:
+            return error_response(
+                message="Session expirée. Veuillez relancer la connexion.",
+                http_status=status.HTTP_401_UNAUTHORIZED,
+            )
+        except Exception:
+            return error_response(
+                message="Token de pré-authentification invalide.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Récupérer l'utilisateur
+        try:
+            user = User.objects.get(pk=user_id, is_active=True)
+        except User.DoesNotExist:
+            return error_response(
+                message="Utilisateur introuvable ou inactif.",
+                http_status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # ── Limite de tentatives : max 5 avant invalidation de la session ─────
+        attempts_key = f"otp_attempts:{user.id}"
+        attempts = cache.get(attempts_key, 0)
+        MAX_ATTEMPTS = 5
+
+        if attempts >= MAX_ATTEMPTS:
+            cache.delete(f"login_otp:{user.id}")
+            cache.delete(attempts_key)
+            return error_response(
+                message="Trop de tentatives incorrectes. Veuillez relancer la connexion.",
+                http_status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        # Vérifier l'OTP (le cache le détruit après vérification → usage unique)
+        if not verify_login_otp(user.id, otp):
+            new_attempts = attempts + 1
+            remaining = MAX_ATTEMPTS - new_attempts
+            if remaining <= 0:
+                cache.delete(f"login_otp:{user.id}")
+                cache.delete(attempts_key)
+                return error_response(
+                    message="Code invalide. Trop de tentatives. Veuillez relancer la connexion.",
+                    http_status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            cache.set(attempts_key, new_attempts, 600)
+            return error_response(
+                message=f"Code OTP invalide ou expiré. {remaining} tentative(s) restante(s).",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # OTP correct → nettoyer les clés de session et émettre les tokens JWT
+        cache.delete(attempts_key)
+        cache.delete(f"otp_cooldown:{user.id}")
+        refresh = RefreshToken.for_user(user)
+        refresh["email"] = user.email
+        refresh["role"] = user.role
+        refresh["full_name"] = user.full_name
+
+        AuditTrail.log(
+            action="login",
+            user=user,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
         )
+
+        return success_response(
+            data={
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh),
+                "token_type": "Bearer",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                },
+            },
+            message="Connexion réussie.",
+        )
+
+
+class ResendOTPView(APIView):
+    """
+    POST /api/auth/resend-otp/
+    Régénère et renvoie un nouvel OTP pour une session de pré-authentification.
+    Body: { "pre_auth_token": "<signed>" }
+    Limité à 3 renvois par token (compteur Redis).
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        pre_auth_token = str(request.data.get("pre_auth_token", "")).strip()
+        if not pre_auth_token:
+            return error_response(
+                message="Le champ 'pre_auth_token' est requis.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = signing.loads(
+                pre_auth_token,
+                salt="logplus_pre_auth",
+                max_age=600,
+            )
+            user_id = payload["user_id"]
+        except signing.SignatureExpired:
+            return error_response(
+                message="Session expirée. Veuillez relancer la connexion.",
+                http_status=status.HTTP_401_UNAUTHORIZED,
+            )
+        except Exception:
+            return error_response(
+                message="Token invalide.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id, is_active=True)
+        except User.DoesNotExist:
+            return error_response(
+                message="Utilisateur introuvable.",
+                http_status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Limite anti-abus : max 3 renvois par session
+        resend_key = f"otp_resend_count:{user_id}"
+        resend_count = cache.get(resend_key, 0)
+        if resend_count >= 3:
+            return error_response(
+                message="Nombre maximum de renvois atteint. Relancez la connexion.",
+                http_status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        cache.set(resend_key, resend_count + 1, 600)
+
+        ip = get_client_ip(request)
+        ua = request.META.get("HTTP_USER_AGENT", "")
+        otp_sent = send_login_confirmation(
+            user,
+            method="Mot de passe (renvoi OTP)",
+            ip=ip,
+            user_agent=ua,
+            extra_intro=(
+                "Voici votre nouveau code de connexion Log+. "
+                "Entrez-le sur la plateforme pour finaliser votre connexion. "
+                "Ce code est valide 10 minutes."
+            ),
+        )
+
+        if otp_sent is None:
+            if getattr(settings, "DEBUG", False):
+                otp_sent = generate_login_otp(user.id)
+                logger.warning("[DEV] OTP renvoyé pour %s : %s", user.email, otp_sent)
+            else:
+                return error_response(
+                    message="Service d'email indisponible.",
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+        return success_response(message="Nouveau code envoyé par email.")
 
 
 class NotificationListView(APIView):

@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "@/stores/auth-store";
 import type {
   Alert,
   AlertStats,
@@ -94,8 +95,7 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        useAuthStore.getState().logout();
         window.location.href = "/login";
         return Promise.reject(error);
       }
@@ -107,11 +107,27 @@ api.interceptors.response.use(
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
+export type LoginStep1Result =
+  | { status: "otp_required"; pre_auth_token: string }
+
 export const authApi = {
-  login: async (credentials: LoginCredentials): Promise<AuthTokens & { user: AuthUser }> => {
+  login: async (credentials: LoginCredentials): Promise<LoginStep1Result> => {
     const { data } = await api.post("/api/auth/login/", credentials);
+    const inner = unwrap<{ status: string; pre_auth_token: string }>(data);
+    return { status: "otp_required", pre_auth_token: inner.pre_auth_token };
+  },
+
+  verifyOtp: async (otp: string, preAuthToken: string): Promise<AuthTokens & { user: AuthUser }> => {
+    const { data } = await api.post("/api/auth/verify-otp/", {
+      otp,
+      pre_auth_token: preAuthToken,
+    });
     const inner = unwrap<{ access_token: string; refresh_token: string; user: AuthUser }>(data);
     return { access: inner.access_token, refresh: inner.refresh_token, user: inner.user };
+  },
+
+  resendOtp: async (preAuthToken: string): Promise<void> => {
+    await api.post("/api/auth/resend-otp/", { pre_auth_token: preAuthToken });
   },
 
   logout: async (): Promise<void> => {

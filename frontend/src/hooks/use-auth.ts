@@ -10,23 +10,24 @@ export function useAuth() {
   const { user, isAuthenticated, isLoading, setAuth, setLoading, logout: storeLogout } = useAuthStore();
 
   const login = useCallback(
-    async (credentials: LoginCredentials) => {
+    async (credentials: LoginCredentials): Promise<string> => {
       setLoading(true);
       try {
-        const data = await authApi.login(credentials);
-        setAuth(data.user, data.access, data.refresh);
-        toast.success(`Bienvenue, ${data.user.first_name} !`);
-        router.replace("/dashboard");
+        const result = await authApi.login(credentials);
+        return result.pre_auth_token;
       } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { detail?: string } } };
-        const msg = axiosError?.response?.data?.detail || "Identifiants incorrects";
+        const axiosError = error as { response?: { data?: { detail?: string; message?: string } } };
+        const msg =
+          axiosError?.response?.data?.message ||
+          axiosError?.response?.data?.detail ||
+          "Identifiants incorrects";
         toast.error(msg);
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [router, setAuth, setLoading]
+    [setLoading]
   );
 
   const logout = useCallback(async () => {

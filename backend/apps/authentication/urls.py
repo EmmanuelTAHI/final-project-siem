@@ -16,6 +16,7 @@ from .views import (
     MicrosoftOAuthInitiateView,
     NotificationListView,
     NotificationMarkReadView,
+    ResendOTPView,
     TokenRefreshView,
     VerifyLinkPinView,
     VerifyLoginOTPView,
@@ -47,8 +48,9 @@ urlpatterns = [
     path("notifications/read-all/", NotificationMarkReadView.as_view(), name="notifications-read-all"),
     path("notifications/<uuid:notification_id>/read/", NotificationMarkReadView.as_view(), name="notifications-read"),
 
-    # Vérification OTP (envoyé par email lors du login)
+    # Vérification OTP — étape 2 obligatoire du login
     path("verify-otp/", VerifyLoginOTPView.as_view(), name="auth-verify-otp"),
+    path("resend-otp/", ResendOTPView.as_view(), name="auth-resend-otp"),
 
     # Confirmation de connexion (lien email)
     path("confirm-login/<str:token>/", ConfirmLoginView.as_view(), name="confirm-login"),

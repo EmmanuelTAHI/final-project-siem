@@ -22,6 +22,7 @@ class LogNormalizer:
         "microsoft365": "_map_microsoft",
         "google_workspace": "_map_google",
         "wazuh": "_map_wazuh",
+        "syslog": "_map_syslog",
     }
 
     def normalize(self, raw_log: RawLog) -> NormalizedLog | None:
@@ -192,6 +193,42 @@ class LogNormalizer:
                 "agent_name": agent.get("name"),
                 "agent_ip": agent.get("ip"),
                 "groups": (data.get("rule") or {}).get("groups", []),
+            },
+        }
+
+    # ─── Syslog ──────────────────────────────────────────────────────────────
+
+    def _map_syslog(self, data: dict) -> dict:
+        """Mappe un log syslog parsé (par receive_syslog) vers les champs NormalizedLog."""
+        severity = data.get("severity", "info")
+        facility = data.get("facility", "unknown")
+
+        # outcome : les events d'auth/authpriv peuvent être failure, les autres sont unknown
+        if facility in ("auth", "authpriv") and "fail" in (data.get("message") or "").lower():
+            outcome = "failure"
+        else:
+            outcome = "unknown"
+
+        return {
+            "event_time": self._parse_datetime(data.get("received_at")),
+            "user_email": None,
+            "user_id": None,
+            "source_ip": data.get("source_ip") or None,
+            "destination_ip": None,
+            "action": f"syslog_{facility}",
+            "outcome": outcome,
+            "resource": data.get("source_ip") or None,
+            "geo_country": None,
+            "geo_city": None,
+            "geo_latitude": None,
+            "geo_longitude": None,
+            "user_agent": None,
+            "severity": severity,
+            "extra_fields": {
+                "facility": facility,
+                "severity_code": data.get("severity_code"),
+                "message": data.get("message", "")[:500],
+                "raw_message": data.get("raw_message", "")[:500],
             },
         }
 

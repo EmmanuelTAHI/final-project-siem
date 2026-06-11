@@ -13,7 +13,7 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-OTP_TTL_SECONDS = 60 * 60  # 1 h
+OTP_TTL_SECONDS = 10 * 60  # 10 min — code expiré après 10 minutes
 
 
 def _otp_key(user_id) -> str:
@@ -72,7 +72,7 @@ def _render_html(user, title: str, intro: str, otp: str, method: str,
         f'<div style="background:#0B1226;border:1px solid #243054;border-radius:10px;'
         f'padding:16px;margin:16px 0;text-align:center;">'
         f'<div style="font-size:11px;color:#8B9EC7;margin-bottom:8px;'
-        f'text-transform:uppercase;letter-spacing:0.1em;">Code de vérification (valide 1 h)</div>'
+        f'text-transform:uppercase;letter-spacing:0.1em;">Code de vérification (valide 10 min)</div>'
         f'<div style="font-family:monospace;font-size:30px;font-weight:700;'
         f'letter-spacing:8px;color:#FFFFFF;padding:8px 0;">{otp}</div>'
         f'</div>'
