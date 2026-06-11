@@ -61,6 +61,22 @@ docker compose exec backend python manage.py createsuperuser
 Toutes les commandes `docker compose ...` se lancent depuis la racine du projet,
 qui contient le `docker-compose.yml` unique pour l'ensemble de la stack.
 
+## Mode développement (hot-reload)
+
+Le fichier `docker-compose.override.yml` est **fusionné automatiquement** par
+`docker compose up` (et donc par `install.sh` / `install.ps1`). Il active :
+
+- **Frontend** : `npm run dev` avec le code monté en volume → les modifications
+  dans `frontend/src` sont reflétées immédiatement dans le navigateur.
+- **Backend** : `manage.py runserver` (autoreload Django) au lieu de Daphne →
+  les modifications Python sont prises en compte sans reconstruire l'image.
+
+Pour lancer la stack en mode "production" (sans hot-reload, images optimisées) :
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+```
+
 ## Commandes utiles
 
 ```bash
