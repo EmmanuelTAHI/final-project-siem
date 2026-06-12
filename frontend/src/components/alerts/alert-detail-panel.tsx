@@ -223,7 +223,7 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
                 </div>
 
                 {/* Log sources */}
-                {alert.log_sources.length > 0 && (
+                {(alert.log_sources?.length ?? 0) > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <FileText className="w-3 h-3" /> Logs sources ({alert.log_sources.length})

@@ -104,5 +104,51 @@
       "created_at": "2025-01-01T00:00:00Z",
       "updated_at": "2025-01-01T00:00:00Z"
     }
+  },
+  {
+    "model": "correlation.correlationrule",
+    "pk": "10000000-0000-0000-0000-000000000006",
+    "fields": {
+      "name": "Connexions suspectes bloquées répétées",
+      "description": "Détecte 3 blocages de connexions suspectes ou plus pour le même utilisateur dans une fenêtre de 30 minutes (impossible travel, IP à risque, etc. bloqués automatiquement).",
+      "is_active": true,
+      "severity": "high",
+      "condition_logic": {
+        "type": "threshold",
+        "field": "user_email",
+        "action": "suspicious_login_blocked",
+        "count": 3,
+        "window_seconds": 1800
+      },
+      "alert_title_template": "Connexions suspectes répétées bloquées pour {user_email}",
+      "mitre_tactic": "Credential Access",
+      "mitre_technique": "T1110 - Brute Force",
+      "created_by": null,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "correlation.correlationrule",
+    "pk": "10000000-0000-0000-0000-000000000007",
+    "fields": {
+      "name": "Compte compromis - Désactivation automatique répétée",
+      "description": "Détecte 2 désactivations automatiques de compte (réponse à un piratage) ou plus pour le même utilisateur dans une fenêtre de 24 heures, signe d'une compromission persistante.",
+      "is_active": true,
+      "severity": "critical",
+      "condition_logic": {
+        "type": "threshold",
+        "field": "user_email",
+        "action": "account_disabled_hijacked",
+        "count": 2,
+        "window_seconds": 86400
+      },
+      "alert_title_template": "Compromission persistante détectée sur le compte {user_email}",
+      "mitre_tactic": "Persistence",
+      "mitre_technique": "T1098 - Account Manipulation",
+      "created_by": null,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
   }
 ]

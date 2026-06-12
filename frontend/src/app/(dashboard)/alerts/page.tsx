@@ -290,7 +290,7 @@ function AlertCard({
               </div>
               <JSONPretty
                 data={
-                  alert.log_sources[0]?.raw_data ?? {
+                  alert.log_sources?.[0]?.raw_data ?? {
                     id: alert.id,
                     rule: alert.rule_name,
                     severity: alert.severity,

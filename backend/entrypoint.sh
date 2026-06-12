@@ -20,6 +20,12 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput 2>/dev/null || true
 
+# Charge les règles de corrélation par défaut (brute force, impossible travel,
+# off-hours, élévation de privilèges, MFA bypass, etc.). loaddata est
+# idempotent : les règles existantes (même pk) sont simplement mises à jour.
+echo "Chargement des règles de corrélation par défaut..."
+python manage.py loaddata apps/correlation/fixtures/default_rules.json || true
+
 # Crée automatiquement un compte administrateur au premier démarrage si
 # DJANGO_SUPERUSER_EMAIL / DJANGO_SUPERUSER_PASSWORD sont définis (ex: via
 # le script d'installation). Idempotent : ne fait rien si le compte existe déjà.
