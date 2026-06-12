@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   devIndicators: false,
   output: "standalone",
+  // Next.js normalise les URL réécrites en supprimant le "/" final (ex:
+  // /api/auth/login/ -> /api/auth/login), ce qui casse les endpoints DRF
+  // qui exigent ce slash (APPEND_SLASH). On désactive cette normalisation.
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       {
@@ -21,6 +25,13 @@ const nextConfig = {
       process.env.NEXT_PUBLIC_API_URL ||
       "http://localhost:8000";
     return [
+      // Règle dédiée aux chemins se terminant par "/" : sans elle, Next.js
+      // perd le slash final lors de l'interpolation de ":path*", ce qui
+      // casse les endpoints DRF (APPEND_SLASH) comme /api/auth/login/.
+      {
+        source: "/api/:path*/",
+        destination: `${target}/api/:path*/`,
+      },
       {
         source: "/api/:path*",
         destination: `${target}/api/:path*`,
