@@ -56,10 +56,10 @@ export function Topbar({ onMobileMenuToggle, onCommandPaletteOpen }: TopbarProps
         zIndex: 20,
       }}
     >
-      {/* Mobile menu */}
+      {/* Mobile menu — hidden on desktop, visible on mobile */}
       <button
         onClick={onMobileMenuToggle}
-        className="lg:hidden"
+        className="flex lg:hidden items-center justify-center"
         style={{
           width: 36,
           height: 36,
@@ -67,10 +67,8 @@ export function Topbar({ onMobileMenuToggle, onCommandPaletteOpen }: TopbarProps
           borderRadius: 10,
           background: "var(--surface)",
           color: "var(--text)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           cursor: "pointer",
+          flexShrink: 0,
         }}
         aria-label="Ouvrir le menu"
       >

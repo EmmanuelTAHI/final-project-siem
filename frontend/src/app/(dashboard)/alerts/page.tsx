@@ -66,7 +66,7 @@ function Row({ k, v, mono, wrap }: { k: string; v: React.ReactNode; mono?: boole
 function JSONPretty({ data }: { data: unknown }) {
   const render = (v: unknown, indent = 0): React.ReactNode => {
     const pad = "  ".repeat(indent);
-    if (v === null) return <span style={{ color: "#6b7280" }}>null</span>;
+    if (v === null || v === undefined) return <span style={{ color: "#6b7280" }}>null</span>;
     if (typeof v === "string") return <span style={{ color: "var(--secondary)" }}>&quot;{v}&quot;</span>;
     if (typeof v === "number") return <span style={{ color: "var(--warning)" }}>{v}</span>;
     if (typeof v === "boolean") return <span style={{ color: "var(--primary)" }}>{String(v)}</span>;

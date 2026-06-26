@@ -22,6 +22,10 @@ RULE_REGISTRY = {
     "time_based": "apps.correlation.rules.off_hours_login.OffHoursLoginRule",
     "privilege_escalation": "apps.correlation.rules.privilege_escalation.PrivilegeEscalationRule",
     "mfa_bypass": "apps.correlation.rules.mfa_bypass.MFABypassRule",
+    "wazuh_alert": "apps.correlation.rules.wazuh_alert.WazuhAlertRule",
+    "lateral_movement": "apps.correlation.rules.lateral_movement.LateralMovementRule",
+    "c2_beacon": "apps.correlation.rules.c2_beacon.C2BeaconRule",
+    "data_exfil": "apps.correlation.rules.data_exfil.DataExfilRule",
 }
 
 
@@ -127,11 +131,14 @@ class CorrelationEngine:
         """
         Crée une alerte si aucune alerte similaire n'est déjà ouverte.
         Déduplique sur (rule, user_email) avec statut open ou in_progress.
+        Pour les règles Wazuh, la déduplication inclut le wazuh_rule_id pour éviter
+        qu'un unique alert ouvert bloque tous les événements suivants pour le même user.
         """
         from apps.alerts.models import Alert
         from apps.correlation.models import RuleMatch as RuleMatchModel
 
         user_email = match.context.get("user_email", "")
+        wazuh_rule_id = match.context.get("wazuh_rule_id", "")
 
         # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/user
         existing = Alert.objects.filter(
@@ -141,11 +148,17 @@ class CorrelationEngine:
         if user_email:
             existing = existing.filter(description__icontains=user_email)
 
+        # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
+        # pour permettre plusieurs alertes différentes pour le même user
+        if wazuh_rule_id and existing.exists():
+            existing = existing.filter(description__icontains=wazuh_rule_id)
+
         if existing.exists():
             logger.debug(
-                "Alerte dédupliquée pour règle '%s' / user '%s'.",
+                "Alerte dédupliquée pour règle '%s' / user '%s' / wazuh_rule='%s'.",
                 rule.name,
                 user_email,
+                wazuh_rule_id or "n/a",
             )
             return None
 

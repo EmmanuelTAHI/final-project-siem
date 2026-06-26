@@ -1,0 +1,60 @@
+# ============================================================
+# Log+ — surcharge production (VPS)
+#
+# Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Ce fichier :
+#   - Ajoute Nginx en reverse proxy (ports 80 / 443)
+#   - Isole backend et frontend sur 127.0.0.1 (inaccessibles directement depuis internet)
+#   - Active les settings de production Django
+#   - Ajoute un volume pour les logs applicatifs
+# ============================================================
+
+services:
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    volumes:
+      - ./backend:/app
+      - ml_models:/app/ml_models
+      - logs:/app/logs
+
+  celery_worker:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  celery_beat:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  syslog_receiver:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  frontend:
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  logs:

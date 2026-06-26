@@ -2,6 +2,8 @@
 
 set -e
 
+mkdir -p /app/logs /app/ml_models
+
 echo "Waiting for PostgreSQL..."
 while ! nc -z ${DB_HOST:-db} ${DB_PORT:-5432}; do
   sleep 0.5

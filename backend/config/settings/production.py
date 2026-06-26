@@ -1,7 +1,11 @@
-﻿"""
-Paramètres de production.
-Sécurité renforcée, SSL obligatoire, logs fichier.
 """
+Paramètres de production.
+Sécurité renforcée, logs fichier.
+SSL activable via la variable SECURE_SSL_REDIRECT=True dans .env
+(laisser False tant qu'aucun certificat HTTPS n'est configuré).
+"""
+import os
+
 from .base import *  # noqa: F401, F403
 
 DEBUG = False
@@ -10,13 +14,19 @@ DEBUG = False
 CORS_ALLOW_ALL_ORIGINS = False
 
 # HTTPS / HSTS
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Mettre SECURE_SSL_REDIRECT=True dans .env uniquement après avoir configuré
+# un certificat SSL (Let's Encrypt via certbot par exemple).
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)  # noqa: F405
+SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL_REDIRECT else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL_REDIRECT
+SECURE_HSTS_PRELOAD = SECURE_SSL_REDIRECT
+SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") if SECURE_SSL_REDIRECT else None
+
+# Dossier de logs (créé automatiquement si absent)
+LOG_DIR = "/app/logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # Logs production
 LOGGING = {
@@ -34,7 +44,7 @@ LOGGING = {
         },
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": "/app/logs/logplus.log",
+            "filename": f"{LOG_DIR}/logplus.log",
             "maxBytes": 10 * 1024 * 1024,
             "backupCount": 5,
             "formatter": "json",
@@ -63,8 +73,12 @@ LOGGING = {
     },
 }
 
-# Email
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Email — utilise la config du .env (hérite du base.py)
+# Surcharge uniquement si EMAIL_HOST est défini
+EMAIL_BACKEND = env(  # noqa: F405
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")  # noqa: F405
 EMAIL_PORT = int(env("EMAIL_PORT", default=587))  # noqa: F405
 EMAIL_USE_TLS = True

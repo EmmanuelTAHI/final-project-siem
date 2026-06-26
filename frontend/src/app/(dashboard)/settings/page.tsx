@@ -295,69 +295,185 @@ function SettingsPageContent() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           {tab === "profile" && (
-            <Card title="Profil utilisateur" desc="Informations associées à votre compte">
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14, marginBottom: 18 }}>
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {/* Avatar hero */}
+              <div
+                style={{
+                  background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), color-mix(in srgb, var(--secondary) 7%, transparent))",
+                  padding: "36px 28px 28px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 14,
+                  borderBottom: "1px solid var(--border)",
+                  textAlign: "center",
+                }}
+              >
                 <div
                   style={{
-                    width: 56,
-                    height: 56,
+                    width: 84,
+                    height: 84,
                     borderRadius: 999,
                     background: "linear-gradient(135deg, var(--primary), var(--secondary))",
                     color: "white",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: 18,
+                    fontWeight: 800,
+                    fontSize: 30,
+                    letterSpacing: "-0.02em",
+                    boxShadow: "0 10px 28px -8px color-mix(in srgb, var(--primary) 45%, transparent)",
+                    border: "3px solid color-mix(in srgb, var(--primary) 25%, transparent)",
+                    flexShrink: 0,
                   }}
                 >
                   {user ? getInitials(user.full_name) : "?"}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{user?.full_name || "Utilisateur"}</div>
-                  <div className="font-mono" style={{ fontSize: 12, color: "var(--text-2)" }}>
+                  <div
+                    className="font-display"
+                    style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.01em" }}
+                  >
+                    {user?.full_name || "Utilisateur"}
+                  </div>
+                  <div
+                    className="font-mono"
+                    style={{ fontSize: 13, color: "var(--text-2)", marginTop: 4 }}
+                  >
                     {user?.email}
                   </div>
-                  <span className="badge badge-info" style={{ marginTop: 6, textTransform: "capitalize" }}>
+                  <span
+                    className="badge badge-info"
+                    style={{ marginTop: 10, textTransform: "capitalize", display: "inline-block", fontSize: 11 }}
+                  >
                     {user?.role || "viewer"}
                   </span>
                 </div>
               </div>
 
-              <SettingRow label="Prénom">
-                <input
-                  className="input"
-                  value={profile.first_name}
-                  onChange={(e) => setProfile((p) => ({ ...p, first_name: e.target.value }))}
-                  style={{ width: 260 }}
-                />
-              </SettingRow>
-              <SettingRow label="Nom">
-                <input
-                  className="input"
-                  value={profile.last_name}
-                  onChange={(e) => setProfile((p) => ({ ...p, last_name: e.target.value }))}
-                  style={{ width: 260 }}
-                />
-              </SettingRow>
-              <SettingRow label="Email" desc="Utilisé pour les notifications et l'authentification">
-                <input
-                  className="input"
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
-                  style={{ width: 260 }}
-                />
-              </SettingRow>
+              {/* Form section */}
+              <div style={{ padding: "24px 28px" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--text-2)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    marginBottom: 18,
+                  }}
+                >
+                  Informations personnelles
+                </div>
 
-              <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="btn">Annuler</button>
-                <button className="btn btn-primary" onClick={handleSaveProfile} disabled={saving}>
-                  <Save size={13} />
-                  {saving ? "Enregistrement…" : "Enregistrer"}
-                </button>
+                {/* First + Last name row */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 14,
+                    marginBottom: 14,
+                  }}
+                  className="profile-names"
+                >
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-2)",
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Prénom
+                    </label>
+                    <input
+                      className="input"
+                      value={profile.first_name}
+                      onChange={(e) => setProfile((p) => ({ ...p, first_name: e.target.value }))}
+                      placeholder="Prénom"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-2)",
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Nom
+                    </label>
+                    <input
+                      className="input"
+                      value={profile.last_name}
+                      onChange={(e) => setProfile((p) => ({ ...p, last_name: e.target.value }))}
+                      placeholder="Nom de famille"
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div style={{ marginBottom: 24 }}>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--text-2)",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Adresse email
+                  </label>
+                  <input
+                    className="input"
+                    type="email"
+                    value={profile.email}
+                    onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                    placeholder="votre@email.com"
+                  />
+                  <div style={{ fontSize: 11, color: "var(--text-2)", marginTop: 5 }}>
+                    Utilisée pour les notifications et l&apos;authentification
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: 8,
+                    paddingTop: 18,
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      setProfile({
+                        first_name: user?.first_name || "",
+                        last_name: user?.last_name || "",
+                        email: user?.email || "",
+                      })
+                    }
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                  >
+                    <Save size={13} />
+                    {saving ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                </div>
               </div>
-            </Card>
+            </div>
           )}
 
           {tab === "security" && (
@@ -494,7 +610,7 @@ function SettingsPageContent() {
                         <td style={{ fontWeight: 500 }}>{s.display_name || s.name}</td>
                         <td className="font-mono" style={{ fontSize: 12 }}>{s.connector_type}</td>
                         <td className="font-mono">{(s.logs_collected_24h ?? 0).toLocaleString("fr-FR")}</td>
-                        <td className="font-mono" style={{ fontSize: 11.5, color: "var(--text-2)" }}>{s.last_sync ? new Date(s.last_sync).toLocaleString("fr-FR") : "—"}</td>
+                        <td className="font-mono" style={{ fontSize: 11.5, color: "var(--text-2)" }}>{s.last_collected_at ? new Date(s.last_collected_at).toLocaleString("fr-FR") : "—"}</td>
                         <td>
                           {isActive ? (
                             isDegraded ? (
@@ -651,6 +767,9 @@ function SettingsPageContent() {
       <style jsx>{`
         @media (max-width: 800px) {
           :global(.settings-grid) {
+            grid-template-columns: 1fr !important;
+          }
+          :global(.profile-names) {
             grid-template-columns: 1fr !important;
           }
         }

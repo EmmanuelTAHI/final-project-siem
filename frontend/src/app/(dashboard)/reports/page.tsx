@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,11 +9,16 @@ import {
   User as UserIcon,
   Play,
   Download,
+  CheckCircle2,
+  Clock,
+  ChevronRight,
 } from "lucide-react";
 import { reportsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 
 type Tone = "primary" | "secondary" | "danger" | "info" | "warning";
+type Period = "24h" | "7j" | "30j" | "90j";
+type Format = "pdf" | "csv" | "json";
 
 const toneVar: Record<Tone, string> = {
   primary: "var(--primary)",
@@ -31,6 +36,7 @@ const presets = [
     icon: Shield,
     tone: "primary" as Tone,
     framework: undefined,
+    tag: "SOC",
   },
   {
     id: "iso27001",
@@ -39,22 +45,25 @@ const presets = [
     icon: FileText,
     tone: "secondary" as Tone,
     framework: "iso27001",
+    tag: "ISO",
   },
   {
     id: "gdpr",
     title: "Conformité RGPD",
-    desc: "Traçabilité accès aux données personnelles",
+    desc: "Traçabilité des accès aux données personnelles",
     icon: FileText,
     tone: "info" as Tone,
     framework: "gdpr",
+    tag: "RGPD",
   },
   {
     id: "pci_dss",
     title: "Conformité PCI DSS",
-    desc: "Surveillance des données de paiement",
+    desc: "Surveillance des environnements de données de paiement",
     icon: FileText,
     tone: "warning" as Tone,
     framework: "pci_dss",
+    tag: "PCI",
   },
   {
     id: "top_threats",
@@ -63,27 +72,28 @@ const presets = [
     icon: AlertTriangle,
     tone: "danger" as Tone,
     framework: undefined,
+    tag: "MITRE",
   },
   {
     id: "user_activity",
     title: "Activité utilisateurs",
-    desc: "Connexions, escalades, anomalies ML",
+    desc: "Connexions, escalades de privilèges et anomalies ML",
     icon: UserIcon,
     tone: "primary" as Tone,
     framework: undefined,
+    tag: "IAM",
   },
 ];
 
-const statusMap: Record<"ready" | "running" | "error", { cls: string; label: string }> = {
-  ready:   { cls: "badge-ok",   label: "Prêt" },
-  running: { cls: "badge-high", label: "En cours" },
-  error:   { cls: "badge-crit", label: "Erreur" },
-};
+const sources = ["Microsoft 365", "Google WS", "Wazuh", "Syslog", "Firewall", "EDR"];
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState<"24h" | "7j" | "30j" | "90j" | "Custom">("7j");
-  const [format, setFormat] = useState<"pdf" | "csv" | "json">("pdf");
+  const [period, setPeriod] = useState<Period>("7j");
+  const [format, setFormat] = useState<Format>("pdf");
   const [generating, setGenerating] = useState<string | null>(null);
+  const [checkedSources, setCheckedSources] = useState<string[]>(
+    sources.filter((s) => s !== "Google WS")
+  );
 
   const { data: _frameworks } = useQuery({
     queryKey: ["compliance-frameworks"],
@@ -108,6 +118,7 @@ export default function ReportsPage() {
         URL.revokeObjectURL(url);
         toast.success(`Rapport ${label} téléchargé`);
       } else {
+        await new Promise((r) => setTimeout(r, 800));
         toast.success(`Rapport « ${label} » mis en file d'attente`);
       }
     } catch {
@@ -117,55 +128,86 @@ export default function ReportsPage() {
     }
   };
 
+  const toggleSource = (s: string) => {
+    setCheckedSources((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+  };
+
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+
+      {/* Header */}
       <div>
-        <div className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em" }}>
+        <div className="font-display" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>
           Rapports &amp; analyses
         </div>
-        <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-          Génération de rapports préconfigurés ou personnalisés
+        <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 3 }}>
+          Génération de rapports de conformité et d&apos;activité
         </div>
       </div>
 
-      {/* Preset grid */}
-      <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-2)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            marginBottom: 10,
-          }}
-        >
-          Rapports prédéfinis
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 14,
-          }}
-        >
-          {presets.map((p, i) => {
-            const Icon = p.icon;
-            const tone = toneVar[p.tone];
-            return (
-              <div
-                key={p.id}
-                className="card card-hover fade-up"
-                style={{ padding: 18, cursor: "pointer", animationDelay: `${i * 40}ms` }}
-                onClick={() => handleGenerate(p.id, p.framework, p.title)}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      {/* Main layout: preset list + generator */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 320px",
+          gap: 20,
+          alignItems: "flex-start",
+        }}
+        className="reports-grid"
+      >
+        {/* Preset list */}
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div
+            style={{
+              padding: "14px 18px",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div className="font-display" style={{ fontSize: 14, fontWeight: 700 }}>
+                Rapports prédéfinis
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 2 }}>
+                Cliquez sur un rapport pour le générer immédiatement
+              </div>
+            </div>
+            <span className="chip font-mono" style={{ fontSize: 11 }}>
+              {presets.length} modèles
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {presets.map((p, i) => {
+              const Icon = p.icon;
+              const tone = toneVar[p.tone];
+              const isGen = generating === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className="fade-up"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "14px 18px",
+                    borderBottom: i < presets.length - 1 ? "1px solid var(--border)" : "none",
+                    transition: "background 140ms ease",
+                    animationDelay: `${i * 35}ms`,
+                    cursor: "default",
+                  }}
+                >
+                  {/* Icon */}
                   <div
                     style={{
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       borderRadius: 10,
-                      background: `color-mix(in srgb, ${tone} 14%, transparent)`,
+                      background: `color-mix(in srgb, ${tone} 13%, transparent)`,
                       color: tone,
                       display: "flex",
                       alignItems: "center",
@@ -173,202 +215,249 @@ export default function ReportsPage() {
                       flexShrink: 0,
                     }}
                   >
-                    <Icon size={18} />
+                    <Icon size={17} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div className="font-display" style={{ fontSize: 14, fontWeight: 700 }}>
-                      {p.title}
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.title}</span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: `color-mix(in srgb, ${tone} 14%, transparent)`,
+                          color: tone,
+                          letterSpacing: "0.04em",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {p.tag}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 3, lineHeight: 1.45 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 3, lineHeight: 1.4 }}>
                       {p.desc}
                     </div>
                   </div>
+
+                  {/* Period badge */}
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-2)",
+                      padding: "3px 8px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {period}
+                  </span>
+
+                  {/* Action */}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleGenerate(p.id, p.framework, p.title)}
+                    disabled={!!generating}
+                    style={{ flexShrink: 0, minWidth: 110 }}
+                  >
+                    {isGen ? (
+                      <>
+                        <Clock size={13} />
+                        Génération…
+                      </>
+                    ) : (
+                      <>
+                        <Download size={13} />
+                        Générer
+                        <ChevronRight size={13} style={{ opacity: 0.6 }} />
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div style={{ marginTop: 14, height: 42, display: "flex", alignItems: "flex-end", gap: 3 }}>
-                  {Array.from({ length: 16 }, (_, j) => (
-                    <div
-                      key={j}
-                      style={{
-                        flex: 1,
-                        height: 8 + Math.abs(Math.sin(j * 1.3 + i)) * 32,
-                        background: `color-mix(in srgb, ${tone} ${35 + Math.abs(Math.sin(j * 0.7)) * 40}%, transparent)`,
-                        borderRadius: 2,
-                      }}
-                    />
-                  ))}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right column: generator + recent */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Custom generator */}
+          <div className="card" style={{ padding: 20 }}>
+            <div className="font-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+              Rapport personnalisé
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Period */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7 }}>
+                  Période
                 </div>
                 <div
                   style={{
-                    marginTop: 12,
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: 11.5,
-                    color: "var(--text-2)",
+                    gap: 3,
+                    padding: 3,
+                    background: "color-mix(in srgb, var(--text) 5%, transparent)",
+                    borderRadius: 9,
                   }}
                 >
-                  <span>Période : {period}</span>
-                  <span style={{ color: "var(--primary)", fontWeight: 600 }}>
-                    {generating === p.id ? "Génération…" : "Générer →"}
-                  </span>
+                  {(["24h", "7j", "30j", "90j"] as Period[]).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setPeriod(r)}
+                      className="font-mono"
+                      style={{
+                        flex: 1,
+                        padding: "6px 0",
+                        borderRadius: 6,
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        background: period === r ? "var(--surface)" : "transparent",
+                        color: period === r ? "var(--text)" : "var(--text-2)",
+                        fontWeight: period === r ? 600 : 500,
+                        boxShadow: period === r ? "0 2px 5px -2px rgba(0,0,0,0.18)" : "none",
+                        transition: "all 140ms ease",
+                      }}
+                    >
+                      {r}
+                    </button>
+                  ))}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {/* Custom builder */}
-        <div className="card" style={{ padding: 20 }}>
-          <div className="font-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>
-            Générateur personnalisé
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <Field label="Période">
-              <div
-                style={{
-                  display: "flex",
-                  gap: 4,
-                  padding: 3,
-                  background: "color-mix(in srgb, var(--text) 5%, transparent)",
-                  borderRadius: 9,
-                }}
+              {/* Format */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7 }}>
+                  Format de sortie
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["pdf", "csv", "json"] as Format[]).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFormat(f)}
+                      style={{
+                        flex: 1,
+                        padding: "7px 0",
+                        borderRadius: 8,
+                        border: `1.5px solid ${format === f ? "var(--primary)" : "var(--border)"}`,
+                        background: format === f ? "color-mix(in srgb, var(--primary) 9%, transparent)" : "transparent",
+                        color: format === f ? "var(--primary)" : "var(--text-2)",
+                        fontWeight: format === f ? 700 : 500,
+                        fontSize: 12,
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-mono)",
+                        transition: "all 140ms ease",
+                      }}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sources */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7 }}>
+                  Sources de données
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {sources.map((s) => {
+                    const checked = checkedSources.includes(s);
+                    return (
+                      <label
+                        key={s}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                          padding: "6px 10px",
+                          borderRadius: 7,
+                          border: `1px solid ${checked ? "color-mix(in srgb, var(--primary) 30%, transparent)" : "var(--border)"}`,
+                          background: checked ? "color-mix(in srgb, var(--primary) 6%, transparent)" : "transparent",
+                          cursor: "pointer",
+                          transition: "all 140ms ease",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: 5,
+                            border: `2px solid ${checked ? "var(--primary)" : "var(--border)"}`,
+                            background: checked ? "var(--primary)" : "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 140ms ease",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {checked && <CheckCircle2 size={10} color="white" strokeWidth={3} />}
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSource(s)}
+                          style={{ display: "none" }}
+                        />
+                        <span style={{ fontSize: 12.5, fontWeight: checked ? 500 : 400, color: checked ? "var(--text)" : "var(--text-2)" }}>
+                          {s}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: 4 }}
+                onClick={() => handleGenerate("custom", undefined, "Rapport personnalisé")}
+                disabled={!!generating || checkedSources.length === 0}
               >
-                {(["24h", "7j", "30j", "90j", "Custom"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setPeriod(r)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 6,
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      flex: 1,
-                      background: period === r ? "var(--surface)" : "transparent",
-                      color: period === r ? "var(--text)" : "var(--text-2)",
-                      fontWeight: period === r ? 600 : 500,
-                    }}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </Field>
+                <Play size={13} />
+                {generating === "custom" ? "Génération…" : "Générer le rapport"}
+              </button>
+            </div>
+          </div>
 
-            <Field label="Sources">
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["Microsoft 365", "Google WS", "Wazuh", "Syslog", "Firewall", "EDR"].map((s) => (
-                  <label
-                    key={s}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 12,
-                      padding: "5px 10px",
-                      border: "1px solid var(--border)",
-                      borderRadius: 999,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input type="checkbox" defaultChecked={s !== "Google WS"} />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </Field>
-
-            <Field label="Types d'événements">
-              <select className="input">
-                <option>Alertes + Logs corrélés</option>
-                <option>Alertes uniquement</option>
-                <option>Logs bruts</option>
-                <option>Anomalies ML</option>
-              </select>
-            </Field>
-
-            <Field label="Format de sortie">
-              <div style={{ display: "flex", gap: 8 }}>
-                {(["pdf", "csv", "json"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFormat(f)}
-                    className={`pill ${format === f ? "active" : ""}`}
-                    style={{ textTransform: "uppercase", minWidth: 60 }}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </Field>
-
-            <button
-              className="btn btn-primary"
-              style={{ alignSelf: "flex-start", marginTop: 6 }}
-              onClick={() => handleGenerate("custom", undefined, "Custom")}
+          {/* Recent reports placeholder */}
+          <div className="card" style={{ padding: 18 }}>
+            <div className="font-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+              Historique
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 16 }}>
+              Rapports récemment générés
+            </div>
+            <div
+              style={{
+                padding: "24px 0",
+                textAlign: "center",
+                color: "var(--text-2)",
+                fontSize: 12,
+              }}
             >
-              <Play size={13} />
-              Générer le rapport
-            </button>
-          </div>
-        </div>
-
-        {/* Recent reports */}
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: 20, paddingBottom: 12 }}>
-            <div className="font-display" style={{ fontSize: 15, fontWeight: 700 }}>
-              Rapports récents
+              <Download size={22} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
+              Aucun rapport généré.
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 2 }}>
-              Derniers rapports générés
-            </div>
-          </div>
-          <div
-            style={{
-              padding: "32px 24px",
-              textAlign: "center",
-              color: "var(--text-2)",
-              fontSize: 13,
-              borderTop: "1px dashed var(--border)",
-            }}
-          >
-            <Download size={22} style={{ margin: "0 auto 10px", opacity: 0.3 }} />
-            Aucun rapport généré pour l&apos;instant.
-            <br />
-            <span style={{ fontSize: 12, opacity: 0.7 }}>
-              Cliquez sur un rapport prédéfini ou utilisez le générateur personnalisé.
-            </span>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--text-2)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: 6,
-        }}
-      >
-        {label}
-      </div>
-      {children}
+      <style jsx>{`
+        @media (max-width: 900px) {
+          :global(.reports-grid) {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
