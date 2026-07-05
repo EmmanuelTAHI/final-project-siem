@@ -208,7 +208,9 @@ export interface AlertStats {
 
 // ─── Logs ─────────────────────────────────────────────────────────────────────
 
-export type LogSeverity = "info" | "warning" | "error" | "critical";
+// Taxonomie réelle du backend (normalizer) : high / medium / low.
+// critical / info gardés en secours pour d'éventuelles sources tierces.
+export type LogSeverity = "critical" | "high" | "medium" | "low" | "info";
 
 export interface NormalizedLog {
   id: number;
@@ -221,9 +223,10 @@ export interface NormalizedLog {
   geo_country_code?: string;
   geo_city?: string;
   severity: LogSeverity;
+  event_time?: string;
   timestamp: string;
   raw_data: Record<string, unknown>;
-  metadata: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface LogStats {

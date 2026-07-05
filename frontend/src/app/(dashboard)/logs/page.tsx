@@ -20,23 +20,26 @@ import type { NormalizedLog } from "@/types";
 type View = "table" | "json" | "raw";
 
 const levelLabel: Record<NormalizedLog["severity"], string> = {
-  info: "INFO",
-  warning: "WARN",
-  error: "ERROR",
   critical: "CRIT",
+  high: "HIGH",
+  medium: "MED",
+  low: "LOW",
+  info: "INFO",
 };
 
 const levelColor: Record<NormalizedLog["severity"], string> = {
   critical: "var(--danger)",
-  error: "var(--danger)",
-  warning: "var(--warning)",
+  high: "var(--danger)",
+  medium: "var(--warning)",
+  low: "var(--info)",
   info: "var(--info)",
 };
 
 const severityBg: Record<NormalizedLog["severity"], string> = {
   critical: "color-mix(in srgb, var(--danger) 14%, transparent)",
-  error: "color-mix(in srgb, var(--danger) 10%, transparent)",
-  warning: "color-mix(in srgb, var(--warning) 12%, transparent)",
+  high: "color-mix(in srgb, var(--danger) 10%, transparent)",
+  medium: "color-mix(in srgb, var(--warning) 12%, transparent)",
+  low: "color-mix(in srgb, var(--info) 10%, transparent)",
   info: "color-mix(in srgb, var(--info) 10%, transparent)",
 };
 
@@ -395,7 +398,7 @@ export default function LogsPage() {
           >
             Tous
           </button>
-          {(["critical", "error", "warning", "info"] as NormalizedLog["severity"][]).map((s) => (
+          {(["high", "medium", "low"] as NormalizedLog["severity"][]).map((s) => (
             <button
               key={s}
               onClick={() => toggleSeverity(s)}

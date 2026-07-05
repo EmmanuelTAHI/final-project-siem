@@ -325,10 +325,24 @@ export interface LogsQueryParams {
   page_size?: number;
 }
 
+// Le serializer backend expose event_time / extra_fields ; la UI logs lit
+// timestamp / raw_data. On aligne les noms ici (comme mapAlert pour les alertes).
+function mapLog(raw: Record<string, unknown>): NormalizedLog {
+  return {
+    ...(raw as unknown as NormalizedLog),
+    timestamp: (raw.timestamp as string | undefined) ?? (raw.event_time as string),
+    raw_data:
+      (raw.raw_data as Record<string, unknown> | undefined) ??
+      (raw.extra_fields as Record<string, unknown> | undefined) ??
+      {},
+  };
+}
+
 export const logsApi = {
   getLogs: async (params: LogsQueryParams = {}): Promise<PaginatedResponse<NormalizedLog>> => {
     const { data } = await api.get("/api/logs/normalized/", { params });
-    return unwrapPaginated<NormalizedLog>(data);
+    const page = unwrapPaginated<Record<string, unknown>>(data);
+    return { ...page, results: page.results.map(mapLog) };
   },
 
   getStats: async (): Promise<LogStats> => {
