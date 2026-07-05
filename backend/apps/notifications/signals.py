@@ -7,7 +7,6 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db import transaction
 from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +63,28 @@ def _broadcast_alert(alert, event_type: str):
         logger.warning("WebSocket broadcast failed: %s", exc)
 
 
+def _on_alert_saved(sender, instance, created, **kwargs):
+    """
+    Receiver module-level (référence forte : ne peut pas être garbage-collecté
+    comme le serait une fonction locale connectée avec weak=True).
+    """
+    event = "new_alert" if created else "alert_updated"
+    # on_commit : le broadcast part après le COMMIT de la transaction. Sinon le
+    # client reçoit l'évènement, refetch la liste... et la base ne contient pas
+    # encore l'alerte (ni ses source_logs M2M).
+    transaction.on_commit(lambda: _broadcast_alert(instance, event))
+
+
 def connect_signals():
     """Appelé depuis AppConfig.ready() pour brancher les signaux."""
     from apps.alerts.models import Alert
 
-    @receiver(post_save, sender=Alert, dispatch_uid="ws_new_alert")
-    def on_alert_saved(sender, instance, created, **kwargs):
-        event = "new_alert" if created else "alert_updated"
-        # on_commit : le broadcast part après le COMMIT de la transaction.
-        # Sinon le client reçoit l'évènement, refetch la liste... et la base
-        # ne contient pas encore l'alerte (ni ses source_logs M2M).
-        transaction.on_commit(lambda: _broadcast_alert(instance, event))
+    # weak=False : le receiver reste connecté même si aucune autre référence
+    # forte ne subsiste (indispensable ici — sans ça le signal se déconnecte
+    # silencieusement et aucune alerte n'est diffusée en temps réel).
+    post_save.connect(
+        _on_alert_saved,
+        sender=Alert,
+        dispatch_uid="ws_alert_broadcast",
+        weak=False,
+    )
