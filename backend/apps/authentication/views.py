@@ -17,6 +17,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken, RefreshToken
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from apps.users.models import AuditTrail, User
 
 from .models import LinkedAccount, LoginConfirmation, SecurityNotification
@@ -24,6 +27,8 @@ from .serializers import (
     LinkedAccountSerializer,
     LoginSerializer,
     LogoutSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     ProviderLoginEventSerializer,
     SecurityNotificationSerializer,
 )
@@ -35,6 +40,7 @@ from .services.login_email_service import (
 )
 from .services.notification_service import notify, read_confirmation_token
 from .services.oauth_service import oauth_service
+from .services.password_reset_service import read_reset_token, send_password_reset_email
 
 from utils.response import error_response, success_response
 
@@ -218,6 +224,116 @@ class LogoutView(APIView):
                 message=f"Token invalide : {str(exc)}",
                 http_status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/auth/password-reset/
+    Envoie un email de réinitialisation si l'adresse correspond à un compte.
+    Retourne toujours un message générique (pas d'énumération des comptes).
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        generic_message = (
+            "Si un compte existe avec cette adresse, un email de "
+            "réinitialisation vient d'être envoyé."
+        )
+
+        try:
+            user = User.objects.get(email=serializer.validated_data["email"], is_active=True)
+        except User.DoesNotExist:
+            return success_response(message=generic_message)
+
+        send_password_reset_email(user)
+        AuditTrail.log(
+            action="password_reset_requested",
+            user=user,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+        return success_response(message=generic_message)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/auth/password-reset/confirm/
+    Body: { "token": "<signed>", "password": "<nouveau mot de passe>" }
+    Valide le token (30 min max), applique les règles de robustesse Django,
+    puis change le mot de passe et révoque toutes les sessions actives.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token = serializer.validated_data["token"]
+        password = serializer.validated_data["password"]
+
+        try:
+            user_id = read_reset_token(token)
+        except signing.SignatureExpired:
+            return error_response(
+                message="Ce lien de réinitialisation a expiré. Veuillez en redemander un.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        except signing.BadSignature:
+            return error_response(
+                message="Lien de réinitialisation invalide.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id, is_active=True)
+        except User.DoesNotExist:
+            return error_response(
+                message="Utilisateur introuvable ou inactif.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return error_response(
+                message="Mot de passe trop faible.",
+                errors={"password": list(exc.messages)},
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        # Révoque toutes les sessions actives (l'utilisateur devra se reconnecter partout)
+        for outstanding in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
+
+        AuditTrail.log(
+            action="password_reset",
+            user=user,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+        return success_response(message="Mot de passe réinitialisé avec succès.")
 
 
 class MicrosoftOAuthInitiateView(APIView):

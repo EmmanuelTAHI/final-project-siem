@@ -104,9 +104,9 @@ if [ ! -f .env ]; then
     ENCRYPTION_KEY_VAL=$(fernet_key)
 
     # Détection automatique de l'IP publique du VPS
-    VPS_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null \
-          || curl -s --max-time 5 ipecho.net/plain 2>/dev/null \
-          || curl -s --max-time 5 api.ipify.org 2>/dev/null \
+    VPS_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null \
+          || curl -4 -s --max-time 5 ipecho.net/plain 2>/dev/null \
+          || curl -4 -s --max-time 5 api.ipify.org 2>/dev/null \
           || echo "0.0.0.0")
     info "IP publique du VPS : $VPS_IP"
 
@@ -151,7 +151,7 @@ echo ""
 # ─── 9. Résumé ────────────────────────────────────────────────────────────────
 ADMIN_EMAIL=$(grep -E '^DJANGO_SUPERUSER_EMAIL=' .env | cut -d= -f2-)
 ADMIN_PASS=$(grep -E '^DJANGO_SUPERUSER_PASSWORD=' .env | cut -d= -f2-)
-VPS_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "VOTRE_IP")
+VPS_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || echo "VOTRE_IP")
 
 echo ""
 echo "  =============================================="

@@ -425,7 +425,15 @@ function LoginPageContent() {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Mot de passe</label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Mot de passe</label>
+                  <a
+                    href="/forgot-password"
+                    style={{ fontSize: 12, color: "var(--primary, #3B82F6)", textDecoration: "none" }}
+                  >
+                    Mot de passe oublié ?
+                  </a>
+                </div>
                 <div style={{ position: "relative" }}>
                   <Lock size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
                   <input

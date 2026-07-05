@@ -16,6 +16,8 @@ from .views import (
     MicrosoftOAuthInitiateView,
     NotificationListView,
     NotificationMarkReadView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     ResendOTPView,
     TokenRefreshView,
     VerifyLinkPinView,
@@ -26,6 +28,8 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
     path("token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path("password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("sessions/", ActiveSessionsView.as_view(), name="auth-sessions"),
 
     # OAuth ingestion connecteurs (existant)

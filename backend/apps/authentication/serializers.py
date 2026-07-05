@@ -47,6 +47,19 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True)
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Serializer pour la demande de réinitialisation de mot de passe."""
+
+    email = serializers.EmailField(required=True)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Serializer pour la confirmation de réinitialisation de mot de passe."""
+
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
+
+
 class TokenRefreshSerializer(serializers.Serializer):
     """Serializer pour le renouvellement du token d'accès."""
 

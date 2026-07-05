@@ -149,6 +149,14 @@ export const authApi = {
     const { data } = await api.get("/api/users/me/");
     return unwrap<AuthUser>(data);
   },
+
+  requestPasswordReset: async (email: string): Promise<void> => {
+    await api.post("/api/auth/password-reset/", { email });
+  },
+
+  confirmPasswordReset: async (token: string, password: string): Promise<void> => {
+    await api.post("/api/auth/password-reset/confirm/", { token, password });
+  },
 };
 
 // ─── Dashboard API ────────────────────────────────────────────────────────────
