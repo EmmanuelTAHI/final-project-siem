@@ -1,8 +1,9 @@
 """
 Normalisation des logs bruts vers le format CEF/LEEF.
-Supporte Microsoft 365, Google Workspace, Wazuh.
+Supporte Microsoft 365, Google Workspace, Wazuh, Syslog (dont auth SSH).
 """
 import logging
+import re
 from datetime import datetime, timezone
 
 from django.utils.dateparse import parse_datetime
@@ -10,6 +11,58 @@ from django.utils.dateparse import parse_datetime
 from .models import NormalizedLog, RawLog
 
 logger = logging.getLogger(__name__)
+
+# ─── Motifs sshd (auth Linux) ────────────────────────────────────────────────
+# "Failed password for admin from 1.2.3.4 port 40222 ssh2"
+# "Failed password for invalid user root from 1.2.3.4 port 40222 ssh2"
+_SSH_FAILED_RE = re.compile(
+    r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>[0-9a-fA-F:.]+)",
+    re.IGNORECASE,
+)
+# "Invalid user oracle from 1.2.3.4 port 40222"
+_SSH_INVALID_RE = re.compile(
+    r"Invalid user (?P<user>\S+) from (?P<ip>[0-9a-fA-F:.]+)",
+    re.IGNORECASE,
+)
+# "Accepted password for user from 1.2.3.4 port 40222 ssh2"
+_SSH_ACCEPTED_RE = re.compile(
+    r"Accepted (?:password|publickey) for (?P<user>\S+) from (?P<ip>[0-9a-fA-F:.]+)",
+    re.IGNORECASE,
+)
+# PAM : "authentication failure; ... rhost=1.2.3.4 user=admin"
+_PAM_FAIL_RE = re.compile(
+    r"authentication failure;.*?(?:rhost=(?P<ip>[0-9a-fA-F:.]+))?.*?(?:user=(?P<user>\S+))?",
+    re.IGNORECASE,
+)
+
+
+def _parse_ssh_auth(message: str) -> dict | None:
+    """
+    Détecte un évènement d'authentification SSH dans un message syslog et
+    en extrait l'utilisateur, l'IP source réelle et l'issue (login_failure /
+    login_success), pour alimenter les règles de corrélation (brute force).
+    Retourne None si le message n'est pas un évènement d'auth reconnu.
+    """
+    if not message:
+        return None
+
+    m = _SSH_FAILED_RE.search(message) or _SSH_INVALID_RE.search(message)
+    if m:
+        return {"action": "login_failure", "outcome": "failure",
+                "user": m.group("user"), "ip": m.group("ip")}
+
+    m = _SSH_ACCEPTED_RE.search(message)
+    if m:
+        return {"action": "login_success", "outcome": "success",
+                "user": m.group("user"), "ip": m.group("ip")}
+
+    if "authentication failure" in message.lower():
+        m = _PAM_FAIL_RE.search(message)
+        if m:
+            return {"action": "login_failure", "outcome": "failure",
+                    "user": m.group("user"), "ip": m.group("ip")}
+
+    return None
 
 
 class LogNormalizer:
@@ -202,9 +255,45 @@ class LogNormalizer:
         """Mappe un log syslog parsé (par receive_syslog) vers les champs NormalizedLog."""
         severity = data.get("severity", "info")
         facility = data.get("facility", "unknown")
+        message = data.get("message") or ""
+
+        # IP source par défaut : celle de l'émetteur du paquet syslog.
+        sender_ip = data.get("source_ip") or None
+
+        # Détection d'un évènement d'authentification SSH → alimente la règle
+        # brute force (action=login_failure groupé par user_email).
+        ssh = _parse_ssh_auth(message)
+        if ssh:
+            attacker_ip = ssh.get("ip") or sender_ip
+            user = ssh.get("user")
+            # Une tentative sur un compte inexistant est plus sévère qu'un simple échec.
+            sev = "high" if ssh["action"] == "login_failure" else severity
+            return {
+                "event_time": self._parse_datetime(data.get("received_at")),
+                "user_email": user,
+                "user_id": None,
+                "source_ip": attacker_ip,
+                "destination_ip": None,
+                "action": ssh["action"],
+                "outcome": ssh["outcome"],
+                "resource": "ssh",
+                "geo_country": None,
+                "geo_city": None,
+                "geo_latitude": None,
+                "geo_longitude": None,
+                "user_agent": None,
+                "severity": sev,
+                "extra_fields": {
+                    "facility": facility,
+                    "severity_code": data.get("severity_code"),
+                    "message": message[:500],
+                    "raw_message": data.get("raw_message", "")[:500],
+                    "detected_service": "sshd",
+                },
+            }
 
         # outcome : les events d'auth/authpriv peuvent être failure, les autres sont unknown
-        if facility in ("auth", "authpriv") and "fail" in (data.get("message") or "").lower():
+        if facility in ("auth", "authpriv") and "fail" in message.lower():
             outcome = "failure"
         else:
             outcome = "unknown"
@@ -213,11 +302,11 @@ class LogNormalizer:
             "event_time": self._parse_datetime(data.get("received_at")),
             "user_email": None,
             "user_id": None,
-            "source_ip": data.get("source_ip") or None,
+            "source_ip": sender_ip,
             "destination_ip": None,
             "action": f"syslog_{facility}",
             "outcome": outcome,
-            "resource": data.get("source_ip") or None,
+            "resource": sender_ip,
             "geo_country": None,
             "geo_city": None,
             "geo_latitude": None,
@@ -227,7 +316,7 @@ class LogNormalizer:
             "extra_fields": {
                 "facility": facility,
                 "severity_code": data.get("severity_code"),
-                "message": data.get("message", "")[:500],
+                "message": message[:500],
                 "raw_message": data.get("raw_message", "")[:500],
             },
         }

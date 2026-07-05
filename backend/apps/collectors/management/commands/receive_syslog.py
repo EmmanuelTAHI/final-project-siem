@@ -14,6 +14,7 @@ import logging
 import re
 import select
 import socket
+import time
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -134,15 +135,26 @@ class Command(BaseCommand):
 
         buffer_count = 0
         reload_counter = 0  # recharge le connecteur toutes les N itérations sans message
+        # Flush temporel : normalise les logs en attente même sous le seuil de
+        # batch, pour que les alertes (brute force…) sortent en quelques secondes
+        # au lieu d'attendre l'accumulation de `batch_size` messages.
+        FLUSH_INTERVAL = 5.0  # secondes
+        last_flush = time.monotonic()
 
         try:
             while True:
-                readable, _, _ = select.select([sock], [], [], 5.0)
+                readable, _, _ = select.select([sock], [], [], 2.0)
+
+                # Flush périodique des logs en attente
+                if buffer_count > 0 and (time.monotonic() - last_flush) >= FLUSH_INTERVAL:
+                    self._trigger_normalization(connector)
+                    buffer_count = 0
+                    last_flush = time.monotonic()
 
                 if not readable:
                     reload_counter += 1
-                    # Recharger le connecteur toutes les 60s si absent
-                    if not connector and reload_counter % 12 == 0:
+                    # Recharger le connecteur toutes les ~60s si absent
+                    if not connector and reload_counter % 30 == 0:
                         connector = self._load_connector()
                         if connector:
                             self.stdout.write(
@@ -176,10 +188,11 @@ class Command(BaseCommand):
                         parsed.get("message", "")[:120],
                     )
 
-                    # Déclencher la normalisation par batch
+                    # Déclencher la normalisation dès le batch atteint
                     if buffer_count >= batch_size:
                         self._trigger_normalization(connector)
                         buffer_count = 0
+                        last_flush = time.monotonic()
                 else:
                     logger.debug(
                         "Log syslog de %s ignoré — pas de connecteur syslog actif.",
