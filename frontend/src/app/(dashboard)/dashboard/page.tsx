@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, Activity, Server, Gauge, RefreshCw, Download } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -8,12 +9,21 @@ import { SeverityDonut } from "@/components/dashboard/severity-donut";
 import { TopThreatsChart } from "@/components/dashboard/top-threats-chart";
 import { CardGridSkeleton, ChartSkeleton } from "@/components/common/loading-skeleton";
 import { useDashboardSummary, useTopThreats } from "@/hooks/use-dashboard";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: summary, isLoading: summaryLoading, refetch } = useDashboardSummary();
   const { data: threats, isLoading: threatsLoading } = useTopThreats();
+  const wsConnected = useRealtimeStore((s) => s.connected);
+
+  // Horloge vivante : le header affiche l'heure qui avance seconde par seconde.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const s = summary ?? {
     open_alerts: 0,
@@ -61,8 +71,11 @@ export default function DashboardPage() {
               gap: 7,
             }}
           >
-            <span className="dot live" style={{ width: 6, height: 6 }} />
-            Temps réel · {formatDate(new Date(), "HH:mm:ss")}
+            <span
+              className={`dot ${wsConnected ? "live" : "off"}`}
+              style={{ width: 6, height: 6, background: wsConnected ? undefined : "var(--warning, #F59E0B)" }}
+            />
+            {wsConnected ? "Temps réel" : "Reconnexion…"} · {formatDate(now, "HH:mm:ss")}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>

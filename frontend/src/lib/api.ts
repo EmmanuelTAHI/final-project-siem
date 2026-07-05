@@ -244,25 +244,64 @@ export interface AlertsQueryParams {
   ordering?: string;
 }
 
+// Le serializer backend expose rule_mitre_tactic / source_logs_brief / ... ;
+// cette adaptation aligne la réponse sur le type Alert utilisé par les pages
+// (mêmes noms de champs que le payload WebSocket temps réel).
+interface RawAlertLog {
+  id: string;
+  event_time: string;
+  source_type: string;
+  action: string;
+  outcome?: string;
+  severity?: string;
+  user_email?: string;
+  source_ip?: string;
+  geo_country?: string;
+}
+
+function mapAlert(raw: Record<string, unknown>): Alert {
+  const logs = (raw.source_logs_brief as RawAlertLog[] | undefined) ?? [];
+  const first = logs[0];
+  return {
+    ...(raw as unknown as Alert),
+    rule_id: (raw.rule ?? raw.rule_id) as Alert["rule_id"],
+    mitre_tactic: (raw.rule_mitre_tactic ?? raw.mitre_tactic) as string | undefined,
+    mitre_technique: (raw.rule_mitre_technique ?? raw.mitre_technique) as string | undefined,
+    event_count: (raw.event_count as number | undefined) ?? logs.length,
+    source_ip: ((raw.source_ip as string | undefined) ?? first?.source_ip ?? "") as string,
+    user_email: (raw.user_email as string | undefined) ?? first?.user_email,
+    assigned_to_name: (raw.assigned_to_email ?? raw.assigned_to_name) as string | undefined,
+    log_sources: logs.map((l) => ({
+      id: l.id as unknown as number,
+      log_id: l.id as unknown as number,
+      source_type: l.source_type,
+      action: l.action,
+      timestamp: l.event_time,
+      raw_data: l as unknown as Record<string, unknown>,
+    })),
+  };
+}
+
 export const alertsApi = {
   getAlerts: async (params: AlertsQueryParams = {}): Promise<PaginatedResponse<Alert>> => {
     const { data } = await api.get("/api/alerts/", { params });
-    return unwrapPaginated<Alert>(data);
+    const page = unwrapPaginated<Record<string, unknown>>(data);
+    return { ...page, results: page.results.map(mapAlert) };
   },
 
   getAlert: async (id: number): Promise<Alert> => {
     const { data } = await api.get(`/api/alerts/${id}/`);
-    return unwrap<Alert>(data);
+    return mapAlert(unwrap<Record<string, unknown>>(data));
   },
 
   updateAlert: async (id: number, updates: Partial<Alert>): Promise<Alert> => {
     const { data } = await api.patch(`/api/alerts/${id}/`, updates);
-    return unwrap<Alert>(data);
+    return mapAlert(unwrap<Record<string, unknown>>(data));
   },
 
   addComment: async (id: number, content: string): Promise<Alert> => {
     const { data } = await api.post(`/api/alerts/${id}/comments/`, { content });
-    return unwrap<Alert>(data);
+    return mapAlert(unwrap<Record<string, unknown>>(data));
   },
 
   getStats: async (): Promise<AlertStats> => {

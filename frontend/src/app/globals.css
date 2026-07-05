@@ -448,3 +448,27 @@
     overflow: hidden;
   }
 }
+
+/* ============================================================
+   Temps réel — entrée animée des alertes reçues par WebSocket
+   ============================================================ */
+@keyframes alertLiveIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  60% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.alert-live-in { animation: alertLiveIn 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }

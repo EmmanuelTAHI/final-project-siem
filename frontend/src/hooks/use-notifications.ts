@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/auth-store";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { notificationsApi } from "@/lib/api";
-import type { SecurityNotification, WSNotification } from "@/types";
+import type { Alert, PaginatedResponse, SecurityNotification, WSNotification } from "@/types";
 
 // L'URL WebSocket est dérivée de l'origine de la page (nginx proxifie /ws/
 // vers le backend). NEXT_PUBLIC_WS_URL ne sert qu'à la surcharger en dev.
@@ -32,6 +33,50 @@ export function useNotifications() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempts = useRef(0);
+  const setRtConnected = useRealtimeStore((s) => s.setConnected);
+  const pushRecentAlert = useRealtimeStore((s) => s.pushRecentAlert);
+
+  // ── Synchronisation temps réel du cache TanStack Query ─────────────────────
+  // Toute création/màj d'alerte reçue par WebSocket est répercutée partout :
+  // liste d'alertes, stats, KPIs dashboard — sans rechargement de page.
+  const syncAlertCaches = useCallback(
+    (alert: Partial<Alert> | undefined, created: boolean) => {
+      if (alert?.id) {
+        if (created) pushRecentAlert(String(alert.id));
+
+        // Insertion/màj optimiste dans les listes déjà en cache → affichage
+        // instantané ; le refetch d'invalidation réconcilie juste après.
+        qc.setQueriesData<PaginatedResponse<Alert>>(
+          { queryKey: ["alerts"] },
+          (old) => {
+            if (!old?.results) return old;
+            if (created) {
+              const exists = old.results.some((a) => String(a.id) === String(alert.id));
+              if (exists) return old;
+              return {
+                ...old,
+                count: (old.count ?? old.results.length) + 1,
+                results: [alert as Alert, ...old.results],
+              };
+            }
+            return {
+              ...old,
+              results: old.results.map((a) =>
+                String(a.id) === String(alert.id) ? { ...a, ...alert } : a
+              ),
+            };
+          }
+        );
+      }
+
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+      qc.invalidateQueries({ queryKey: ["alert-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-timeline"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-top-threats"] });
+    },
+    [qc, pushRecentAlert]
+  );
 
   // ── REST: notifications persistées ─────────────────────────────────────────
   const { data: persisted } = useQuery({
@@ -72,6 +117,7 @@ export function useNotifications() {
 
     ws.onopen = () => {
       setWsConnected(true);
+      setRtConnected(true);
       reconnectAttempts.current = 0;
     };
 
@@ -83,13 +129,16 @@ export function useNotifications() {
         // Garde les 50 derniers évènements transitoires
         setTransient((prev) => [withTs, ...prev.slice(0, 49)]);
 
-        // Toasts contextuels
+        // Toasts contextuels + synchronisation live des caches
         if (msg.type === "new_alert" && msg.alert) {
           const sev = msg.alert.severity;
           const toastFn = sev === "critical" || sev === "high" ? toast.error : toast;
           toastFn(`🚨 Nouvelle alerte ${sev?.toUpperCase()}: ${msg.alert.title}`, {
             duration: sev === "critical" ? 8000 : 5000,
           });
+          syncAlertCaches(msg.alert, true);
+        } else if ((msg as { type?: string }).type === "alert_updated" && msg.alert) {
+          syncAlertCaches(msg.alert, false);
         } else if (msg.type === "cti_threat") {
           toast.error(`⚠ CTI: Menace détectée — ${(msg.data as { title?: string })?.title || "IP malveillante"}`, {
             duration: 6000,
@@ -110,6 +159,7 @@ export function useNotifications() {
 
     ws.onclose = (event) => {
       setWsConnected(false);
+      setRtConnected(false);
       wsRef.current = null;
       if (event.code !== 1000 && reconnectAttempts.current < 8) {
         const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
@@ -121,7 +171,7 @@ export function useNotifications() {
     ws.onerror = () => {
       try { ws.close(); } catch { /* noop */ }
     };
-  }, [isAuthenticated, user?.id, qc]);
+  }, [isAuthenticated, user?.id, qc, syncAlertCaches, setRtConnected]);
 
   useEffect(() => {
     connect();

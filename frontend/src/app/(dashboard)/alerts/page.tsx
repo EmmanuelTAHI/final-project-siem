@@ -6,6 +6,8 @@ import {
   Download,
   Plus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Server,
   User,
   Globe,
@@ -14,10 +16,35 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAlerts, useAlertStats, useUpdateAlert } from "@/hooks/use-alerts";
+import { useAlerts, useAlertStats, useUpdateAlert, useAddAlertComment } from "@/hooks/use-alerts";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { formatDate, formatNumber, severityHex } from "@/lib/utils";
 import type { Alert } from "@/types";
 import toast from "react-hot-toast";
+
+const PAGE_SIZE = 25;
+
+function LiveChip() {
+  const connected = useRealtimeStore((s) => s.connected);
+  return (
+    <span
+      className="chip"
+      title={connected ? "Flux WebSocket actif — les alertes apparaissent en direct" : "Flux temps réel interrompu — repli sur rafraîchissement périodique"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 11,
+        color: connected ? "var(--success, #06D6A0)" : "var(--warning, #F59E0B)",
+        borderColor: "color-mix(in srgb, currentColor 35%, transparent)",
+      }}
+    >
+      <span className={`dot ${connected ? "live" : ""}`} style={{ width: 7, height: 7, background: "currentColor" }} />
+      {connected ? "Temps réel" : "Reconnexion…"}
+    </span>
+  );
+}
 
 const sevPills: { id: "all" | Alert["severity"]; label: string }[] = [
   { id: "all", label: "Toutes" },
@@ -125,16 +152,23 @@ function JSONPretty({ data }: { data: unknown }) {
 function AlertCard({
   alert,
   expanded,
+  isNew,
   onToggle,
+  onSetStatus,
+  onComment,
 }: {
   alert: Alert;
   expanded: boolean;
+  isNew: boolean;
   onToggle: () => void;
+  onSetStatus: (status: Alert["status"]) => void;
+  onComment: (content: string) => void;
 }) {
   const isCrit = alert.severity === "critical";
+  const [comment, setComment] = useState("");
   return (
     <div
-      className={`card ${isCrit ? "crit-glow" : ""}`}
+      className={`card ${isCrit ? "crit-glow" : ""} ${isNew ? "alert-live-in" : ""}`}
       style={{
         padding: 0,
         overflow: "hidden",
@@ -200,10 +234,16 @@ function AlertCard({
         )}
         <StatusBadge status={alert.status} />
         <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 4 }}>
-          <button className="btn btn-ghost" style={{ padding: 6 }} title="Acquitter">
+          <button
+            className="btn btn-ghost"
+            style={{ padding: 6 }}
+            title="Prendre en charge"
+            disabled={alert.status !== "open"}
+            onClick={() => onSetStatus("in_progress")}
+          >
             <Check size={15} />
           </button>
-          <button className="btn btn-ghost" style={{ padding: 6 }} title="Détails">
+          <button className="btn btn-ghost" style={{ padding: 6 }} title="Détails" onClick={onToggle}>
             <Eye size={15} />
           </button>
         </div>
@@ -266,12 +306,37 @@ function AlertCard({
                 <textarea
                   className="input"
                   rows={2}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
                   placeholder="Ajouter une note d'investigation…"
                   style={{ resize: "vertical", width: "100%" }}
                 />
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
-                  <button className="btn">Marquer faux positif</button>
-                  <button className="btn btn-primary">Acquitter &amp; résoudre</button>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  {comment.trim() && (
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        onComment(comment.trim());
+                        setComment("");
+                      }}
+                    >
+                      Commenter
+                    </button>
+                  )}
+                  <button
+                    className="btn"
+                    disabled={alert.status === "false_positive"}
+                    onClick={() => onSetStatus("false_positive")}
+                  >
+                    Marquer faux positif
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={alert.status === "resolved"}
+                    onClick={() => onSetStatus("resolved")}
+                  >
+                    Acquitter &amp; résoudre
+                  </button>
                 </div>
               </div>
             </div>
@@ -314,24 +379,47 @@ export default function AlertsPage() {
   const [sevFilter, setSevFilter] = useState<"all" | Alert["severity"]>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | Alert["status"]>("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [sort, setSort] = useState("date");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const { data: alertsData, isLoading } = useAlerts({
+  // Recherche instantanée : la requête part 250 ms après la dernière frappe,
+  // et keepPreviousData évite tout flash de liste vide pendant le refetch.
+  const debouncedSearch = useDebounce(search, 250);
+
+  const { data: alertsData, isFetching } = useAlerts({
     severity: sevFilter !== "all" ? sevFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
+    page,
+    page_size: PAGE_SIZE,
   });
   const localAlerts = alertsData?.results ?? [];
+  const totalCount = alertsData?.count ?? localAlerts.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const { data: statsData } = useAlertStats();
-  void statsData;
   const updateAlert = useUpdateAlert();
+  const addComment = useAddAlertComment();
+  const recentAlertIds = useRealtimeStore((s) => s.recentAlertIds);
 
   const toggle = (id: number) => {
     const s = new Set(expanded);
     if (s.has(id)) s.delete(id);
     else s.add(id);
     setExpanded(s);
+  };
+
+  const setStatus = (alert: Alert, status: Alert["status"]) => {
+    const labels: Record<Alert["status"], string> = {
+      open: "Nouveau",
+      in_progress: "En cours",
+      resolved: "Résolu",
+      false_positive: "Faux positif",
+    };
+    updateAlert.mutate(
+      { id: alert.id, updates: { status } },
+      { onSuccess: () => toast.success(`Statut mis à jour : ${labels[status]}`) }
+    );
   };
 
   const filtered = [...localAlerts].sort((a, b) => {
@@ -346,11 +434,36 @@ export default function AlertsPage() {
     setSearch("");
     setSevFilter("all");
     setStatusFilter("all");
+    setPage(1);
   };
 
-  const bulkExport = () => toast.success(`${filtered.length} alertes exportées`);
-  void updateAlert;
-  void isLoading;
+  const changeFilter = <T,>(setter: (v: T) => void) => (v: T) => {
+    setter(v);
+    setPage(1);
+  };
+
+  const bulkExport = () => {
+    if (!filtered.length) {
+      toast.error("Aucune alerte à exporter");
+      return;
+    }
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["id", "date", "severite", "statut", "regle", "titre", "source_ip", "utilisateur", "evenements"];
+    const rows = filtered.map((a) =>
+      [a.id, a.created_at, a.severity, a.status, a.rule_name, a.title, a.source_ip, a.user_email, a.event_count]
+        .map(esc)
+        .join(",")
+    );
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `alertes_logplus_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} alertes exportées`);
+  };
 
   return (
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -365,14 +478,18 @@ export default function AlertsPage() {
         }}
       >
         <div>
-          <div className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em" }}>
+          <div className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 12 }}>
             Gestion des alertes
+            <LiveChip />
           </div>
           <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
             <span className="font-mono" style={{ color: "var(--text)", fontWeight: 600 }}>
               {formatNumber(filtered.length)}
             </span>{" "}
-            alertes affichées sur <span className="font-mono">{formatNumber(localAlerts.length + 1237)}</span>
+            alertes affichées sur <span className="font-mono">{formatNumber(totalCount)}</span>
+            {(statsData as { total_open?: number } | undefined)?.total_open !== undefined && (
+              <> · <span className="font-mono" style={{ color: "var(--danger, #EF4444)" }}>{formatNumber((statsData as unknown as { total_open: number }).total_open)}</span> ouvertes</>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -412,7 +529,7 @@ export default function AlertsPage() {
             <button
               key={s.id}
               className={`pill ${sevFilter === s.id ? "active" : ""}`}
-              onClick={() => setSevFilter(s.id)}
+              onClick={() => changeFilter(setSevFilter)(s.id)}
             >
               {s.label}
             </button>
@@ -436,7 +553,7 @@ export default function AlertsPage() {
             <button
               key={s.id}
               className={`pill ${statusFilter === s.id ? "active" : ""}`}
-              onClick={() => setStatusFilter(s.id)}
+              onClick={() => changeFilter(setStatusFilter)(s.id)}
             >
               {s.label}
             </button>
@@ -458,10 +575,19 @@ export default function AlertsPage() {
           <input
             className="input"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrer hôte, IP, règle…"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Recherche instantanée : titre, description…"
             style={{ paddingLeft: 32 }}
           />
+          {isFetching && (
+            <span
+              className="dot live"
+              style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", width: 6, height: 6 }}
+            />
+          )}
         </div>
         <select
           className="input"
@@ -483,7 +609,15 @@ export default function AlertsPage() {
       {/* List */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.map((a) => (
-          <AlertCard key={a.id} alert={a} expanded={expanded.has(a.id)} onToggle={() => toggle(a.id)} />
+          <AlertCard
+            key={a.id}
+            alert={a}
+            expanded={expanded.has(a.id)}
+            isNew={recentAlertIds.has(String(a.id))}
+            onToggle={() => toggle(a.id)}
+            onSetStatus={(status) => setStatus(a, status)}
+            onComment={(content) => addComment.mutate({ id: a.id, content })}
+          />
         ))}
         {filtered.length === 0 && (
           <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-2)" }}>
@@ -504,22 +638,29 @@ export default function AlertsPage() {
         }}
       >
         <div style={{ fontSize: 12.5, color: "var(--text-2)" }}>
-          Affichage 1–{filtered.length} de <span className="font-mono">{alertsData?.count ?? filtered.length}</span> alertes
+          Affichage {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + filtered.length} de{" "}
+          <span className="font-mono">{formatNumber(totalCount)}</span> alertes
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          {[1, 2, 3, 4, "…", 50].map((n, i) => (
-            <button
-              key={i}
-              className="pill"
-              style={
-                n === 1
-                  ? { background: "var(--primary)", color: "white", borderColor: "var(--primary)" }
-                  : undefined
-              }
-            >
-              {n}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <button
+            className="pill"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            style={{ opacity: page <= 1 ? 0.4 : 1, display: "inline-flex", alignItems: "center", gap: 3 }}
+          >
+            <ChevronLeft size={13} /> Préc.
+          </button>
+          <span className="font-mono" style={{ fontSize: 12.5, color: "var(--text-2)", padding: "0 8px" }}>
+            {page} / {totalPages}
+          </span>
+          <button
+            className="pill"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{ opacity: page >= totalPages ? 0.4 : 1, display: "inline-flex", alignItems: "center", gap: 3 }}
+          >
+            Suiv. <ChevronRight size={13} />
+          </button>
         </div>
       </div>
     </div>
