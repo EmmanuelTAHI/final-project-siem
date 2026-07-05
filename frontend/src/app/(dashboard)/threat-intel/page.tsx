@@ -181,6 +181,14 @@ function summarizeCriminalIP(raw: Record<string, unknown> | null): SourceSummary
       description: "Aucune donnée CriminalIP (clé non configurée ou IP inconnue).",
     };
   }
+  if (raw.error) {
+    return {
+      verdict: "unknown",
+      scoreLabel: "⚠",
+      rows: [{ label: "Statut API", value: String(raw.error) }],
+      description: `CriminalIP a répondu mais n'a pas fourni de données : ${raw.error}. La clé est valide mais le quota/plan est insuffisant.`,
+    };
+  }
   const inb = Number(raw.inbound_score ?? 0);
   const outb = Number(raw.outbound_score ?? 0);
   const flags: string[] = [];
@@ -216,6 +224,14 @@ function summarizeCriminalIP(raw: Record<string, unknown> | null): SourceSummary
 }
 
 function summarizeShodan(raw: Record<string, unknown> | null): SourceSummary {
+  if (raw?.error) {
+    return {
+      verdict: "unknown",
+      scoreLabel: "⚠",
+      rows: [{ label: "Statut API", value: String(raw.error) }],
+      description: `Shodan a répondu mais n'a pas fourni de données : ${raw.error}`,
+    };
+  }
   if (!raw || Object.keys(raw).length === 0 || raw.not_found) {
     return {
       verdict: raw?.not_found ? "clean" : "unknown",

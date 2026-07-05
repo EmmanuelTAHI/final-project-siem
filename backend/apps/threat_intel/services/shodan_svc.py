@@ -31,6 +31,11 @@ def host_info(ip_address: str) -> dict:
             )
             if resp.status_code == 404:
                 return {"_not_found": True}
+            if resp.status_code in (401, 403):
+                # Le lookup d'hôte Shodan nécessite un abonnement (pas le plan gratuit).
+                return {"_error": "Le lookup d'hôte Shodan nécessite un abonnement payant."}
+            if resp.status_code == 429:
+                return {"_error": "Quota Shodan dépassé."}
             resp.raise_for_status()
             return resp.json()
     except httpx.HTTPError as exc:
@@ -40,8 +45,12 @@ def host_info(ip_address: str) -> dict:
 
 def summarize(data: dict) -> dict:
     """Extrait les champs clés d'une réponse Shodan host."""
-    if not data or data.get("_not_found"):
-        return {"not_found": bool(data.get("_not_found"))} if data else {}
+    if not data:
+        return {}
+    if data.get("_error"):
+        return {"error": data["_error"]}
+    if data.get("_not_found"):
+        return {"not_found": True}
     return {
         "ports": data.get("ports", []),
         "vulns": list(data.get("vulns", []))[:20],
