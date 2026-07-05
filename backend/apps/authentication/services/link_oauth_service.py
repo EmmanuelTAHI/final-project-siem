@@ -190,6 +190,13 @@ _PROVIDERS = {
     "github": _github_link_config,
 }
 
+# Nom de la variable d'env à citer dans le message d'erreur, par provider.
+_CLIENT_ID_ENV_VAR = {
+    "google": "GOOGLE_CLIENT_ID",
+    "microsoft": "MICROSOFT_CLIENT_ID",
+    "github": "GITHUB_CLIENT_ID",
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
@@ -207,10 +214,11 @@ class LinkOAuthService:
 
         cfg = _PROVIDERS[provider]()
         if not cfg["client_id"]:
+            env_var = _CLIENT_ID_ENV_VAR.get(provider, f"{provider.upper()}_CLIENT_ID")
             raise ValueError(
                 f"Le provider '{provider}' n'est pas configuré sur ce serveur "
-                f"(GITHUB_CLIENT_ID manquant dans .env). "
-                f"Ajoutez les credentials GitHub dans la configuration."
+                f"({env_var} manquant dans .env). "
+                f"Ajoutez les credentials {provider.capitalize()} dans la configuration."
             )
 
         verifier = _generate_code_verifier()

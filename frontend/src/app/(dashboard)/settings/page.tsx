@@ -140,8 +140,10 @@ function SettingsPageContent() {
         .catch(() => {});
 
     // ─── Fallback 2 : géolocalisation par IP (pas de popup) ──────────────────
+    // ip-api.com (plan gratuit) ne répond qu'en HTTP, pas en HTTPS (403 sinon).
+    // Le site étant lui-même servi en HTTP, pas de blocage "mixed content" ici.
     const fetchIpGeo = () =>
-      fetch("https://ip-api.com/json/?fields=status,city,country,countryCode,query")
+      fetch("http://ip-api.com/json/?fields=status,city,country,countryCode,query")
         .then((r) => r.json())
         .then((d) => {
           if (d.status === "success") {
