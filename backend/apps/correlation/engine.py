@@ -56,10 +56,11 @@ class CorrelationEngine:
         Returns:
             Dictionnaire de résultats : {alerts_created, rules_evaluated, matches_found}
         """
+        from datetime import timedelta
+
         now = timezone.now()
 
         if last_run_at is None:
-            from datetime import timedelta
             last_run_at = now - timedelta(minutes=5)
 
         logger.info(
@@ -67,25 +68,34 @@ class CorrelationEngine:
             last_run_at.isoformat(),
         )
 
-        # Charger les nouveaux logs normalisés
-        new_logs = NormalizedLog.objects.filter(indexed_at__gt=last_run_at)
-        log_count = new_logs.count()
-        logger.info("Nouveaux logs à analyser : %d", log_count)
-
-        if log_count == 0:
+        # Gate : ne rien faire s'il n'y a aucun log nouveau depuis le dernier run.
+        new_count = NormalizedLog.objects.filter(indexed_at__gt=last_run_at).count()
+        logger.info("Nouveaux logs depuis le dernier run : %d", new_count)
+        if new_count == 0:
             return {"alerts_created": 0, "rules_evaluated": 0, "matches_found": 0}
+
+        # Fenêtre d'analyse : les règles de seuil (brute force, etc.) doivent
+        # agréger TOUTE leur fenêtre temporelle, pas seulement les logs indexés
+        # depuis le dernier run — sinon N échecs répartis sur plusieurs runs ne
+        # franchissent jamais le seuil. On fournit 24 h (couvre la plus longue
+        # fenêtre de règle) ; chaque règle applique ensuite son propre filtre, et
+        # _create_alert_if_new déduplique pour éviter de recréer la même alerte.
+        analysis_logs = NormalizedLog.objects.filter(
+            event_time__gte=now - timedelta(hours=24)
+        )
+        log_count = analysis_logs.count()
 
         # Charger les règles actives
         active_rules = CorrelationRule.objects.filter(is_active=True)
         rules_count = active_rules.count()
-        logger.info("Règles actives : %d", rules_count)
+        logger.info("Règles actives : %d — logs dans la fenêtre : %d", rules_count, log_count)
 
         alerts_created = 0
         matches_found = 0
 
         for rule in active_rules:
             try:
-                rule_matches = self._evaluate_rule(rule, new_logs)
+                rule_matches = self._evaluate_rule(rule, analysis_logs)
                 matches_found += len(rule_matches)
 
                 for match in rule_matches:
