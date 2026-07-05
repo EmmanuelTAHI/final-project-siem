@@ -28,7 +28,8 @@ services:
     healthcheck:
       # /healthz renvoie toujours 200 ; /api/ renvoie 404 (pas de route racine
       # DRF) et wget considère toute réponse non-2xx comme un échec.
-      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      # 127.0.0.1 et non localhost : wget busybox résout localhost en ::1.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
