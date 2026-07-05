@@ -63,18 +63,31 @@ qui contient le `docker-compose.yml` unique pour l'ensemble de la stack.
 
 ## Mode développement (hot-reload)
 
-Le fichier `docker-compose.override.yml` est **fusionné automatiquement** par
-`docker compose up` (et donc par `install.sh` / `install.ps1`). Il active :
+La surcouche de développement se trouve dans `docker-compose.dev.yml`
+(**jamais fusionnée automatiquement** — elle doit être demandée explicitement).
+Elle active :
 
 - **Frontend** : `npm run dev` avec le code monté en volume → les modifications
   dans `frontend/src` sont reflétées immédiatement dans le navigateur.
 - **Backend** : `manage.py runserver` (autoreload Django) au lieu de Daphne →
   les modifications Python sont prises en compte sans reconstruire l'image.
 
-Pour lancer la stack en mode "production" (sans hot-reload, images optimisées) :
+```bash
+# Lancer la stack en mode développement
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# (Optionnel, poste de dev uniquement) fusion automatique par "docker compose up" :
+cp docker-compose.dev.yml docker-compose.override.yml   # gitignoré
+```
+
+> ⚠️ `docker-compose.override.yml` est gitignoré et ne doit **jamais** exister
+> sur le serveur de production : Docker Compose le fusionnerait silencieusement
+> et relancerait la stack en mode dev (`runserver`, `DEBUG=True`).
+
+En production (VPS), utiliser exclusivement :
 
 ```bash
-docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ## Commandes utiles

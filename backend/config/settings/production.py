@@ -73,11 +73,12 @@ LOGGING = {
     },
 }
 
-# Email — utilise la config du .env (hérite du base.py)
-# Surcharge uniquement si EMAIL_HOST est défini
+# Email — en production le backend SMTP est le défaut : un oubli de
+# EMAIL_BACKEND dans le .env ne doit jamais faire partir les emails
+# dans les logs (console) alors que l'OTP de connexion en dépend.
 EMAIL_BACKEND = env(  # noqa: F405
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
+    default="django.core.mail.backends.smtp.EmailBackend",
 )
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")  # noqa: F405
 EMAIL_PORT = int(env("EMAIL_PORT", default=587))  # noqa: F405

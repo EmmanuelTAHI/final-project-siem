@@ -26,7 +26,9 @@ services:
       - backend
       - frontend
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/api/"]
+      # /healthz renvoie toujours 200 ; /api/ renvoie 404 (pas de route racine
+      # DRF) et wget considère toute réponse non-2xx comme un échec.
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3

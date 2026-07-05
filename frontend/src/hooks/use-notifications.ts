@@ -7,7 +7,16 @@ import { useAuthStore } from "@/stores/auth-store";
 import { notificationsApi } from "@/lib/api";
 import type { SecurityNotification, WSNotification } from "@/types";
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+// L'URL WebSocket est dérivée de l'origine de la page (nginx proxifie /ws/
+// vers le backend). NEXT_PUBLIC_WS_URL ne sert qu'à la surcharger en dev.
+function getWsBase(): string {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (typeof window !== "undefined") {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}`;
+  }
+  return "ws://localhost:8000";
+}
 
 /**
  * Hook unifié pour la cloche de notification.
@@ -51,7 +60,7 @@ export function useNotifications() {
     if (!isAuthenticated || !user?.id) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const url = `${WS_BASE}/ws/notifications/${user.id}/`;
+    const url = `${getWsBase()}/ws/notifications/${user.id}/`;
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);

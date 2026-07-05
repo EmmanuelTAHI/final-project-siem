@@ -120,6 +120,7 @@ if [ ! -f .env ]; then
         -e "s|^FRONTEND_URL=.*|FRONTEND_URL=http://${VPS_IP}|" \
         -e "s|^BACKEND_URL=.*|BACKEND_URL=http://${VPS_IP}|" \
         -e "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${VPS_IP}|" \
+        -e "s|CHANGE_ME_VPS_IP|${VPS_IP}|g" \
         .env
 
     info "Fichier .env généré avec des secrets aléatoires."

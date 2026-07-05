@@ -1,0 +1,33 @@
+# ============================================================
+# Surcouche de DÉVELOPPEMENT — hot-reload (jamais en production).
+#
+# Usage explicite :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Pour la fusion automatique par "docker compose up" en local,
+# copier ce fichier (docker-compose.override.yml est gitignoré,
+# il ne doit JAMAIS être présent sur le serveur de production) :
+#   cp docker-compose.dev.yml docker-compose.override.yml
+#
+# Elle active :
+#   - frontend : "npm run dev" avec le code source monté en volume
+#   - backend  : "manage.py runserver" (autoreload Django) au lieu de daphne
+# ============================================================
+
+services:
+  backend:
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DEBUG: "True"
+
+  frontend:
+    build:
+      target: deps
+    command: sh -c "npm run dev"
+    environment:
+      WATCHPACK_POLLING: "true"
+      NEXT_PUBLIC_API_URL: ""
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next

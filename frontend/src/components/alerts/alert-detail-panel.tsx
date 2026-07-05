@@ -46,8 +46,8 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
   const handleStatusChange = async (status: AlertStatus) => {
     if (!alert) return;
     try {
-      // Use mock in case API not available
-      onUpdate({ ...alert, status });
+      const updated = await alertsApi.updateAlert(alert.id, { status });
+      onUpdate(updated);
       toast.success(`Statut mis à jour : ${statusLabels[status]}`);
     } catch {
       toast.error("Erreur lors de la mise à jour");

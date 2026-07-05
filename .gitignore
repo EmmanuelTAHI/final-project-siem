@@ -39,3 +39,7 @@ prompt.txt
 *.log
 *.tmp
 red_team_report*.json
+
+# Surcouche dev locale (fusionnée automatiquement par docker compose —
+# ne doit jamais atterrir sur le serveur de production)
+docker-compose.override.yml

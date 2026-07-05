@@ -16,6 +16,15 @@ while ! nc -z ${REDIS_HOST:-redis} ${REDIS_PORT:-6379}; do
 done
 echo "Redis is up."
 
+# Migrations, statiques, fixtures et compte admin : exécutés uniquement par le
+# service backend (RUN_MIGRATIONS=1 dans docker-compose.yml). Les workers
+# celery/syslog partagent ce même entrypoint mais démarrent en parallèle :
+# sans ce garde-fou, quatre "migrate"/"loaddata" concurrents se disputent la
+# base au premier déploiement.
+if [ "${RUN_MIGRATIONS:-0}" != "1" ]; then
+  exec "$@"
+fi
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
