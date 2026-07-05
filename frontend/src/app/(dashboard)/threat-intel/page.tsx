@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -77,6 +78,95 @@ function summarizeAbuseIPDB(raw: Record<string, unknown> | null): SourceSummary 
       { label: "Fournisseur d'accès", value: isp },
       { label: "Domaine associé", value: domain },
       { label: "Usage", value: usage },
+    ],
+    description,
+  };
+}
+
+function summarizeGeo(raw: Record<string, unknown> | null): SourceSummary {
+  if (!raw || Object.keys(raw).length === 0) {
+    return {
+      verdict: "unknown",
+      scoreLabel: "—",
+      rows: [],
+      description: "Géolocalisation indisponible (IP privée ou service momentanément injoignable).",
+    };
+  }
+  const country = (raw.country as string) || "—";
+  const city = (raw.city as string) || "";
+  const region = (raw.regionName as string) || "";
+  const isp = (raw.isp as string) || "—";
+  const org = (raw.org as string) || "";
+  const asn = (raw.as as string) || "—";
+  const reverse = (raw.reverse as string) || "—";
+  const isProxy = Boolean(raw.proxy);
+  const isHosting = Boolean(raw.hosting);
+  const isMobile = Boolean(raw.mobile);
+
+  const verdict: Verdict = isProxy ? "suspicious" : isHosting ? "suspicious" : "clean";
+  const flags: string[] = [];
+  if (isProxy) flags.push("proxy/VPN");
+  if (isHosting) flags.push("hébergeur/datacenter");
+  if (isMobile) flags.push("réseau mobile");
+
+  const description = isProxy
+    ? "Cette IP passe par un proxy, VPN ou anonymiseur — fréquent chez les attaquants pour masquer leur origine."
+    : isHosting
+    ? "Cette IP appartient à un hébergeur / datacenter. Le trafic « humain » légitime en vient rarement — méfiance accrue."
+    : `Localisation : ${[city, region, country].filter(Boolean).join(", ")}. Réseau résidentiel/entreprise classique.`;
+
+  return {
+    verdict,
+    scoreLabel: raw.countryCode ? String(raw.countryCode) : "—",
+    rows: [
+      { label: "Pays", value: [city, region, country].filter(Boolean).join(", ") || country },
+      { label: "Fournisseur (FAI)", value: isp },
+      { label: "Organisation", value: org || "—" },
+      { label: "ASN", value: asn },
+      { label: "DNS inverse", value: reverse },
+      { label: "Indicateurs réseau", value: flags.length ? flags.join(" · ") : "aucun" },
+    ],
+    description,
+  };
+}
+
+function summarizeInternal(raw: Record<string, unknown> | null): SourceSummary {
+  if (!raw || raw.seen === false || raw.seen === undefined) {
+    return {
+      verdict: "clean",
+      scoreLabel: "0",
+      rows: [{ label: "Statut", value: "Jamais vue localement" }],
+      description:
+        "Cette IP n'apparaît dans aucun de vos logs. Elle n'a jamais interagi avec votre infrastructure surveillée.",
+    };
+  }
+  const failures = Number(raw.login_failures ?? 0);
+  const alerts = Number(raw.alert_count ?? 0);
+  const total = Number(raw.total_events ?? 0);
+  const users = (raw.targeted_users as string[]) ?? [];
+  const firstSeen = (raw.first_seen as string) || null;
+  const lastSeen = (raw.last_seen as string) || null;
+
+  const verdict: Verdict =
+    alerts > 0 ? "malicious" : failures >= 5 ? "suspicious" : total > 0 ? "clean" : "unknown";
+
+  const description =
+    alerts > 0
+      ? `⚠ Cette IP a déjà déclenché ${alerts} alerte(s) sur VOTRE infrastructure — c'est un attaquant connu localement. Blocage recommandé.`
+      : failures >= 5
+      ? `Cette IP cumule ${failures} échecs de connexion dans vos logs — comportement de brute force probable.`
+      : `IP observée ${total} fois dans vos logs, sans activité malveillante caractérisée à ce jour.`;
+
+  return {
+    verdict,
+    scoreLabel: alerts > 0 ? `${alerts} alerte(s)` : `${total} evt`,
+    rows: [
+      { label: "Événements observés", value: String(total) },
+      { label: "Échecs de connexion", value: String(failures) },
+      { label: "Alertes déclenchées", value: String(alerts) },
+      { label: "Comptes ciblés", value: users.length ? users.slice(0, 5).join(", ") : "—" },
+      { label: "Première vue", value: firstSeen ? new Date(firstSeen).toLocaleString("fr-FR") : "—" },
+      { label: "Dernière vue", value: lastSeen ? new Date(lastSeen).toLocaleString("fr-FR") : "—" },
     ],
     description,
   };
@@ -208,17 +298,22 @@ function LookupResultPanel({
   const results = (result.results as Record<string, Record<string, unknown> | null>) ?? {};
   const value = (result.value as string) ?? lookupValue;
   const type = (result.type as string) ?? lookupType;
+  const serverVerdict = (result.verdict as { level?: Verdict; score?: number; reasons?: string[] }) ?? {};
   const abuse = summarizeAbuseIPDB(results.abuseipdb ?? null);
   const vt = summarizeVirusTotal(results.virustotal ?? null, type);
+  const geo = summarizeGeo(results.geo ?? null);
+  const internal = summarizeInternal(results.internal ?? null);
 
+  // Le verdict global est calculé côté serveur (combine toutes les sources,
+  // y compris l'empreinte interne et le réseau — fonctionne sans clé API).
   const overall: Verdict =
-    abuse.verdict === "malicious" || vt.verdict === "malicious"
+    serverVerdict.level ??
+    (abuse.verdict === "malicious" || vt.verdict === "malicious"
       ? "malicious"
       : abuse.verdict === "suspicious" || vt.verdict === "suspicious"
       ? "suspicious"
-      : abuse.verdict === "clean" || vt.verdict === "clean"
-      ? "clean"
-      : "unknown";
+      : "clean");
+  const reasons = serverVerdict.reasons ?? [];
 
   return (
     <motion.div
@@ -242,17 +337,41 @@ function LookupResultPanel({
         </div>
         <p className="text-xs mt-2 leading-relaxed text-foreground/80">
           {overall === "malicious"
-            ? "Au moins une source CTI confirme une activité malveillante. Bloquer cette adresse et lancer un playbook SOAR."
+            ? "Activité malveillante confirmée par au moins une source. Bloquez cette adresse et lancez un playbook SOAR."
             : overall === "suspicious"
-            ? "Indices contradictoires entre les sources. Croisez avec les logs internes avant d'agir."
+            ? "Signaux suspects détectés. Croisez avec vos logs internes avant d'agir."
             : overall === "clean"
-            ? "Aucun signalement notable. L'indicateur est considéré sûr selon les bases CTI actuelles."
-            : "Les sources externes n'ont pas répondu ou aucun renseignement n'est disponible."}
+            ? "Aucun signalement notable. L'indicateur est considéré sûr selon les données disponibles."
+            : "Aucune source n'a pu qualifier cet indicateur."}
         </p>
+        {reasons.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {reasons.map((r, i) => (
+              <li key={i} className="text-[11px] flex items-start gap-1.5 text-foreground/70">
+                <span className="mt-0.5 opacity-60">▸</span>
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Côte-à-côte AbuseIPDB / VirusTotal */}
+      {/* Panneaux de sources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {type === "ip" && (
+          <SourcePanel
+            name="Empreinte interne (SIEM)"
+            subtitle="Ce que VOTRE plateforme sait déjà de cette IP"
+            summary={internal}
+          />
+        )}
+        {type === "ip" && (
+          <SourcePanel
+            name="Géolocalisation & réseau"
+            subtitle="ip-api — pays, FAI, ASN, proxy/hosting"
+            summary={geo}
+          />
+        )}
         {type === "ip" && (
           <SourcePanel
             name="AbuseIPDB"
@@ -370,9 +489,12 @@ function detectIndicatorType(raw: string): Detected {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ThreatIntelPage() {
+function ThreatIntelPageInner() {
   const [lookupValue, setLookupValue] = useState("");
   const [lookupResult, setLookupResult] = useState<Record<string, unknown> | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const searchParams = useSearchParams();
+  const autoRanFor = useRef<string | null>(null);
 
   const detected = detectIndicatorType(lookupValue);
   const lookupType = detected.type !== "unknown" ? detected.type : "ip";
@@ -404,10 +526,11 @@ export default function ThreatIntelPage() {
     },
   });
 
-  const handleLookup = async () => {
-    if (!lookupValue.trim()) return;
+  const runLookup = useCallback(async (value: string, type: string) => {
+    if (!value.trim()) return;
+    setIsLookingUp(true);
     try {
-      const result = await threatIntelApi.lookupIndicator(lookupValue.trim(), lookupType);
+      const result = await threatIntelApi.lookupIndicator(value.trim(), type);
       setLookupResult(result);
     } catch (err: unknown) {
       const e = err as { code?: string; response?: { status?: number; data?: { message?: string } } };
@@ -417,8 +540,23 @@ export default function ThreatIntelPage() {
         const msg = e?.response?.data?.message;
         toast.error(msg ?? `Erreur lookup (HTTP ${e?.response?.status ?? "?"}) — vérifiez la valeur saisie.`);
       }
+    } finally {
+      setIsLookingUp(false);
     }
-  };
+  }, []);
+
+  const handleLookup = () => runLookup(lookupValue, lookupType);
+
+  // Pivot : /threat-intel?ip=1.2.3.4 pré-remplit et lance le lookup automatiquement.
+  useEffect(() => {
+    const ip = searchParams.get("ip") || searchParams.get("q");
+    if (ip && autoRanFor.current !== ip) {
+      autoRanFor.current = ip;
+      setLookupValue(ip);
+      const d = detectIndicatorType(ip);
+      runLookup(ip, d.type !== "unknown" ? d.type : "ip");
+    }
+  }, [searchParams, runLookup]);
 
   const indicators = indicatorsData?.results ?? [];
   const threats = threatsData?.results ?? [];
@@ -488,9 +626,13 @@ export default function ThreatIntelPage() {
             </div>
             <Button
               onClick={handleLookup}
-              disabled={!lookupValue.trim() || detected.type === "unknown"}
+              disabled={!lookupValue.trim() || detected.type === "unknown" || isLookingUp}
             >
-              <Search className="w-4 h-4 mr-2" />
+              {isLookingUp ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4 mr-2" />
+              )}
               Analyser
             </Button>
           </div>
@@ -636,5 +778,13 @@ export default function ThreatIntelPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ThreatIntelPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThreatIntelPageInner />
+    </Suspense>
   );
 }

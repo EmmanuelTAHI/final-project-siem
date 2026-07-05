@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, timeAgo, formatDate, statusColors, statusLabels } from "@/lib/utils";
+import { IpLink } from "@/components/common/ip-link";
 import type { Alert, AlertStatus } from "@/types";
 import toast from "react-hot-toast";
 import { alertsApi } from "@/lib/api";
@@ -132,19 +133,19 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
                 {/* Details grid */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { icon: Globe, label: "IP Source", value: alert.source_ip, mono: true },
+                    { icon: Globe, label: "IP Source", value: alert.source_ip, mono: true, render: alert.source_ip ? <IpLink ip={alert.source_ip} className="text-xs" /> : undefined },
                     { icon: Globe, label: "IP Dest.", value: alert.destination_ip || "—", mono: true },
                     { icon: User, label: "Utilisateur", value: alert.user_email || "—" },
                     { icon: Shield, label: "Règle", value: alert.rule_name },
                     { icon: Clock, label: "Créé", value: formatDate(alert.created_at, "dd/MM/yyyy HH:mm") },
                     { icon: Clock, label: "Mis à jour", value: formatDate(alert.updated_at, "dd/MM/yyyy HH:mm") },
-                  ].map(({ icon: Icon, label, value, mono }) => (
+                  ].map(({ icon: Icon, label, value, mono, render }: { icon: React.ElementType; label: string; value: React.ReactNode; mono?: boolean; render?: React.ReactNode }) => (
                     <div key={label} className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/40">
                       <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-[10px] text-muted-foreground">{label}</p>
                         <p className={cn("text-xs font-medium text-foreground truncate", mono && "font-mono")}>
-                          {value}
+                          {render ?? value}
                         </p>
                       </div>
                     </div>

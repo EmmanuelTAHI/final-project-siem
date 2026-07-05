@@ -14,6 +14,7 @@ import {
 import { useLogs } from "@/hooks/use-logs";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { FlagBadge } from "@/components/common/country-flag";
+import { IpLink } from "@/components/common/ip-link";
 import type { NormalizedLog } from "@/types";
 
 type View = "table" | "json" | "raw";
@@ -712,7 +713,7 @@ export default function LogsPage() {
                         <td className="font-mono" style={{ fontSize: 11.5 }}>{e.user_email || "—"}</td>
                         <td style={{ fontSize: 11.5 }}>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono" style={{ color: "var(--text-2)" }}>{e.source_ip || "—"}</span>
+                            <IpLink ip={e.source_ip} className="text-[11.5px]" />
                             {e.geo_country_code && (
                               <FlagBadge code={e.geo_country_code} label={e.geo_country_code} />
                             )}

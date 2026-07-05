@@ -28,9 +28,9 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"])
     def lookup(self, request):
         """Lookup manuel d'un indicateur (IP, domaine, hash)."""
-        from apps.threat_intel.services import abuseipdb, virustotal
+        from apps.threat_intel.services import abuseipdb, ip_enrichment, virustotal
 
-        value = request.data.get("value", "")
+        value = (request.data.get("value", "") or "").strip()
         itype = request.data.get("type", "ip")
 
         if not value:
@@ -38,6 +38,10 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
 
         results = {}
         if itype == "ip":
+            # Sources sans clé API — renvoient toujours quelque chose d'utile
+            results["geo"] = ip_enrichment.geo_lookup(value)
+            results["internal"] = ip_enrichment.internal_reputation(value)
+            # Sources externes (vides si clé non configurée)
             results["abuseipdb"] = abuseipdb.check_ip(value)
             results["virustotal"] = virustotal.analyze_ip(value)
         elif itype == "domain":
@@ -45,7 +49,74 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
         elif itype in ("hash_md5", "hash_sha256"):
             results["virustotal"] = virustotal.analyze_hash(value)
 
-        return Response({"value": value, "type": itype, "results": results})
+        verdict = self._compute_verdict(itype, results)
+        return Response({"value": value, "type": itype, "results": results, "verdict": verdict})
+
+    @staticmethod
+    def _compute_verdict(itype: str, results: dict) -> dict:
+        """
+        Verdict de synthèse combinant toutes les sources disponibles.
+        Fonctionne même sans clé API grâce à l'empreinte interne et au réseau.
+        Niveaux : malicious > suspicious > clean > unknown.
+        """
+        score = 0
+        reasons = []
+
+        abuse = results.get("abuseipdb") or {}
+        if abuse:
+            conf = int(abuse.get("abuseConfidenceScore", 0) or 0)
+            reports = int(abuse.get("totalReports", 0) or 0)
+            if conf >= 75:
+                score = max(score, 90)
+                reasons.append(f"AbuseIPDB : confiance d'abus {conf}/100 ({reports} signalements)")
+            elif conf >= 25 or reports > 0:
+                score = max(score, 55)
+                reasons.append(f"AbuseIPDB : {reports} signalement(s), confiance {conf}/100")
+
+        vt = results.get("virustotal") or {}
+        stats = (vt.get("attributes", {}) or {}).get("last_analysis_stats", {}) or {}
+        vt_mal = int(stats.get("malicious", 0) or 0)
+        vt_susp = int(stats.get("suspicious", 0) or 0)
+        if vt_mal >= 5:
+            score = max(score, 90)
+            reasons.append(f"VirusTotal : {vt_mal} moteurs antivirus le classent malveillant")
+        elif vt_mal + vt_susp >= 1:
+            score = max(score, 55)
+            reasons.append(f"VirusTotal : {vt_mal} malveillant / {vt_susp} suspect")
+
+        internal = results.get("internal") or {}
+        if internal.get("seen"):
+            failures = int(internal.get("login_failures", 0) or 0)
+            alerts = int(internal.get("alert_count", 0) or 0)
+            if alerts > 0:
+                score = max(score, 80)
+                reasons.append(f"Empreinte interne : cette IP a déclenché {alerts} alerte(s) sur VOTRE infrastructure")
+            elif failures >= 5:
+                score = max(score, 60)
+                reasons.append(f"Empreinte interne : {failures} échecs de connexion observés localement")
+            elif internal.get("total_events", 0) > 0:
+                score = max(score, 20)
+                reasons.append("Empreinte interne : IP déjà observée dans vos logs")
+
+        geo = results.get("geo") or {}
+        if geo:
+            if geo.get("hosting"):
+                score = max(score, max(score, 30))
+                reasons.append(f"Réseau : hébergeur / datacenter ({geo.get('org') or geo.get('isp') or '—'})")
+            if geo.get("proxy"):
+                score = max(score, 45)
+                reasons.append("Réseau : proxy / VPN / anonymiseur détecté")
+
+        if score >= 75:
+            level = "malicious"
+        elif score >= 40:
+            level = "suspicious"
+        elif score > 0 or geo or (internal and internal.get("seen") is not None):
+            level = "clean"
+        else:
+            level = "unknown"
+
+        return {"level": level, "score": score, "reasons": reasons}
 
     @action(detail=False, methods=["post"])
     def trigger_enrichment(self, request):

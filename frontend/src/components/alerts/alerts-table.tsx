@@ -14,6 +14,7 @@ import { SeverityBadge } from "./severity-badge";
 import { cn, timeAgo, statusColors, statusLabels } from "@/lib/utils";
 import { NoAlertsState } from "@/components/common/empty-state";
 import { TableRowSkeleton } from "@/components/common/loading-skeleton";
+import { IpLink } from "@/components/common/ip-link";
 import type { Alert, AlertStatus } from "@/types";
 
 interface AlertsTableProps {
@@ -217,7 +218,7 @@ export function AlertsTable({
 
                     {/* Source IP */}
                     <td className="px-4 py-3">
-                      <span className="text-xs font-mono text-foreground">{alert.source_ip}</span>
+                      <IpLink ip={alert.source_ip} className="text-xs" />
                     </td>
 
                     {/* Created */}

@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 import { FlagBadge } from "@/components/common/country-flag";
 import { NoLogsState } from "@/components/common/empty-state";
+import { IpLink } from "@/components/common/ip-link";
 import { TableRowSkeleton } from "@/components/common/loading-skeleton";
 import type { NormalizedLog } from "@/types";
 
@@ -149,7 +150,7 @@ export function LogsTable({ logs, isLoading, activeFilters, onRemoveFilter, onCl
                       </td>
 
                       {/* Source IP */}
-                      <td className="px-3 py-2 font-mono text-foreground">{log.source_ip || "—"}</td>
+                      <td className="px-3 py-2 font-mono text-foreground"><IpLink ip={log.source_ip} /></td>
 
                       {/* Geo */}
                       <td className="px-3 py-2">

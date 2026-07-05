@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useAlerts, useAlertStats, useUpdateAlert, useAddAlertComment } from "@/hooks/use-alerts";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRealtimeStore } from "@/stores/realtime-store";
+import { IpLink } from "@/components/common/ip-link";
 import { formatDate, formatNumber, severityHex } from "@/lib/utils";
 import type { Alert } from "@/types";
 import toast from "react-hot-toast";
@@ -199,7 +200,7 @@ function AlertCard({
             {alert.source_ip && (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Globe size={11} />
-                <span className="font-mono">{alert.source_ip}</span>
+                <IpLink ip={alert.source_ip} className="text-[12px]" />
               </span>
             )}
             {alert.user_email && (
@@ -284,7 +285,7 @@ function AlertCard({
                 {alert.mitre_technique && <Row k="Technique" v={alert.mitre_technique} mono />}
                 <Row k="Alert ID" v={`#${alert.id}`} mono />
                 <Row k="Events" v={alert.event_count} mono />
-                <Row k="Source IP" v={alert.source_ip || "—"} mono />
+                <Row k="Source IP" v={alert.source_ip ? <IpLink ip={alert.source_ip} /> : "—"} mono />
                 {alert.destination_ip && <Row k="Destination" v={alert.destination_ip} mono />}
                 {alert.user_email && <Row k="Utilisateur" v={alert.user_email} mono />}
                 {alert.assigned_to_name && <Row k="Assigné à" v={alert.assigned_to_name} />}
