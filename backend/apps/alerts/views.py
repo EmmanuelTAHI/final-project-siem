@@ -131,13 +131,23 @@ class AlertViewSet(ModelViewSet):
         serializer = AlertCommentCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return error_response(message="Données invalides.", errors=serializer.errors)
-        comment = AlertComment.objects.create(
+        AlertComment.objects.create(
             alert=alert,
             author=request.user,
             content=serializer.validated_data["content"],
         )
+        # Renvoie l'alerte complète (avec la liste de commentaires à jour) pour
+        # que le frontend rafraîchisse le panneau sans requête supplémentaire.
+        # Rechargement frais : le prefetch de get_object() est périmé (ne
+        # contient pas le commentaire qu'on vient de créer).
+        fresh = (
+            Alert.objects
+            .select_related("rule", "assigned_to")
+            .prefetch_related("comments__author", "source_logs")
+            .get(pk=alert.pk)
+        )
         return success_response(
-            data=AlertCommentSerializer(comment).data,
+            data=AlertSerializer(fresh).data,
             message="Commentaire ajouté.",
             http_status=status.HTTP_201_CREATED,
         )

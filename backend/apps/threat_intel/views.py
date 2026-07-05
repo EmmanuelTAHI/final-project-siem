@@ -28,7 +28,13 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"])
     def lookup(self, request):
         """Lookup manuel d'un indicateur (IP, domaine, hash)."""
-        from apps.threat_intel.services import abuseipdb, ip_enrichment, virustotal
+        from apps.threat_intel.services import (
+            abuseipdb,
+            criminalip,
+            ip_enrichment,
+            shodan_svc,
+            virustotal,
+        )
 
         value = (request.data.get("value", "") or "").strip()
         itype = request.data.get("type", "ip")
@@ -44,6 +50,8 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
             # Sources externes (vides si clé non configurée)
             results["abuseipdb"] = abuseipdb.check_ip(value)
             results["virustotal"] = virustotal.analyze_ip(value)
+            results["criminalip"] = criminalip.summarize(criminalip.check_ip(value))
+            results["shodan"] = shodan_svc.summarize(shodan_svc.host_info(value))
         elif itype == "domain":
             results["virustotal"] = virustotal.analyze_domain(value)
         elif itype in ("hash_md5", "hash_sha256"):
@@ -98,20 +106,43 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
                 score = max(score, 20)
                 reasons.append("Empreinte interne : IP déjà observée dans vos logs")
 
+        cip = results.get("criminalip") or {}
+        if cip:
+            inb = cip.get("inbound_score")
+            if cip.get("is_malicious") or (isinstance(inb, (int, float)) and inb >= 75):
+                score = max(score, 85)
+                reasons.append(f"CriminalIP : IP classée malveillante (score entrant {inb})")
+            elif cip.get("is_scanner"):
+                score = max(score, 55)
+                reasons.append("CriminalIP : scanner connu")
+            elif cip.get("is_tor") or cip.get("is_vpn") or cip.get("is_proxy"):
+                score = max(score, 45)
+                reasons.append("CriminalIP : Tor / VPN / proxy détecté")
+
+        shodan = results.get("shodan") or {}
+        if shodan.get("vuln_count"):
+            score = max(score, 50)
+            reasons.append(f"Shodan : {shodan['vuln_count']} vulnérabilité(s) connue(s) exposée(s)")
+        elif shodan.get("ports"):
+            reasons.append(f"Shodan : {len(shodan['ports'])} port(s) ouvert(s) exposé(s)")
+
         geo = results.get("geo") or {}
         if geo:
             if geo.get("hosting"):
-                score = max(score, max(score, 30))
+                score = max(score, 30)
                 reasons.append(f"Réseau : hébergeur / datacenter ({geo.get('org') or geo.get('isp') or '—'})")
             if geo.get("proxy"):
                 score = max(score, 45)
                 reasons.append("Réseau : proxy / VPN / anonymiseur détecté")
 
+        responded = bool(geo or cip or shodan or abuse or vt) or (
+            internal and internal.get("seen") is not None
+        )
         if score >= 75:
             level = "malicious"
         elif score >= 40:
             level = "suspicious"
-        elif score > 0 or geo or (internal and internal.get("seen") is not None):
+        elif responded:
             level = "clean"
         else:
             level = "unknown"

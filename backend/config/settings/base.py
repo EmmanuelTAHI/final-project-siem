@@ -261,6 +261,8 @@ ML_CONTAMINATION_RATE = float(env("ML_CONTAMINATION_RATE", default=0.05))
 # ─── Threat Intelligence ──────────────────────────────────────────────────────
 ABUSEIPDB_API_KEY = env("ABUSEIPDB_API_KEY", default="")
 VIRUSTOTAL_API_KEY = env("VIRUSTOTAL_API_KEY", default="")
+CRIMINALIP_API_KEY = env("CRIMINALIP_API_KEY", default="")
+SHODAN_API_KEY = env("SHODAN_API_KEY", default="")
 
 # ─── Frontend ─────────────────────────────────────────────────────────────────
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")

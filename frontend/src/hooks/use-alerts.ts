@@ -19,6 +19,15 @@ export function useAlerts(params: AlertsQueryParams = {}) {
   });
 }
 
+export function useAlert(id: number, enabled = true) {
+  return useQuery({
+    queryKey: ["alert", id],
+    queryFn: () => alertsApi.getAlert(id),
+    enabled: enabled && !!id,
+    staleTime: 5_000,
+  });
+}
+
 export function useAlertStats() {
   const wsConnected = useRealtimeStore((s) => s.connected);
   return useQuery({
@@ -34,9 +43,13 @@ export function useUpdateAlert() {
   return useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: Partial<Alert> }) =>
       alertsApi.updateAlert(id, updates),
-    onSuccess: () => {
+    onSuccess: (updated, { id }) => {
+      // Écrit la réponse complète directement dans le cache du détail pour
+      // un affichage immédiat et stable (pas de « flash » puis disparition).
+      queryClient.setQueryData(["alert", id], updated);
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       queryClient.invalidateQueries({ queryKey: ["alert-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["alert", id] });
     },
     onError: () => {
       toast.error("Erreur lors de la mise à jour");
@@ -49,7 +62,9 @@ export function useAddAlertComment() {
   return useMutation({
     mutationFn: ({ id, content }: { id: number; content: string }) =>
       alertsApi.addComment(id, content),
-    onSuccess: () => {
+    onSuccess: (updated, { id }) => {
+      queryClient.setQueryData(["alert", id], updated);
+      queryClient.invalidateQueries({ queryKey: ["alert", id] });
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       toast.success("Commentaire ajouté");
     },

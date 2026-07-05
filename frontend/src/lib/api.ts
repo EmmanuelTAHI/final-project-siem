@@ -271,6 +271,9 @@ function mapAlert(raw: Record<string, unknown>): Alert {
     source_ip: ((raw.source_ip as string | undefined) ?? first?.source_ip ?? "") as string,
     user_email: (raw.user_email as string | undefined) ?? first?.user_email,
     assigned_to_name: (raw.assigned_to_email ?? raw.assigned_to_name) as string | undefined,
+    // `comments` n'est présent que dans le serializer de détail ; on le laisse
+    // tel quel (tableau) ou vide pour que le panneau puisse l'afficher.
+    comments: (raw.comments as Alert["comments"] | undefined) ?? [],
     log_sources: logs.map((l) => ({
       id: l.id as unknown as number,
       log_id: l.id as unknown as number,

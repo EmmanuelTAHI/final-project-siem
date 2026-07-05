@@ -172,6 +172,89 @@ function summarizeInternal(raw: Record<string, unknown> | null): SourceSummary {
   };
 }
 
+function summarizeCriminalIP(raw: Record<string, unknown> | null): SourceSummary {
+  if (!raw || Object.keys(raw).length === 0) {
+    return {
+      verdict: "unknown",
+      scoreLabel: "—",
+      rows: [],
+      description: "Aucune donnée CriminalIP (clé non configurée ou IP inconnue).",
+    };
+  }
+  const inb = Number(raw.inbound_score ?? 0);
+  const outb = Number(raw.outbound_score ?? 0);
+  const flags: string[] = [];
+  if (raw.is_malicious) flags.push("malveillant");
+  if (raw.is_scanner) flags.push("scanner");
+  if (raw.is_tor) flags.push("Tor");
+  if (raw.is_vpn) flags.push("VPN");
+  if (raw.is_proxy) flags.push("proxy");
+  if (raw.is_hosting) flags.push("hébergeur");
+  if (raw.is_darkweb) flags.push("dark web");
+
+  const verdict: Verdict =
+    raw.is_malicious || inb >= 75 ? "malicious" : flags.length > 0 || inb >= 30 ? "suspicious" : "clean";
+
+  const description = raw.is_malicious
+    ? "CriminalIP classe cette IP comme malveillante. À bloquer."
+    : flags.length > 0
+    ? `CriminalIP signale : ${flags.join(", ")}. Score entrant ${inb}/100.`
+    : `Aucun signal fort chez CriminalIP (score entrant ${inb}/100).`;
+
+  return {
+    verdict,
+    scoreLabel: `${inb}/100`,
+    rows: [
+      { label: "Score entrant", value: `${inb}/100` },
+      { label: "Score sortant", value: `${outb}/100` },
+      { label: "Drapeaux", value: flags.length ? flags.join(" · ") : "aucun" },
+      { label: "Ports ouverts", value: raw.open_ports != null ? String(raw.open_ports) : "—" },
+      { label: "Pays", value: (raw.country as string) || "—" },
+    ],
+    description,
+  };
+}
+
+function summarizeShodan(raw: Record<string, unknown> | null): SourceSummary {
+  if (!raw || Object.keys(raw).length === 0 || raw.not_found) {
+    return {
+      verdict: raw?.not_found ? "clean" : "unknown",
+      scoreLabel: "—",
+      rows: raw?.not_found ? [{ label: "Statut", value: "Aucune exposition indexée" }] : [],
+      description: raw?.not_found
+        ? "Shodan n'a aucune entrée pour cette IP : aucun service exposé n'a été indexé (bon signe)."
+        : "Aucune donnée Shodan (clé non configurée).",
+    };
+  }
+  const ports = (raw.ports as number[]) ?? [];
+  const vulnCount = Number(raw.vuln_count ?? 0);
+  const vulns = (raw.vulns as string[]) ?? [];
+  const org = (raw.org as string) || "—";
+
+  const verdict: Verdict = vulnCount >= 1 ? "suspicious" : ports.length > 0 ? "clean" : "unknown";
+
+  const description =
+    vulnCount >= 1
+      ? `Shodan expose ${vulnCount} vulnérabilité(s) connue(s) sur cette IP (${ports.length} ports ouverts). Surface d'attaque à surveiller.`
+      : ports.length > 0
+      ? `${ports.length} port(s) ouvert(s) exposé(s) sur Internet, sans CVE connue référencée.`
+      : "Aucun service exposé indexé.";
+
+  return {
+    verdict,
+    scoreLabel: `${ports.length} ports`,
+    rows: [
+      { label: "Ports ouverts", value: ports.length ? ports.slice(0, 15).join(", ") : "—" },
+      { label: "Vulnérabilités (CVE)", value: vulnCount ? `${vulnCount} — ${vulns.slice(0, 5).join(", ")}` : "0" },
+      { label: "Organisation", value: org },
+      { label: "OS", value: (raw.os as string) || "—" },
+      { label: "Hostnames", value: ((raw.hostnames as string[]) ?? []).slice(0, 3).join(", ") || "—" },
+      { label: "Tags", value: ((raw.tags as string[]) ?? []).join(", ") || "—" },
+    ],
+    description,
+  };
+}
+
 function summarizeVirusTotal(raw: Record<string, unknown> | null, type: string): SourceSummary {
   if (!raw || Object.keys(raw).length === 0) {
     return {
@@ -303,6 +386,8 @@ function LookupResultPanel({
   const vt = summarizeVirusTotal(results.virustotal ?? null, type);
   const geo = summarizeGeo(results.geo ?? null);
   const internal = summarizeInternal(results.internal ?? null);
+  const criminalip = summarizeCriminalIP(results.criminalip ?? null);
+  const shodan = summarizeShodan(results.shodan ?? null);
 
   // Le verdict global est calculé côté serveur (combine toutes les sources,
   // y compris l'empreinte interne et le réseau — fonctionne sans clé API).
@@ -377,6 +462,20 @@ function LookupResultPanel({
             name="AbuseIPDB"
             subtitle="Base communautaire de signalements d'IPs"
             summary={abuse}
+          />
+        )}
+        {type === "ip" && (
+          <SourcePanel
+            name="CriminalIP"
+            subtitle="Réputation & exposition — scanner, Tor/VPN, malveillance"
+            summary={criminalip}
+          />
+        )}
+        {type === "ip" && (
+          <SourcePanel
+            name="Shodan"
+            subtitle="Surface d'attaque — ports ouverts, services, CVE"
+            summary={shodan}
           />
         )}
         <SourcePanel
@@ -567,7 +666,7 @@ function ThreatIntelPageInner() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Threat Intelligence</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Enrichissement CTI — empreinte interne SIEM · géoloc/réseau · AbuseIPDB · VirusTotal
+            Enrichissement CTI — SIEM interne · géoloc · AbuseIPDB · CriminalIP · Shodan · VirusTotal
           </p>
         </div>
         <Button

@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAlerts, useAlertStats, useUpdateAlert, useAddAlertComment } from "@/hooks/use-alerts";
+import { useAlerts, useAlert, useAlertStats, useUpdateAlert, useAddAlertComment } from "@/hooks/use-alerts";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRealtimeStore } from "@/stores/realtime-store";
 import { IpLink } from "@/components/common/ip-link";
@@ -167,6 +167,11 @@ function AlertCard({
 }) {
   const isCrit = alert.severity === "critical";
   const [comment, setComment] = useState("");
+  // Charge le détail complet (description entière + commentaires) à l'ouverture.
+  // La ligne de liste sert de fond immédiat, remplacée dès que le détail arrive.
+  const { data: full } = useAlert(alert.id, expanded);
+  const d = full ?? alert;
+  const comments = d.comments ?? [];
   return (
     <div
       className={`card ${isCrit ? "crit-glow" : ""} ${isNew ? "alert-live-in" : ""}`}
@@ -281,15 +286,15 @@ function AlertCard({
                 Détails techniques
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
-                {alert.mitre_tactic && <Row k="MITRE tactic" v={alert.mitre_tactic} />}
-                {alert.mitre_technique && <Row k="Technique" v={alert.mitre_technique} mono />}
-                <Row k="Alert ID" v={`#${alert.id}`} mono />
-                <Row k="Events" v={alert.event_count} mono />
-                <Row k="Source IP" v={alert.source_ip ? <IpLink ip={alert.source_ip} /> : "—"} mono />
-                {alert.destination_ip && <Row k="Destination" v={alert.destination_ip} mono />}
-                {alert.user_email && <Row k="Utilisateur" v={alert.user_email} mono />}
-                {alert.assigned_to_name && <Row k="Assigné à" v={alert.assigned_to_name} />}
-                <Row k="Description" v={alert.description} wrap />
+                {d.mitre_tactic && <Row k="MITRE tactic" v={d.mitre_tactic} />}
+                {d.mitre_technique && <Row k="Technique" v={d.mitre_technique} mono />}
+                <Row k="Alert ID" v={`#${d.id}`} mono />
+                <Row k="Events" v={d.event_count ?? 0} mono />
+                <Row k="Source IP" v={d.source_ip ? <IpLink ip={d.source_ip} /> : "—"} mono />
+                {d.destination_ip && <Row k="Destination" v={d.destination_ip} mono />}
+                {d.user_email && <Row k="Utilisateur" v={d.user_email} mono />}
+                {d.assigned_to_name && <Row k="Assigné à" v={d.assigned_to_name} />}
+                <Row k="Description" v={d.description || "—"} wrap />
               </div>
               <div style={{ marginTop: 16 }}>
                 <div
@@ -302,8 +307,34 @@ function AlertCard({
                     marginBottom: 8,
                   }}
                 >
-                  Commentaire
+                  Commentaires {comments.length > 0 && `(${comments.length})`}
                 </div>
+                {comments.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                    {comments.map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          fontSize: 12.5,
+                          background: "color-mix(in srgb, var(--text) 4%, transparent)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontWeight: 600, color: "var(--text)" }}>
+                            {c.author_email || "Analyste"}
+                          </span>
+                          <span className="font-mono" style={{ fontSize: 11, color: "var(--text-2)" }}>
+                            {formatDate(c.created_at, "dd/MM HH:mm")}
+                          </span>
+                        </div>
+                        <div style={{ color: "var(--text)", whiteSpace: "pre-wrap" }}>{c.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   className="input"
                   rows={2}
@@ -356,14 +387,14 @@ function AlertCard({
               </div>
               <JSONPretty
                 data={
-                  alert.log_sources?.[0]?.raw_data ?? {
-                    id: alert.id,
-                    rule: alert.rule_name,
-                    severity: alert.severity,
-                    source_ip: alert.source_ip,
-                    user: alert.user_email,
-                    event_count: alert.event_count,
-                    created_at: alert.created_at,
+                  d.log_sources?.[0]?.raw_data ?? {
+                    id: d.id,
+                    rule: d.rule_name,
+                    severity: d.severity,
+                    source_ip: d.source_ip,
+                    user: d.user_email,
+                    event_count: d.event_count,
+                    created_at: d.created_at,
                   }
                 }
               />

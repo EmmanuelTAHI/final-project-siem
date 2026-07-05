@@ -39,7 +39,35 @@ class AlertCommentCreateSerializer(serializers.ModelSerializer):
         return value.strip()
 
 
-class AlertSerializer(serializers.ModelSerializer):
+class _FlatLogFieldsMixin:
+    """
+    Champs à plat (event_count / source_ip / user_email) dérivés des logs
+    sources. Utilise `source_logs` déjà préchargé par le viewset (pas de N+1).
+    Partagé par le serializer complet ET le serializer de liste pour que la
+    liste et le détail exposent EXACTEMENT les mêmes champs — sinon le panneau
+    de détail (qui lit la ligne de liste) affiche des champs vides.
+    """
+
+    def _first_log(self, obj):
+        logs = list(obj.source_logs.all())
+        return logs[0] if logs else None
+
+    def get_event_count(self, obj):
+        return len(list(obj.source_logs.all()))
+
+    def get_source_ip(self, obj):
+        log = self._first_log(obj)
+        return getattr(log, "source_ip", None) if log else None
+
+    def get_user_email(self, obj):
+        log = self._first_log(obj)
+        return getattr(log, "user_email", None) if log else None
+
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+
+
+class AlertSerializer(_FlatLogFieldsMixin, serializers.ModelSerializer):
     """Serializer complet pour la lecture d'une alerte."""
 
     assigned_to_email = serializers.CharField(
@@ -53,6 +81,10 @@ class AlertSerializer(serializers.ModelSerializer):
         source="rule.mitre_technique", read_only=True, allow_null=True
     )
     comments_count = serializers.SerializerMethodField()
+    comments = AlertCommentSerializer(many=True, read_only=True)
+    event_count = serializers.SerializerMethodField()
+    source_ip = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
     time_to_resolve_hours = serializers.ReadOnlyField()
     source_logs_brief = NormalizedLogBriefSerializer(
         source="source_logs", many=True, read_only=True
@@ -72,6 +104,9 @@ class AlertSerializer(serializers.ModelSerializer):
             "rule_mitre_technique",
             "assigned_to",
             "assigned_to_email",
+            "event_count",
+            "source_ip",
+            "user_email",
             "source_logs_brief",
             "created_at",
             "updated_at",
@@ -79,31 +114,54 @@ class AlertSerializer(serializers.ModelSerializer):
             "resolution_note",
             "time_to_resolve_hours",
             "comments_count",
+            "comments",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def get_comments_count(self, obj):
-        return obj.comments.count()
 
-
-class AlertBriefSerializer(serializers.ModelSerializer):
-    """Serializer compact pour les listes."""
+class AlertBriefSerializer(_FlatLogFieldsMixin, serializers.ModelSerializer):
+    """
+    Serializer de liste. Enrichi avec description + champs à plat pour que le
+    panneau de détail (qui lit la ligne de liste) ait tout ce qu'il faut sans
+    perdre les données au refetch. Les commentaires complets restent réservés
+    au serializer de détail (chargés à l'ouverture).
+    """
 
     rule_name = serializers.CharField(source="rule.name", read_only=True, allow_null=True)
+    rule_mitre_tactic = serializers.CharField(
+        source="rule.mitre_tactic", read_only=True, allow_null=True
+    )
+    rule_mitre_technique = serializers.CharField(
+        source="rule.mitre_technique", read_only=True, allow_null=True
+    )
     assigned_to_email = serializers.CharField(
         source="assigned_to.email", read_only=True, allow_null=True
     )
+    event_count = serializers.SerializerMethodField()
+    source_ip = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Alert
         fields = [
             "id",
             "title",
+            "description",
             "severity",
             "status",
+            "rule",
             "rule_name",
+            "rule_mitre_tactic",
+            "rule_mitre_technique",
             "assigned_to_email",
+            "event_count",
+            "source_ip",
+            "user_email",
+            "comments_count",
+            "resolution_note",
             "created_at",
+            "updated_at",
         ]
 
 
