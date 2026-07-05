@@ -229,7 +229,19 @@ export const dashboardApi = {
 
   getGeoMap: async (): Promise<GeoData[]> => {
     const { data } = await api.get("/api/dashboard/geo-map/");
-    return unwrap<GeoData[]>(data);
+    // Le backend renvoie {period, countries: [{geo_country, total, failures,
+    // successes}], generated_at} — un objet, pas un tableau, avec des noms de
+    // champs différents de GeoData. Sans cette adaptation, .map() plante.
+    const raw = unwrap<Record<string, unknown>>(data);
+    const countries = (raw.countries as Record<string, unknown>[]) ?? [];
+    const total = countries.reduce((sum, c) => sum + Number(c.total ?? 0), 0);
+    return countries.map((c) => ({
+      country: (c.geo_country as string) ?? "Inconnu",
+      country_code: (c.geo_country as string) ?? "",
+      count: Number(c.total ?? 0),
+      percentage: total > 0 ? Math.round((Number(c.total ?? 0) / total) * 1000) / 10 : 0,
+      threat_count: Number(c.failures ?? 0),
+    }));
   },
 };
 
@@ -335,6 +347,11 @@ function mapLog(raw: Record<string, unknown>): NormalizedLog {
       (raw.raw_data as Record<string, unknown> | undefined) ??
       (raw.extra_fields as Record<string, unknown> | undefined) ??
       {},
+    // Le backend n'a qu'un seul champ `geo_country` (pas de code ISO séparé) ;
+    // la UI (FlagBadge) attend `geo_country_code`. Alias direct — sans ça le
+    // drapeau ne s'affiche jamais même quand la géo est renseignée.
+    geo_country_code:
+      (raw.geo_country_code as string | undefined) ?? (raw.geo_country as string | undefined),
   };
 }
 
@@ -451,7 +468,16 @@ export const usersApi = {
 
   getAuditTrail: async (): Promise<AuditTrailEntry[]> => {
     const { data } = await api.get("/api/users/audit-trail/");
-    return unwrap<AuditTrailEntry[]>(data);
+    const entries = unwrap<Record<string, unknown>[]>(data);
+    // Le serializer backend expose user_full_name / target_model / target_id /
+    // extra_data ; l'UI attend user / resource_type / resource_id / details.
+    return entries.map((e) => ({
+      ...(e as unknown as AuditTrailEntry),
+      user: (e.user_full_name as string | undefined) || (e.user_email as string | undefined) || "—",
+      resource_type: e.target_model as string,
+      resource_id: e.target_id as string,
+      details: (e.extra_data as Record<string, unknown>) ?? {},
+    }));
   },
 
   createUser: async (user: Partial<User> & { password: string }): Promise<User> => {
@@ -573,12 +599,20 @@ export const huntingApi = {
 
   executeQuery: async (id: string): Promise<HuntingResult> => {
     const { data } = await api.post(`/api/hunting/queries/${id}/execute/`);
-    return unwrap<HuntingResult>(data);
+    const result = unwrap<Record<string, unknown>>(data);
+    return {
+      ...(result as unknown as HuntingResult),
+      results: ((result.results as Record<string, unknown>[]) ?? []).map(mapLog),
+    };
   },
 
   runAdHoc: async (params: Record<string, unknown>, limit = 500): Promise<HuntingResult> => {
     const { data } = await api.post("/api/hunting/run/", { params, limit });
-    return unwrap<HuntingResult>(data);
+    const result = unwrap<Record<string, unknown>>(data);
+    return {
+      ...(result as unknown as HuntingResult),
+      results: ((result.results as Record<string, unknown>[]) ?? []).map(mapLog),
+    };
   },
 
   deleteQuery: async (id: string): Promise<void> => {

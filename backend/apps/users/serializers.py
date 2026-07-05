@@ -22,10 +22,12 @@ class UserSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "is_active",
+            "date_joined",
+            "last_login",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "date_joined", "last_login", "created_at", "updated_at"]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
