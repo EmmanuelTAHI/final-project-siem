@@ -567,7 +567,7 @@ function ThreatIntelPageInner() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Threat Intelligence</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Enrichissement CTI temps réel — AbuseIPDB + VirusTotal
+            Enrichissement CTI — empreinte interne SIEM · géoloc/réseau · AbuseIPDB · VirusTotal
           </p>
         </div>
         <Button
