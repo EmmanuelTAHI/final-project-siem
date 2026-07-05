@@ -241,13 +241,15 @@ WAZUH_PASSWORD = env("WAZUH_PASSWORD", default="")
 WAZUH_VERIFY_SSL = env.bool("WAZUH_VERIFY_SSL", default=False)
 
 # ─── Django Channels (WebSockets) ────────────────────────────────────────────
+# RedisPubSubChannelLayer (et non le core RedisChannelLayer) : le layer "core"
+# lit les messages via BRPOP et lève redis.TimeoutError avec redis-py 5+/8,
+# ce qui tue le consumer et fait boucler le WebSocket (connect/disconnect).
+# Le layer pub/sub s'appuie sur SUBSCRIBE et reste stable.
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
             "hosts": [env("REDIS_URL", default="redis://localhost:6379/0")],
-            "capacity": 1500,
-            "expiry": 60,
         },
     }
 }
