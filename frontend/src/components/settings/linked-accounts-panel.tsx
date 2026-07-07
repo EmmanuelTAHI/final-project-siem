@@ -264,16 +264,10 @@ function ProviderCard({
             width: "100%",
             justifyContent: "center",
             marginTop: 14,
-            opacity: provider === "github" ? 0.45 : 1,
           }}
           onClick={() => onLink(provider)}
         >
           <Link2 size={14} /> Lier {meta.label}
-          {provider === "github" && (
-            <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7 }}>
-              (non configuré)
-            </span>
-          )}
         </button>
       )}
     </div>
@@ -413,10 +407,6 @@ export function LinkedAccountsPanel() {
   }, [selectedId, events]);
 
   const handleLink = async (provider: OAuthProvider) => {
-    if (provider === "github") {
-      toast.error("GitHub OAuth n'est pas configuré sur ce serveur.");
-      return;
-    }
     try {
       const { authorization_url } = await linkedAccountsApi.initiate(provider);
       window.location.href = authorization_url;
