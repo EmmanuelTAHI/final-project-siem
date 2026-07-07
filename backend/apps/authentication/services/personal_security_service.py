@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 BRUTE_FORCE_THRESHOLD = 5
 BRUTE_FORCE_WINDOW = timedelta(minutes=10)
 KNOWN_LOCATION_LOOKBACK = timedelta(days=30)
+IMPOSSIBLE_TRAVEL_WINDOW = timedelta(hours=2)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -312,6 +313,58 @@ def _run_detections(account: LinkedAccount, event: ProviderLoginEvent) -> None:
             metadata={"fingerprint": fp},
             create_confirmation=True, send_email=True,
         )
+
+
+def check_own_login_impossible_travel(user, ip_address: str, geo_country: str, geo_city: str) -> None:
+    """
+    Impossible travel sur le compte Log+ lui-même (pas un compte lié).
+    Compare le login courant aux logins réussis précédents du même utilisateur
+    dans AuditTrail : si un pays différent apparaît dans la fenêtre, le compte
+    SOC est probablement compromis (session volée, credentials + boîte mail
+    partagés, etc.) — alerte critique immédiate.
+    """
+    if not geo_country:
+        return
+
+    from apps.users.models import AuditTrail
+
+    window_start = timezone.now() - IMPOSSIBLE_TRAVEL_WINDOW
+    prior = (
+        AuditTrail.objects.filter(
+            user=user,
+            action="login",
+            timestamp__gte=window_start,
+        )
+        .exclude(geo_country="")
+        .exclude(geo_country=geo_country)
+        .order_by("-timestamp")
+        .first()
+    )
+    if not prior:
+        return
+
+    time_diff = (timezone.now() - prior.timestamp).total_seconds()
+    notify(
+        user, kind="impossible_travel", level="critical",
+        title="Déplacement impossible détecté sur votre compte Log+",
+        body=(
+            f"Votre compte Log+ vient de se connecter depuis {geo_city or ''} "
+            f"({geo_country}), à seulement {round(time_diff / 60)} min d'une connexion "
+            f"depuis {prior.geo_city or ''} ({prior.geo_country}). "
+            f"Ce déplacement est géographiquement impossible : session probablement "
+            f"compromise. Changez votre mot de passe et révoquez vos sessions actives."
+        ),
+        metadata={
+            "ip_address": ip_address,
+            "geo_country": geo_country,
+            "geo_city": geo_city,
+            "previous_ip": prior.ip_address,
+            "previous_geo_country": prior.geo_country,
+            "previous_geo_city": prior.geo_city,
+            "time_diff_seconds": round(time_diff),
+        },
+        create_confirmation=False, send_email=True,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

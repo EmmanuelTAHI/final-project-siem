@@ -246,6 +246,7 @@ class SecurityNotification(models.Model):
     KINDS = [
         ("login_new_device", "Nouvelle connexion (device inconnu)"),
         ("login_new_location", "Nouvelle connexion (lieu inconnu)"),
+        ("impossible_travel", "Déplacement impossible"),
         ("brute_force", "Tentative de brute-force"),
         ("account_locked", "Compte verrouillé"),
         ("account_unlinked", "Compte délié"),

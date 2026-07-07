@@ -114,6 +114,18 @@ class AuditTrail(models.Model):
         blank=True,
         verbose_name="Adresse IP",
     )
+    geo_country = models.CharField(
+        max_length=2,
+        null=True,
+        blank=True,
+        verbose_name="Pays (ISO 3166-1 alpha-2)",
+    )
+    geo_city = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name="Ville",
+    )
     user_agent = models.TextField(
         null=True,
         blank=True,
@@ -149,6 +161,8 @@ class AuditTrail(models.Model):
         target_id: str = None,
         ip_address: str = None,
         user_agent: str = None,
+        geo_country: str = None,
+        geo_city: str = None,
         extra_data: dict = None,
     ):
         """Méthode de classe utilitaire pour créer facilement une entrée d'audit."""
@@ -159,5 +173,7 @@ class AuditTrail(models.Model):
             target_id=str(target_id) if target_id else None,
             ip_address=ip_address,
             user_agent=user_agent,
+            geo_country=geo_country or "",
+            geo_city=geo_city or "",
             extra_data=extra_data or {},
         )

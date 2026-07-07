@@ -41,6 +41,8 @@ from .services.login_email_service import (
 from .services.notification_service import notify, read_confirmation_token
 from .services.oauth_service import oauth_service
 from .services.password_reset_service import read_reset_token, send_password_reset_email
+from .services.personal_security_service import check_own_login_impossible_travel
+from apps.threat_intel.services.ip_enrichment import geo_lookup
 
 from utils.response import error_response, success_response
 
@@ -1016,13 +1018,25 @@ class VerifyLoginOTPView(APIView):
         refresh["role"] = user.role
         refresh["full_name"] = user.full_name
 
+        login_ip = get_client_ip(request)
+        geo = geo_lookup(login_ip)
+        geo_country = (geo.get("countryCode") or "")[:2]
+        geo_city = geo.get("city") or ""
+
+        try:
+            check_own_login_impossible_travel(user, login_ip, geo_country, geo_city)
+        except Exception:
+            logger.exception("check_own_login_impossible_travel failed")
+
         AuditTrail.log(
             action="login",
             user=user,
             target_model="User",
             target_id=user.id,
-            ip_address=get_client_ip(request),
+            ip_address=login_ip,
             user_agent=request.META.get("HTTP_USER_AGENT"),
+            geo_country=geo_country,
+            geo_city=geo_city,
         )
 
         return success_response(
