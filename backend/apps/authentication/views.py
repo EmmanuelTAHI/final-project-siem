@@ -43,6 +43,7 @@ from .services.oauth_service import oauth_service
 from .services.password_reset_service import read_reset_token, send_password_reset_email
 from .services.personal_security_service import check_own_login_impossible_travel
 from apps.threat_intel.services.ip_enrichment import geo_lookup
+from apps.logs.platform_events import record_platform_login
 
 from utils.response import error_response, success_response
 
@@ -1038,6 +1039,18 @@ class VerifyLoginOTPView(APIView):
             geo_country=geo_country,
             geo_city=geo_city,
         )
+
+        try:
+            record_platform_login(
+                user_email=user.email,
+                success=True,
+                ip_address=login_ip,
+                geo_country=geo_country,
+                geo_city=geo_city,
+                user_agent=request.META.get("HTTP_USER_AGENT"),
+            )
+        except Exception:
+            logger.exception("record_platform_login failed")
 
         return success_response(
             data={

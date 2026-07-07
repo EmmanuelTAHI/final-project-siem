@@ -22,6 +22,7 @@ class RawLog(models.Model):
         ("wazuh", "Wazuh"),
         ("syslog", "Syslog"),
         ("manual", "Manuel"),
+        ("logplus", "Log+ (plateforme)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
