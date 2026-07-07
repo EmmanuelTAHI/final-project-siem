@@ -4,18 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
-  Github,
-  Globe,
   Link2,
   Loader2,
   RefreshCw,
-  ShieldCheck,
   Trash2,
   UserCheck,
   Wifi,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { linkedAccountsApi } from "@/lib/api";
+import { GoogleIcon, MicrosoftIcon, GitHubIcon } from "@/components/common/brand-icons";
 import { PinEntryInline, PIN_TTL } from "./pin-verification-modal";
 import type { LinkedAccount, OAuthProvider, ProviderLoginEvent } from "@/types";
 
@@ -26,9 +24,9 @@ const PROVIDER_META: Record<
   OAuthProvider,
   { label: string; color: string; icon: React.ElementType }
 > = {
-  google:    { label: "Google",    color: "#EA4335", icon: Globe },
-  microsoft: { label: "Microsoft", color: "#0078D4", icon: ShieldCheck },
-  github:    { label: "GitHub",    color: "#E5E9F2", icon: Github },
+  google:    { label: "Google",    color: "#EA4335", icon: GoogleIcon },
+  microsoft: { label: "Microsoft", color: "#0078D4", icon: MicrosoftIcon },
+  github:    { label: "GitHub",    color: "#E5E9F2", icon: GitHubIcon },
 };
 
 interface PinState {
