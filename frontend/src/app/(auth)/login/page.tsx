@@ -256,8 +256,8 @@ function LoginPageContent() {
   };
 
   // ── Étape 2 : vérification OTP ───────────────────────────────────────────────
-  const handleOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (otp.length !== 6) { setError("Entrez le code à 6 chiffres reçu par email"); return; }
     setIsLoading(true);
     setError("");
@@ -294,6 +294,14 @@ function LoginPageContent() {
       setIsLoading(false);
     }
   };
+
+  // ── Auto-validation dès que les 6 chiffres sont saisis ──────────────────────
+  useEffect(() => {
+    if (step === "otp" && otp.length === 6 && !isLoading) {
+      handleOtp();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, step]);
 
   // ── Renvoi OTP ───────────────────────────────────────────────────────────────
   const handleResend = useCallback(async () => {

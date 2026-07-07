@@ -31,33 +31,39 @@ def _frontend_url() -> str:
 
 
 def _render_html(user, reset_link: str) -> str:
+    from .email_theme import BORDER, MUTED, PRIMARY, TEXT, cta_button, render_email
+
     name = (user.first_name or user.email or "").strip()
-    return (
-        f'<!doctype html><html lang="fr"><head><meta charset="utf-8"/>'
-        f'<title>Réinitialisation du mot de passe</title></head>'
-        f'<body style="margin:0;padding:24px;background:#0B1020;color:#E5E9F2;'
-        f'font-family:-apple-system,Segoe UI,Roboto,sans-serif;">'
-        f'<div style="max-width:560px;margin:0 auto;background:#111A30;'
-        f'border:1px solid #1E2A47;border-radius:14px;overflow:hidden;">'
-        f'<div style="padding:18px 22px;border-bottom:1px solid #1E2A47;">'
-        f'<span style="font-size:11px;letter-spacing:0.1em;color:#8B9EC7;'
-        f'text-transform:uppercase;font-weight:600;">Log+</span></div>'
-        f'<div style="padding:24px 22px;">'
-        f'<h1 style="font-size:20px;margin:0 0 8px 0;color:#FFFFFF;">'
-        f'Réinitialisation de votre mot de passe</h1>'
-        f'<p style="margin:0 0 20px;color:#B5C0D9;font-size:14px;line-height:1.55;">'
-        f'Bonjour {name},<br/>Une demande de réinitialisation de mot de passe a été '
-        f'effectuée pour votre compte Log+. Ce lien est valide 30 minutes. '
-        f'Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.'
-        f'</p>'
-        f'<div style="text-align:center;margin:24px 0;">'
-        f'<a href="{reset_link}" style="display:inline-block;background:#0057FF;'
-        f'color:#FFFFFF;text-decoration:none;padding:11px 22px;border-radius:8px;'
-        f'font-weight:600;font-size:14px;">Réinitialiser mon mot de passe</a></div>'
-        f'<p style="font-size:11.5px;color:#6B7BA0;margin-top:24px;text-align:center;">'
-        f'Si le bouton ne fonctionne pas, copiez ce lien : {reset_link}'
-        f'</p>'
-        f'</div></div></body></html>'
+
+    body = f"""
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="
+              background:#111a2e;border:1px solid {BORDER};border-radius:16px;
+              padding:26px 24px;margin-bottom:22px;text-align:center;
+            ">
+              <tr><td>
+                <p style="margin:0 0 20px;font-size:12px;color:{MUTED};line-height:1.6;">
+                  Ce lien est &#224; usage unique et expire dans <strong style="color:{TEXT};">30 minutes</strong>.
+                </p>
+                {cta_button("Réinitialiser mon mot de passe", reset_link, PRIMARY)}
+              </td></tr>
+            </table>
+            <p style="margin:0;font-size:11.5px;color:{MUTED};text-align:center;word-break:break-all;">
+              Si le bouton ne fonctionne pas, copiez ce lien&nbsp;: {reset_link}
+            </p>
+    """
+
+    return render_email(
+        preheader="Réinitialisation de votre mot de passe Log+ — lien valide 30 minutes.",
+        badge_label="Compte & sécurité",
+        badge_letter="L+",
+        accent=PRIMARY,
+        title="Réinitialisation de votre mot de passe",
+        subtitle_html=(
+            f"Bonjour <strong style=\"color:{TEXT};\">{name}</strong>, une demande de réinitialisation "
+            "de mot de passe a été effectuée pour votre compte Log+."
+        ),
+        body_html=body,
+        warning_html="Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe restera inchangé.",
     )
 
 

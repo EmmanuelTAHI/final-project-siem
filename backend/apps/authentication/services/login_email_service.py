@@ -47,55 +47,53 @@ def _frontend_url() -> str:
 
 def _render_html(user, title: str, intro: str, otp: str, method: str,
                  ip: str, ua: str, when_iso: str,
-                 primary_color: str = "#0057FF") -> str:
+                 primary_color: str = None) -> str:
+    from . import email_theme as t
+
     name = (user.first_name or user.email or "").strip()
-    front = _frontend_url()
+    accent = primary_color or t.PRIMARY
     ip_display = ip or "—"
-    ua_display = ua or "—"
-    return (
-        f'<!doctype html><html lang="fr"><head>'
-        f'<meta charset="utf-8"/>'
-        f'<title>{title}</title>'
-        f'</head><body style="margin:0;padding:24px;background:#0B1020;color:#E5E9F2;'
-        f'font-family:-apple-system,Segoe UI,Roboto,sans-serif;">'
-        f'<div style="max-width:560px;margin:0 auto;background:#111A30;'
-        f'border:1px solid #1E2A47;border-radius:14px;overflow:hidden;">'
-        f'<div style="padding:18px 22px;border-bottom:1px solid #1E2A47;">'
-        f'<span style="font-size:11px;letter-spacing:0.1em;color:#8B9EC7;'
-        f'text-transform:uppercase;font-weight:600;">Log+</span>'
-        f'</div>'
-        f'<div style="padding:24px 22px;">'
-        f'<h1 style="font-size:20px;margin:0 0 8px 0;color:#FFFFFF;">{title}</h1>'
-        f'<p style="margin:0 0 16px;color:#B5C0D9;font-size:14px;line-height:1.55;">'
-        f'Bonjour {name},<br/>{intro}'
-        f'</p>'
-        f'<div style="background:#0B1226;border:1px solid #243054;border-radius:10px;'
-        f'padding:16px;margin:16px 0;text-align:center;">'
-        f'<div style="font-size:11px;color:#8B9EC7;margin-bottom:8px;'
-        f'text-transform:uppercase;letter-spacing:0.1em;">Code de vérification (valide 10 min)</div>'
-        f'<div style="font-family:monospace;font-size:30px;font-weight:700;'
-        f'letter-spacing:8px;color:#FFFFFF;padding:8px 0;">{otp}</div>'
-        f'</div>'
-        f'<table style="width:100%;font-size:13px;color:#B5C0D9;border-collapse:collapse;">'
-        f'<tr><td style="padding:5px 0;color:#8B9EC7;width:130px;">Méthode</td>'
-        f'<td>{method}</td></tr>'
-        f'<tr><td style="padding:5px 0;color:#8B9EC7;">Survenu</td>'
-        f'<td>{when_iso}</td></tr>'
-        f'<tr><td style="padding:5px 0;color:#8B9EC7;">Adresse IP</td>'
-        f'<td><code>{ip_display}</code></td></tr>'
-        f'<tr><td style="padding:5px 0;color:#8B9EC7;">Navigateur</td>'
-        f'<td>{ua_display}</td></tr>'
-        f'</table>'
-        f'<div style="margin-top:24px;text-align:center;">'
-        f'<a href="{front}/dashboard" style="display:inline-block;'
-        f'background:{primary_color};color:#FFFFFF;text-decoration:none;'
-        f'padding:11px 22px;border-radius:8px;font-weight:600;font-size:14px;">'
-        f'Ouvrir Log+'
-        f'</a></div>'
-        f'<p style="font-size:11.5px;color:#6B7BA0;margin-top:24px;text-align:center;">'
-        f'Si ce n\'est pas vous, changez votre mot de passe immédiatement.'
-        f'</p>'
-        f'</div></div></body></html>'
+    ua_display = (ua[:70] + "…") if ua and len(ua) > 70 else (ua or "—")
+
+    body = f"""
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="
+              background:#111a2e;border:1px solid {t.BORDER};border-radius:16px;margin-bottom:20px;
+            ">
+              <tr><td style="padding:26px 24px;">
+                <p style="margin:0 0 18px;font-size:11px;font-weight:700;color:{t.MUTED};
+                   letter-spacing:0.12em;text-transform:uppercase;text-align:center;">
+                  Code de v&#233;rification
+                </p>
+                {t.digit_boxes(otp, accent)}
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:18px 0;">
+                  <tr><td style="border-bottom:1px solid {t.BORDER};font-size:0;">&nbsp;</td></tr>
+                </table>
+                <table cellpadding="0" cellspacing="0" border="0" align="center">
+                  <tr><td style="background:{accent}18;border:1px solid {accent}33;border-radius:20px;
+                    padding:6px 18px;font-size:12px;font-weight:700;color:{accent};text-align:center;">
+                    &#9201;&nbsp; Valable <strong>10&nbsp;minutes</strong>
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+            {t.metadata_table([
+                ("Méthode", method),
+                ("Survenu", when_iso),
+                ("Adresse IP", f"<code>{ip_display}</code>"),
+                ("Navigateur", ua_display),
+            ])}
+            {t.cta_button("Ouvrir Log+", f"{_frontend_url()}/dashboard", accent)}
+    """
+
+    return t.render_email(
+        preheader=f"Code de vérification Log+ : {otp} — valable 10 minutes.",
+        badge_label="Connexion au SOC",
+        badge_letter="L+",
+        accent=accent,
+        title=title,
+        subtitle_html=f"Bonjour <strong style=\"color:{t.TEXT};\">{name}</strong>, {intro}",
+        body_html=body,
+        warning_html="Si ce n'est pas vous, changez votre mot de passe immédiatement et révoquez vos sessions actives depuis Log+.",
     )
 
 

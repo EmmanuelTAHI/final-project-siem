@@ -150,6 +150,36 @@ function JSONPretty({ data }: { data: unknown }) {
   );
 }
 
+function LogSourceItem({ log, defaultOpen }: { log: import("@/types").AlertLogSource; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => e.key === "Enter" && setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+          cursor: "pointer", background: "color-mix(in srgb, var(--text) 3%, transparent)",
+        }}
+      >
+        <span className="badge badge-info font-mono" style={{ fontSize: 10 }}>{log.source_type}</span>
+        <span className="font-mono" style={{ fontSize: 12 }}>{log.action}</span>
+        <span className="font-mono" style={{ fontSize: 11, color: "var(--text-2)", marginLeft: "auto" }}>
+          {formatDate(log.timestamp, "dd/MM HH:mm:ss")}
+        </span>
+        <ChevronDown size={13} style={{ color: "var(--text-2)", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 200ms" }} />
+      </div>
+      {open && (
+        <div style={{ padding: 10, borderTop: "1px solid var(--border)" }}>
+          <JSONPretty data={log.raw_data} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AlertCard({
   alert,
   expanded,
@@ -220,7 +250,11 @@ function AlertCard({
                 <span className="font-mono">{alert.destination_ip}</span>
               </span>
             )}
-            <span className="font-mono" style={{ color: "var(--primary)" }}>
+            <span
+              className="font-mono"
+              title="Nombre de logs/événements ayant déclenché cette alerte"
+              style={{ color: "var(--primary)" }}
+            >
               ×{alert.event_count}
             </span>
           </div>
@@ -383,11 +417,17 @@ function AlertCard({
                   marginBottom: 10,
                 }}
               >
-                Événement brut
+                Logs sources {d.log_sources?.length ? `(${d.log_sources.length})` : ""}
               </div>
-              <JSONPretty
-                data={
-                  d.log_sources?.[0]?.raw_data ?? {
+              {d.log_sources && d.log_sources.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 440, overflow: "auto" }}>
+                  {d.log_sources.map((log, i) => (
+                    <LogSourceItem key={log.id} log={log} defaultOpen={i === 0} />
+                  ))}
+                </div>
+              ) : (
+                <JSONPretty
+                  data={{
                     id: d.id,
                     rule: d.rule_name,
                     severity: d.severity,
@@ -395,9 +435,9 @@ function AlertCard({
                     user: d.user_email,
                     event_count: d.event_count,
                     created_at: d.created_at,
-                  }
-                }
-              />
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

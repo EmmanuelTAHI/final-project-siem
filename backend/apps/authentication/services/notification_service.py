@@ -10,7 +10,7 @@ Les confirmations utilisent django.core.signing (TimestampSigner) — pas de tab
 en plus, on signe juste l'UUID de la LoginConfirmation.
 """
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from asgiref.sync import async_to_sync
@@ -116,37 +116,80 @@ def _send_email(notif: SecurityNotification, confirmation: Optional[LoginConfirm
 
 
 def _render_html_email(user, notif, md, device_line, geo_line, confirm_url, deny_url) -> str:
-    color = {"info": "#3B82F6", "warning": "#F59E0B", "critical": "#EF4444"}.get(notif.level, "#3B82F6")
+    from . import email_theme as t
+
+    accent = t.LEVEL_COLORS.get(notif.level, t.PRIMARY)
+    name = (user.first_name or user.email or "").strip()
+
+    rows = [
+        ("Appareil", device_line or "—"),
+        ("Adresse IP", f"<code>{md.get('ip_address') or '—'}</code>"),
+        ("Localisation", geo_line or "—"),
+    ]
+    if md.get("provider"):
+        rows.append(("Service lié", f"{md.get('provider')} <span style=\"color:{t.MUTED};\">({md.get('provider_email') or ''})</span>"))
+
+    occurred_raw = md.get("occurred_at")
+    occurred_dt = notif.created_at
+    if occurred_raw:
+        try:
+            occurred_dt = datetime.fromisoformat(occurred_raw)
+        except (TypeError, ValueError):
+            pass
+    rows.append(("Survenu", occurred_dt.strftime("%d/%m/%Y à %H:%M:%S UTC")))
+
     buttons_html = ""
     if confirm_url:
         buttons_html = f"""
-        <div style="margin:24px 0;text-align:center;">
-          <a href="{confirm_url}" style="background:#06D6A0;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;display:inline-block;margin-right:8px;">✓ C'est bien moi</a>
-          <a href="{deny_url}" style="background:#EF4444;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;display:inline-block;">✗ Ce n'est pas moi</a>
-        </div>
-        """
-    return f"""<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0B1020;color:#E5E9F2;padding:24px;">
-      <div style="max-width:560px;margin:auto;background:#111A30;border:1px solid #1E2A47;border-radius:14px;padding:28px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{color};"></span>
-          <span style="font-size:11px;letter-spacing:0.08em;color:#8B9EC7;text-transform:uppercase;">Log+ — {notif.get_level_display()}</span>
-        </div>
-        <h1 style="font-size:20px;margin:6px 0 14px 0;color:#fff;">{notif.title}</h1>
-        <p style="color:#B5C0D9;line-height:1.55;font-size:14px;">{notif.body}</p>
-        <table style="margin-top:18px;font-size:13px;color:#B5C0D9;border-collapse:collapse;width:100%;">
-          <tr><td style="padding:6px 0;color:#8B9EC7;width:130px;">Appareil</td><td>{device_line or '—'}</td></tr>
-          <tr><td style="padding:6px 0;color:#8B9EC7;">Adresse IP</td><td><code>{md.get('ip_address') or '—'}</code></td></tr>
-          <tr><td style="padding:6px 0;color:#8B9EC7;">Localisation</td><td>{geo_line or '—'}</td></tr>
-          <tr><td style="padding:6px 0;color:#8B9EC7;">Service lié</td><td>{md.get('provider') or '—'} <span style="color:#6B7BA0;">({md.get('provider_email') or ''})</span></td></tr>
-          <tr><td style="padding:6px 0;color:#8B9EC7;">Survenu</td><td>{md.get('occurred_at') or notif.created_at.isoformat()}</td></tr>
-        </table>
-        {buttons_html}
-        <p style="font-size:11.5px;color:#6B7BA0;margin-top:24px;line-height:1.5;">
-          Cet email vous est envoyé car vous avez lié votre compte <strong>{md.get('provider') or 'tiers'}</strong>
-          à votre compte Log+. Vous pouvez gérer ces alertes dans Paramètres → Comptes liés.
-        </p>
-      </div>
-    </body></html>"""
+            <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:22px auto 4px;">
+              <tr>
+                <td style="padding-right:8px;">
+                  <table cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td style="border-radius:10px;background:{t.SECONDARY};">
+                      <a href="{confirm_url}" style="display:inline-block;padding:12px 22px;font-size:13.5px;font-weight:700;color:#fff;text-decoration:none;border-radius:10px;">&#10003; C'est bien moi</a>
+                    </td>
+                  </tr></table>
+                </td>
+                <td>
+                  <table cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td style="border-radius:10px;background:{t.DANGER};">
+                      <a href="{deny_url}" style="display:inline-block;padding:12px 22px;font-size:13.5px;font-weight:700;color:#fff;text-decoration:none;border-radius:10px;">&#10007; Ce n'est pas moi</a>
+                    </td>
+                  </tr></table>
+                </td>
+              </tr>
+            </table>"""
+
+    footer_extra = ""
+    if md.get("provider"):
+        footer_extra = (
+            f'<p style="margin:0 0 12px;font-size:11.5px;color:{t.MUTED};line-height:1.6;">'
+            f'Cet email vous est envoyé car vous avez lié votre compte <strong style="color:{t.TEXT_DIM};">{md.get("provider")}</strong> '
+            "à votre compte Log+. Vous pouvez gérer ces alertes dans Paramètres → Comptes liés.</p>"
+        )
+
+    body = f"""
+            <p style="margin:0 0 4px;font-size:14.5px;color:{t.TEXT};line-height:1.6;">{notif.body}</p>
+            {t.metadata_table(rows)}
+            {buttons_html}
+    """
+
+    warning = "" if confirm_url else (
+        "Si vous ne reconnaissez pas cette activité, changez votre mot de passe et révoquez vos sessions actives sans délai."
+        if notif.level == "critical" else ""
+    )
+
+    return t.render_email(
+        preheader=notif.title,
+        badge_label=notif.get_level_display(),
+        badge_letter="!" if notif.level == "critical" else ("i" if notif.level == "info" else "⚠"),
+        accent=accent,
+        title=notif.title,
+        subtitle_html=f"Bonjour <strong style=\"color:{t.TEXT};\">{name}</strong>,",
+        body_html=body,
+        warning_html=warning,
+        footer_extra=footer_extra,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
