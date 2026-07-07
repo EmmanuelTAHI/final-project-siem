@@ -21,6 +21,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useConnectors } from "@/hooks/use-collectors";
 import { usersApi } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
+import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage } from "@/lib/i18n";
 import { LinkedAccountsPanel } from "@/components/settings/linked-accounts-panel";
 import { CountryFlag } from "@/components/common/country-flag";
 import toast from "react-hot-toast";
@@ -112,6 +113,10 @@ function SettingsPageContent() {
       : "profile") as TabId
   );
   const [saving, setSaving] = useState(false);
+  const [currentLang, setCurrentLang] = useState<string>("fr");
+  useEffect(() => {
+    setCurrentLang(getCurrentLanguage());
+  }, []);
   const [browser, setBrowser] = useState("Navigateur");
   const [ip, setIp] = useState("—");
   // Fallback hardcodé visible immédiatement — remplacé par les données réelles dès qu'elles arrivent
@@ -639,6 +644,61 @@ function SettingsPageContent() {
 
           {tab === "preferences" && (
             <>
+              <Card title="Langue" desc="Langue d'affichage de l'interface — traduction fournie par Google Translate">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: 10,
+                    marginTop: 12,
+                  }}
+                >
+                  {SUPPORTED_LANGUAGES.map((lang) => {
+                    const active = currentLang === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          if (!active) setLanguage(lang.code);
+                        }}
+                        className="notranslate"
+                        style={{
+                          padding: "14px 10px",
+                          borderRadius: 12,
+                          border: `2px solid ${active ? "var(--primary)" : "var(--border)"}`,
+                          background: active
+                            ? "color-mix(in srgb, var(--primary) 8%, transparent)"
+                            : "var(--surface)",
+                          cursor: active ? "default" : "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 8,
+                          color: "var(--text)",
+                          fontWeight: active ? 600 : 500,
+                          fontSize: 13,
+                          transition: "all 140ms ease",
+                        }}
+                      >
+                        <span
+                          className={`fi fi-${lang.flag}`}
+                          style={{ fontSize: 22, borderRadius: 4 }}
+                        />
+                        {lang.label}
+                        {active && (
+                          <span
+                            className="badge badge-info"
+                            style={{ fontSize: 9.5 }}
+                          >
+                            Actif
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+
               <Card title="Apparence" desc="Thème de l'interface">
                 <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                   {(["dark", "light"] as const).map((t) => {
