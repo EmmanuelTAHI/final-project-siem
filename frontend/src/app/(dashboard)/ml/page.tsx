@@ -195,7 +195,7 @@ export default function MLPage() {
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground mb-2">Features utilisées :</p>
           <div className="flex flex-wrap gap-2">
-            {model.features.map((f) => (
+            {(model.features ?? []).map((f) => (
               <span key={f} className="text-xs px-2 py-0.5 rounded bg-secondary border border-border text-muted-foreground font-mono">
                 {f}
               </span>
@@ -324,7 +324,7 @@ export default function MLPage() {
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground font-mono">
-                    {pred.top_features[0]?.feature || "—"}
+                    {pred.top_features?.[0]?.feature || "—"}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">{timeAgo(pred.prediction_time)}</td>
                   <td className="px-4 py-2.5">
