@@ -450,6 +450,86 @@
 }
 
 /* ============================================================
+   Mobile — adaptation responsive globale
+   Les pages utilisent des styles inline : les overrides ci-dessous
+   passent par !important dans des media queries, appliqués via les
+   classes utilitaires .page / .split-aside / .topbar posées sur les
+   conteneurs concernés.
+   ============================================================ */
+
+/* Conteneur de page : padding desktop 24px → resserré sur mobile */
+@media (max-width: 768px) {
+  .page {
+    padding: 14px !important;
+    gap: 14px !important;
+  }
+
+  /* Empêche le zoom automatique iOS quand un champ a une police < 16px */
+  .input,
+  input.input,
+  select.input,
+  textarea.input {
+    font-size: 16px !important;
+  }
+
+  /* Cibles tactiles confortables (≥ 40px) */
+  .btn { min-height: 40px; }
+  .pill { min-height: 36px; padding: 7px 13px; }
+  .switch { width: 42px; height: 24px; }
+  .switch > div { width: 20px; height: 20px; }
+  .switch.on > div { transform: translateX(18px); }
+
+  /* Raccourcis clavier sans objet au doigt */
+  kbd { display: none; }
+
+  /* Tooltips au survol : inopérants/gênants au tactile */
+  .tip[data-tip]:hover::after { display: none; }
+
+  /* Tables : largeur minimale + défilement horizontal fluide
+     (le parent .tbl-scroll ou tout conteneur overflow:auto prend le relais) */
+  .tbl { min-width: 640px; }
+  .tbl th, .tbl td { padding: 9px 10px; }
+
+  /* Titres de page légèrement réduits */
+  .page .font-display { letter-spacing: -0.02em; }
+
+  /* Cartes : padding interne un peu resserré quand défini par classe */
+  .card-pad { padding: 14px !important; }
+}
+
+@media (max-width: 480px) {
+  .page { padding: 10px !important; gap: 12px !important; }
+}
+
+/* Grille "contenu principal + panneau latéral" (logs, reports…) :
+   une colonne sous 900px */
+@media (max-width: 900px) {
+  .split-aside { grid-template-columns: 1fr !important; }
+}
+
+/* Topbar : padding réduit + breadcrumb compacté (dernier segment seul) */
+@media (max-width: 640px) {
+  .topbar { padding: 0 12px !important; gap: 10px !important; }
+  .crumb-mid { display: none !important; }
+}
+
+/* Défilement horizontal doux (iOS momentum) pour tout wrapper de table */
+.tbl-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Encoche / safe areas (iPhone & co) */
+@supports (padding: env(safe-area-inset-left)) {
+  @media (max-width: 768px) {
+    .page {
+      padding-left: max(14px, env(safe-area-inset-left)) !important;
+      padding-right: max(14px, env(safe-area-inset-right)) !important;
+    }
+  }
+}
+
+/* ============================================================
    Temps réel — entrée animée des alertes reçues par WebSocket
    ============================================================ */
 @keyframes alertLiveIn {

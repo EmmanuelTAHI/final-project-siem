@@ -117,7 +117,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
+    <div className="page p-4 lg:p-6 space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
@@ -270,7 +270,7 @@ export default function UsersPage() {
           </DialogHeader>
 
           <div className="space-y-5 px-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>
                   Prénom <span className="text-red-400">*</span>

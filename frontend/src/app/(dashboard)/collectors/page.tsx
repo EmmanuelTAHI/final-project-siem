@@ -273,7 +273,7 @@ export default function CollectorsPage() {
   const logs24h = connectors.reduce((acc, c) => acc + c.logs_collected_24h, 0);
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
+    <div className="page p-4 lg:p-6 space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -289,7 +289,7 @@ export default function CollectorsPage() {
       </motion.div>
 
       {/* Stats bar */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Total logs collectés", value: formatNumber(totalLogs), icon: Database, color: "text-blue-400" },
           { label: "Logs / 24h", value: formatNumber(logs24h), icon: RefreshCw, color: "text-cyan-400" },

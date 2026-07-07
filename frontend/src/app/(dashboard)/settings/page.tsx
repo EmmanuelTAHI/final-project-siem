@@ -245,7 +245,7 @@ function SettingsPageContent() {
   const sources = Array.isArray(connectorsData) ? connectorsData : [];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="page" style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <div className="font-display" style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em" }}>
           Paramètres
@@ -541,6 +541,7 @@ function SettingsPageContent() {
               </Card>
 
               <Card title="Sessions actives" desc="Connexions en cours sur votre compte">
+                <div className="tbl-scroll">
                 <table className="tbl" style={{ marginTop: 6 }}>
                   <thead>
                     <tr>
@@ -580,6 +581,7 @@ function SettingsPageContent() {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </Card>
             </>
           )}

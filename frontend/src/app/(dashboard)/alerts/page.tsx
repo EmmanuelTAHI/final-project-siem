@@ -538,7 +538,7 @@ export default function AlertsPage() {
   };
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="page" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div
         style={{

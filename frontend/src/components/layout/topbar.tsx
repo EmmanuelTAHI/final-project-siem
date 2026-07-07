@@ -42,7 +42,7 @@ export function Topbar({ onMobileMenuToggle, onCommandPaletteOpen }: TopbarProps
 
   return (
     <header
-      className="mesh"
+      className="mesh topbar"
       style={{
         height: 64,
         borderBottom: "1px solid var(--border)",
@@ -90,7 +90,11 @@ export function Topbar({ onMobileMenuToggle, onCommandPaletteOpen }: TopbarProps
           const isLast = i === crumbs.length - 1;
           const href = "/" + segments.slice(0, i).join("/");
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              key={i}
+              className={isLast ? undefined : "crumb-mid"}
+              style={{ display: "flex", alignItems: "center", gap: 8 }}
+            >
               <span
                 onClick={() => !isLast && i > 0 && router.push(href)}
                 style={{

@@ -109,7 +109,11 @@ function OtpInput({
   };
 
   return (
-    <div style={{ display: "flex", gap: 10, justifyContent: "center" }} onPaste={handlePaste}>
+    <div
+      className="otp-row"
+      style={{ display: "flex", gap: 10, justifyContent: "center" }}
+      onPaste={handlePaste}
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <input
           key={i}
@@ -122,6 +126,7 @@ function OtpInput({
           onChange={(e) => handleChange(i, e)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onFocus={(e) => e.target.select()}
+          className="otp-box"
           style={{
             width: 46,
             height: 54,
@@ -406,7 +411,7 @@ function LoginPageContent() {
       </div>
 
       {/* Panneau droit */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: "var(--bg)" }}>
+      <div className="login-right" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: "var(--bg)" }}>
 
         {step === "credentials" ? (
           /* ── Formulaire credentials ─────────────────────────────────────── */
@@ -572,6 +577,16 @@ function LoginPageContent() {
         @media (max-width: 900px) {
           :global(.login-grid) { grid-template-columns: 1fr !important; }
           :global(.login-left) { display: none !important; }
+        }
+        @media (max-width: 480px) {
+          :global(.login-right) { padding: 16px !important; }
+          :global(.login-right .card) { padding: 24px 18px !important; }
+          :global(.otp-row) { gap: 6px !important; }
+          :global(.otp-box) {
+            width: 40px !important;
+            height: 50px !important;
+            font-size: 19px !important;
+          }
         }
       `}</style>
     </div>

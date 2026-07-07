@@ -135,7 +135,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+    <div className="page" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* Header */}
       <div>

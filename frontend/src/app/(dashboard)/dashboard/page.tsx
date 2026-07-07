@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const topThreats = threats ?? [];
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="page" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header compact */}
       <div
         className="fade-up"

@@ -116,7 +116,7 @@ export default function SOARPage() {
   const stats = statsData;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="page p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">SOAR — Réponse Automatisée</h1>

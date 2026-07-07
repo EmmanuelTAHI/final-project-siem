@@ -228,7 +228,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Sévérité</Label>
                 <Select value={formData.severity} onValueChange={(v) => update("severity", v)}>
@@ -271,7 +271,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
 
             <div className="rounded-xl border border-border bg-secondary/20 p-5 space-y-4">
               {formData.rule_type === "threshold" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Action à surveiller</Label>
                     <Input placeholder="ex: FailedLogin" value={formData.threshold_action} onChange={(e) => update("threshold_action", e.target.value)} className="h-9 text-sm" />
@@ -299,7 +299,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
               )}
 
               {formData.rule_type === "impossible_travel" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Distance minimum (km)</Label>
                     <Input type="number" value={formData.it_min_distance} onChange={(e) => update("it_min_distance", e.target.value)} className="h-9 text-sm" />
@@ -312,7 +312,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
               )}
 
               {formData.rule_type === "time_based" && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Action à surveiller</Label>
                     <Input placeholder="ex: AdminAction" value={formData.tb_action} onChange={(e) => update("tb_action", e.target.value)} className="h-9 text-sm" />
@@ -329,7 +329,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
               )}
 
               {formData.rule_type === "sequence" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Cibles minimum</Label>
                     <Input type="number" value={formData.seq_min_targets} onChange={(e) => update("seq_min_targets", e.target.value)} className="h-9 text-sm" />
@@ -360,7 +360,7 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
               <span className="text-xs text-muted-foreground">(optionnel)</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tactique</Label>
                 <Select value={formData.mitre_tactic} onValueChange={(v) => update("mitre_tactic", v)}>

@@ -87,7 +87,7 @@ function CorrelationPageContent() {
   const totalAlerts = rules.reduce((acc, r) => acc + (r.alert_count ?? 0), 0);
 
   return (
-    <div className="p-4 lg:p-6 space-y-5">
+    <div className="page p-4 lg:p-6 space-y-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

@@ -265,7 +265,7 @@ export default function LogsPage() {
   const advancedFilterCount = [filterSource, filterAction, filterUser, filterIP, dateFrom, dateTo].filter(Boolean).length;
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="page" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div
@@ -613,6 +613,7 @@ export default function LogsPage() {
 
       {/* ── Log viewer + Field stats ─────────────────────────────── */}
       <div
+        className="split-aside"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) 240px",
