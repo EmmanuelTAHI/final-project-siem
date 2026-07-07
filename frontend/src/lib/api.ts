@@ -463,7 +463,12 @@ export const usersApi = {
   },
 
   changePassword: async (current_password: string, new_password: string): Promise<void> => {
-    await api.post("/api/users/me/change-password/", { current_password, new_password });
+    // Le serializer backend attend old_password / new_password / new_password_confirm
+    await api.post("/api/users/me/change-password/", {
+      old_password: current_password,
+      new_password,
+      new_password_confirm: new_password,
+    });
   },
 
   getAuditTrail: async (): Promise<AuditTrailEntry[]> => {

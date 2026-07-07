@@ -239,8 +239,15 @@ function SettingsPageContent() {
       setPwd({ current: "", next: "", confirm: "" });
       toast.success("Mot de passe changé");
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Mot de passe actuel incorrect");
+      const data = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+        ?.response?.data;
+      // Remonter l'erreur de validation précise (mdp actuel incorrect,
+      // mdp trop court/commun selon les validateurs Django…) plutôt
+      // que le générique "Données invalides".
+      const firstFieldError = data?.errors
+        ? Object.values(data.errors).flat()[0]
+        : undefined;
+      toast.error(firstFieldError ?? data?.message ?? "Mot de passe actuel incorrect");
     } finally {
       setSaving(false);
     }
