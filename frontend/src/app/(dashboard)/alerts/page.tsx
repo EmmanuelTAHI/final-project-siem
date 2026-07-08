@@ -305,7 +305,7 @@ function AlertCard({
             background: "color-mix(in srgb, var(--bg) 40%, var(--surface))",
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+          <div className="alert-detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
             <div>
               <div
                 style={{

@@ -78,7 +78,7 @@ export default function ConfirmLoginPage() {
       }}
     >
       <div
-        className="card card-glass"
+        className="card card-glass auth-card"
         style={{ width: "100%", maxWidth: 520, padding: 32, position: "relative" }}
       >
         <div
@@ -165,10 +165,6 @@ export default function ConfirmLoginPage() {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes spinning { to { transform: rotate(360deg); } }
-        :global(.spin) { animation: spinning 0.8s linear infinite; }
-      `}</style>
     </div>
   );
 }

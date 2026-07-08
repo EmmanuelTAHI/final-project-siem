@@ -438,11 +438,11 @@ function LoginPageContent() {
               </div>
 
               <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "4px 10px", marginBottom: 6 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Mot de passe</label>
                   <a
                     href="/forgot-password"
-                    style={{ fontSize: 12, color: "var(--primary, #3B82F6)", textDecoration: "none" }}
+                    style={{ fontSize: 12, color: "var(--primary, #3B82F6)", textDecoration: "none", whiteSpace: "nowrap" }}
                   >
                     Mot de passe oublié ?
                   </a>
@@ -572,23 +572,6 @@ function LoginPageContent() {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 900px) {
-          :global(.login-grid) { grid-template-columns: 1fr !important; }
-          :global(.login-left) { display: none !important; }
-        }
-        @media (max-width: 480px) {
-          :global(.login-right) { padding: 16px !important; }
-          :global(.login-right .card) { padding: 24px 18px !important; }
-          :global(.otp-row) { gap: 6px !important; }
-          :global(.otp-box) {
-            width: 40px !important;
-            height: 50px !important;
-            font-size: 19px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -306,15 +306,6 @@ export function PinEntryInline({
         )}
       </button>
 
-      <style jsx>{`
-        @keyframes pin-shake {
-          0%   { transform: translateX(0); }
-          15%  { transform: translateX(-5px); }
-          45%  { transform: translateX(5px); }
-          75%  { transform: translateX(-3px); }
-          100% { transform: translateX(0); }
-        }
-      `}</style>
     </div>
   );
 }

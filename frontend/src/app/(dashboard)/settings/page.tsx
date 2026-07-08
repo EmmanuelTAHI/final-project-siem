@@ -835,16 +835,6 @@ function SettingsPageContent() {
         </div>
       </div>
 
-      <style jsx>{`
-        @media (max-width: 800px) {
-          :global(.settings-grid) {
-            grid-template-columns: 1fr !important;
-          }
-          :global(.profile-names) {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

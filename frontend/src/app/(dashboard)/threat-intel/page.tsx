@@ -678,7 +678,7 @@ function ThreatIntelPageInner() {
 
   return (
     <div className="page p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Threat Intelligence</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -713,8 +713,8 @@ function ThreatIntelPageInner() {
         </CardHeader>
         <CardContent>
           {/* Champ de saisie avec détection automatique */}
-          <div className="flex gap-3">
-            <div className="relative flex-1">
+          <div className="flex gap-3 flex-wrap sm:flex-nowrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Input
                 placeholder="IP, domaine, hash MD5 / SHA-256 — détection automatique"
                 value={lookupValue}

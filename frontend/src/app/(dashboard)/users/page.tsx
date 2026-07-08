@@ -119,7 +119,7 @@ export default function UsersPage() {
   return (
     <div className="page p-4 lg:p-6 space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Gestion des utilisateurs</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{users.length} utilisateurs · {users.filter((u) => u.is_active).length} actifs</p>

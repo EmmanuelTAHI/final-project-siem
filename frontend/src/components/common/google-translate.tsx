@@ -88,28 +88,6 @@ export function GoogleTranslateProvider() {
   return (
     <>
       <div id="google_translate_element" style={{ display: "none" }} />
-      <style jsx global>{`
-        /* Masque toute l'UI injectée par Google Translate */
-        .goog-te-banner-frame,
-        .goog-te-balloon-frame,
-        #goog-gt-tt,
-        .goog-te-spinner-pos,
-        .skiptranslate iframe {
-          display: none !important;
-          visibility: hidden !important;
-        }
-        body {
-          top: 0 !important;
-        }
-        .goog-text-highlight {
-          background: none !important;
-          box-shadow: none !important;
-        }
-        font {
-          background: none !important;
-          box-shadow: none !important;
-        }
-      `}</style>
     </>
   );
 }

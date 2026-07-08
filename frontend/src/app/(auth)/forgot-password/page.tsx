@@ -54,8 +54,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)" }}>
-      <div className="card card-glass" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)", padding: 16 }}>
+      <div className="card card-glass auth-card" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
         <a
           href="/login"
           style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: "var(--text-2)", cursor: "pointer", fontSize: 12.5, marginBottom: 20, textDecoration: "none" }}
@@ -136,9 +136,6 @@ export default function ForgotPasswordPage() {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

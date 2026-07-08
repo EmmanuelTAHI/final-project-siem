@@ -117,7 +117,7 @@ export default function SOARPage() {
 
   return (
     <div className="page p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">SOAR — Réponse Automatisée</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -174,10 +174,10 @@ export default function SOARPage() {
                 <motion.div
                   key={pb.id}
                   layout
-                  className="flex items-start justify-between p-4 rounded-lg border border-border/50 bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                  className="flex items-start justify-between flex-wrap gap-3 p-4 rounded-lg border border-border/50 bg-secondary/20 hover:bg-secondary/30 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium text-foreground">{pb.name}</span>
                       <Badge variant="outline" className="text-[10px]">
                         {TRIGGER_LABELS[pb.trigger_type]}
@@ -187,7 +187,7 @@ export default function SOARPage() {
                     {pb.description && (
                       <p className="text-xs text-muted-foreground mb-1">{pb.description}</p>
                     )}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Activity className="w-3 h-3" />
                         {pb.execution_count} exécution{pb.execution_count !== 1 ? "s" : ""}

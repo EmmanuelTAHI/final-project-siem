@@ -93,6 +93,7 @@
     margin: 0;
     padding: 0;
     min-height: 100%;
+    max-width: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: 'Outfit', system-ui, sans-serif;
@@ -100,6 +101,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 180ms ease, color 180ms ease;
+    /* Filet de sécurité : aucun élément mal dimensionné ne doit pouvoir
+       créer un scroll horizontal de toute la page (source n°1 de
+       "déformation" en mobile). Les zones qui doivent défiler horizontalement
+       (tableaux, etc.) le font dans leur propre conteneur overflow-x:auto. */
+    overflow-x: hidden;
+  }
+
+  #__next {
+    overflow-x: hidden;
   }
 
   /* Dark mode grid background */
@@ -512,6 +522,82 @@
   .topbar { padding: 0 12px !important; gap: 10px !important; }
   .crumb-mid { display: none !important; }
 }
+
+/* ============================================================
+   Ex-<style jsx> — Next 16 + Turbopack n'injecte pas les blocs
+   styled-jsx de ce projet (aucun <style> généré côté client/serveur) :
+   toutes les media queries et keyframes qui vivaient dans ces blocs
+   étaient donc totalement inertes. Elles sont reportées ici, en CSS
+   global classique, sur les mêmes classNames que celles déjà posées
+   dans le JSX.
+   ============================================================ */
+
+/* Spinners (icônes RefreshCw etc. avec style={{ animation: "spin …" }}) */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spinning { to { transform: rotate(360deg); } }
+.spin { animation: spinning 0.8s linear infinite; }
+/* Variante pour un spinner déjà recentré via transform: translateY(-50%) —
+   la rotation seule écraserait ce décalage et ferait "sauter" l'élément. */
+@keyframes spin-centered { to { transform: translateY(-50%) rotate(360deg); } }
+
+/* Secousse du champ PIN en cas d'erreur (modale de vérification) */
+@keyframes pin-shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-5px); }
+  45%  { transform: translateX(5px); }
+  75%  { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
+}
+
+/* Page de connexion : 2 colonnes desktop → 1 colonne mobile (panneau
+   marketing masqué), formulaire recentré et OTP resserré. */
+@media (max-width: 900px) {
+  .login-grid { grid-template-columns: 1fr !important; }
+  .login-left { display: none !important; }
+}
+@media (max-width: 480px) {
+  .login-right { padding: 16px !important; }
+  .login-right .card { padding: 24px 18px !important; }
+  .otp-row { gap: 6px !important; }
+  .otp-box { width: 40px !important; height: 50px !important; font-size: 19px !important; }
+}
+
+/* Cartes de connexion isolées (mot de passe oublié, réinitialisation,
+   confirmation de connexion) : même resserrement que la carte de login. */
+@media (max-width: 480px) {
+  .auth-card { padding: 24px 18px !important; }
+}
+
+/* Paramètres : grille profil + infos compte → 1 colonne sous 800px */
+@media (max-width: 800px) {
+  .settings-grid { grid-template-columns: 1fr !important; }
+  .profile-names { grid-template-columns: 1fr !important; }
+}
+
+/* Rapports : grille génération + historique → 1 colonne sous 900px */
+@media (max-width: 900px) {
+  .reports-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Détail d'alerte : la grille repeat(auto-fit, minmax(300px,1fr)) peut
+   dépasser la largeur dispo sur très petits écrans (<328px de contenu) */
+@media (max-width: 360px) {
+  .alert-detail-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Google Translate : masque toute l'UI injectée par le widget (bannière,
+   popups, surlignage), seul notre sélecteur dans Paramètres reste visible. */
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-te-spinner-pos,
+.skiptranslate iframe {
+  display: none !important;
+  visibility: hidden !important;
+}
+body { top: 0 !important; }
+.goog-text-highlight { background: none !important; box-shadow: none !important; }
+font { background: none !important; box-shadow: none !important; }
 
 /* Défilement horizontal doux (iOS momentum) pour tout wrapper de table */
 .tbl-scroll {

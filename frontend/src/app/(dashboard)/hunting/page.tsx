@@ -211,7 +211,7 @@ export default function HuntingPage() {
           )}
         </AnimatePresence>
         <CardContent className={showFilters ? "pt-0" : undefined}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
               onClick={handleRun}
               disabled={isRunning}
@@ -252,10 +252,10 @@ export default function HuntingPage() {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="mt-3 flex gap-3"
+                className="mt-3 flex gap-3 flex-wrap"
               >
-                <Input placeholder="Nom de la requête" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
-                <Input placeholder="Tactique MITRE (optionnel)" value={saveMitreTactic} onChange={(e) => setSaveMitreTactic(e.target.value)} />
+                <Input className="flex-1 min-w-[160px]" placeholder="Nom de la requête" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+                <Input className="flex-1 min-w-[160px]" placeholder="Tactique MITRE (optionnel)" value={saveMitreTactic} onChange={(e) => setSaveMitreTactic(e.target.value)} />
                 <Button onClick={handleSaveQuery} disabled={!saveName.trim()}>Sauvegarder</Button>
               </motion.div>
             )}

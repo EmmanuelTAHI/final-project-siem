@@ -193,6 +193,7 @@ export default function ReportsPage() {
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    flexWrap: "wrap",
                     gap: 14,
                     padding: "14px 18px",
                     borderBottom: i < presets.length - 1 ? "1px solid var(--border)" : "none",
@@ -219,7 +220,7 @@ export default function ReportsPage() {
                   </div>
 
                   {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.title}</span>
                       <span
@@ -451,13 +452,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <style jsx>{`
-        @media (max-width: 900px) {
-          :global(.reports-grid) {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

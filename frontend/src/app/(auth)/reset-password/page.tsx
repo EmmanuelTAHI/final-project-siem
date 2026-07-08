@@ -69,8 +69,8 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)" }}>
-      <div className="card card-glass" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)", padding: 16 }}>
+      <div className="card card-glass auth-card" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
           <div
             style={{
@@ -158,9 +158,6 @@ function ResetPasswordContent() {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

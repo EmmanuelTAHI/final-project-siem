@@ -350,7 +350,7 @@ export default function LogsPage() {
                   borderRadius: "50%",
                   border: "2px solid var(--primary)",
                   borderTopColor: "transparent",
-                  animation: "spin 0.7s linear infinite",
+                  animation: "spin-centered 0.7s linear infinite",
                 }}
               />
             )}
@@ -675,7 +675,7 @@ export default function LogsPage() {
 
           {/* Table view */}
           {view === "table" && (
-            <div style={{ maxHeight: 540, overflow: "auto" }}>
+            <div className="tbl-scroll" style={{ maxHeight: 540, overflow: "auto" }}>
               <table className="tbl">
                 <thead>
                   <tr>
@@ -865,11 +865,6 @@ export default function LogsPage() {
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: translateY(-50%) rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

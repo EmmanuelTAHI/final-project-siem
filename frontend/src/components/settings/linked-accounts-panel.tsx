@@ -660,14 +660,6 @@ export function LinkedAccountsPanel() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes spinning {
-          to { transform: rotate(360deg); }
-        }
-        :global(.spin) {
-          animation: spinning 0.8s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }
