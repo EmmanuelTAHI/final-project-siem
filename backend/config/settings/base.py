@@ -153,6 +153,11 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("THROTTLE_RATE_LOGIN", default="10/min"),
+        "password_reset": env("THROTTLE_RATE_PASSWORD_RESET", default="5/hour"),
+        "otp": env("THROTTLE_RATE_OTP", default="5/min"),
+    },
 }
 
 # ─── JWT ──────────────────────────────────────────────────────────────────────
@@ -300,6 +305,9 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Log+ <noreply@logplus.ci
 # ─── Syslog Receiver ─────────────────────────────────────────────────────────
 SYSLOG_HOST = env("SYSLOG_HOST", default="0.0.0.0")
 SYSLOG_PORT = int(env("SYSLOG_PORT", default=5140))
+
+# ─── Rétention des logs ───────────────────────────────────────────────────────
+LOG_RETENTION_DAYS = int(env("LOG_RETENTION_DAYS", default=90))
 
 # ─── Headers de sécurité HTTP ─────────────────────────────────────────────────
 SECURE_BROWSER_XSS_FILTER = True

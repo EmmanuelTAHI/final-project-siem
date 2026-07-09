@@ -120,13 +120,36 @@ print('Utilisateurs créés.')
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/auth/login/` | Connexion JWT |
+| POST | `/api/auth/login/` | Connexion — étape 1 (email/mdp), envoie un OTP par email. Throttled (`login`, 10/min/IP) |
+| POST | `/api/auth/verify-otp/` | Connexion — étape 2 (OTP), émet les tokens JWT. Throttled (`otp`, 5/min/IP) |
+| POST | `/api/auth/resend-otp/` | Renvoie l'OTP (max 3/session). Throttled (`otp`, 5/min/IP) |
 | POST | `/api/auth/token/refresh/` | Renouvellement token |
 | POST | `/api/auth/logout/` | Déconnexion (blacklist) |
-| GET | `/api/auth/oauth/microsoft/initiate/` | Initiation OAuth2 Microsoft |
+| POST | `/api/auth/password-reset/` | Demande de réinitialisation par email. Throttled (`password_reset`, 5/heure/IP) |
+| POST | `/api/auth/password-reset/confirm/` | Confirmation + nouveau mot de passe. Throttled (`password_reset`, 5/heure/IP) |
+| GET | `/api/auth/sessions/` | Liste des sessions actives de l'utilisateur |
+| POST | `/api/auth/confirm-login/<token>/` | Approuve/rejette une connexion depuis le lien email |
+| GET | `/api/auth/notifications/` | Notifications de sécurité de l'utilisateur |
+| POST | `/api/auth/notifications/<uuid>/read/` | Marque une notification comme lue |
+| POST | `/api/auth/notifications/read-all/` | Marque toutes les notifications comme lues |
+| GET | `/api/auth/oauth/microsoft/initiate/` | Initiation OAuth2 Microsoft (connecteur d'ingestion) |
 | GET | `/api/auth/oauth/microsoft/callback/` | Callback OAuth2 Microsoft |
-| GET | `/api/auth/oauth/google/initiate/` | Initiation OAuth2 Google |
+| GET | `/api/auth/oauth/google/initiate/` | Initiation OAuth2 Google (connecteur d'ingestion) |
 | GET | `/api/auth/oauth/google/callback/` | Callback OAuth2 Google |
+| GET | `/api/auth/oauth/link/<provider>/initiate/` | Initiation liaison compte personnel (google/microsoft/github) |
+| GET | `/api/auth/oauth/link/<provider>/callback/` | Callback liaison de compte |
+| POST | `/api/auth/oauth/link/verify-pin/` | Vérifie le PIN et finalise la liaison du compte |
+| GET | `/api/auth/linked-accounts/` | Liste des comptes personnels liés |
+| GET/DELETE | `/api/auth/linked-accounts/<uuid>/` | Détail (30 derniers events) / Déliaison |
+| POST | `/api/auth/linked-accounts/<uuid>/poll/` | Déclenche un poll manuel du compte lié |
+
+### Utilisateurs (`/api/users/`)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET/POST | `/api/users/` | Liste/Création (admin) |
+| GET/PUT/DELETE | `/api/users/{id}/` | Détail/MAJ/Suppression (admin) |
+| GET | `/api/users/audit-trail/` | Journal d'audit des actions plateforme |
 
 ### Connecteurs (`/api/collectors/`)
 
@@ -180,6 +203,36 @@ print('Utilisateurs créés.')
 | GET | `/api/dashboard/timeline/` | Timeline (24h/7d/30d) |
 | GET | `/api/dashboard/top-threats/` | Top 10 menaces |
 | GET | `/api/dashboard/geo-map/` | Carte géographique |
+
+### Threat Intelligence (`/api/threat-intel/`)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET/POST | `/api/threat-intel/indicators/` | Indicateurs de compromission (IOC) |
+| GET | `/api/threat-intel/enriched-logs/` | Logs enrichis par le CTI |
+| GET | `/api/threat-intel/stats/` | Statistiques CTI |
+
+### Threat Hunting (`/api/hunting/`)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET/POST | `/api/hunting/queries/` | Requêtes de hunting sauvegardées |
+| POST | `/api/hunting/run/` | Exécute une recherche de hunting |
+
+### SOAR (`/api/soar/`)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET/POST | `/api/soar/playbooks/` | Playbooks de réponse automatisée |
+| GET | `/api/soar/executions/` | Historique des exécutions de playbooks |
+| GET | `/api/soar/stats/` | Statistiques SOAR |
+
+### Rapports de conformité (`/api/reports/`)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/reports/compliance/?framework=&period=` | Génère un rapport PDF (PCI DSS v4.0, RGPD, ISO 27001:2022) |
+| GET | `/api/reports/frameworks/` | Référentiels de conformité disponibles |
 
 ---
 
@@ -240,13 +293,19 @@ Le moteur tourne via Celery Beat toutes les **2 minutes** :
 
 ### Règles prédéfinies
 
+9 moteurs de règles (`apps/correlation/rules/`), 12 instances de règles chargées par défaut via la fixture `default_rules` :
+
 | Règle | Sévérité | MITRE |
 |-------|---------|-------|
-| Brute Force | HIGH | T1110 |
-| Impossible Travel | CRITICAL | T1078 |
-| Off-Hours Login | MEDIUM | T1078 |
-| Privilege Escalation | HIGH | T1078.003 |
-| MFA Bypass | CRITICAL | T1556 |
+| Brute Force | HIGH | T1110 - Brute Force |
+| Impossible Travel | CRITICAL | T1078 - Valid Accounts |
+| Off-Hours Login | MEDIUM | T1078 - Valid Accounts |
+| Privilege Escalation | HIGH | T1078.003 - Local Accounts |
+| MFA Bypass | CRITICAL | T1556 - Modify Authentication Process |
+| Lateral Movement | HIGH | T1021 - Remote Services |
+| C2 Beaconing | CRITICAL | T1071 - Application Layer Protocol |
+| Data Exfiltration | CRITICAL | T1048 - Exfiltration Over Alternative Protocol |
+| Wazuh Alert (High/Critical) | HIGH / CRITICAL | Variable selon la règle Wazuh déclenchée |
 
 ---
 
@@ -254,6 +313,8 @@ Le moteur tourne via Celery Beat toutes les **2 minutes** :
 
 - **Chiffrement** : Tous les credentials et tokens OAuth2 sont chiffrés avec Fernet AES-256 avant stockage
 - **JWT** : Access token (15 min) + Refresh token (7 jours) avec blacklist
+- **Rate limiting** : Throttling DRF scopé par IP sur les endpoints sensibles — login (`10/min`), reset mot de passe (`5/heure`), OTP (`5/min`). Taux configurables via `THROTTLE_RATE_*` dans `.env`
+- **Rétention des logs** : Purge automatique quotidienne (03h00 UTC) des `RawLog`/`NormalizedLog` au-delà de `LOG_RETENTION_DAYS` (défaut 90 jours, configurable via `.env`)
 - **CORS** : Restreint à `FRONTEND_URL` uniquement
 - **Audit Trail** : Toutes les mutations critiques sont tracées
 - **Variables d'environnement** : Aucune valeur sensible dans le code source
@@ -264,17 +325,22 @@ Le moteur tourne via Celery Beat toutes les **2 minutes** :
 
 ```
 backend/
-├── config/              # Configuration Django + Celery
+├── config/              # Configuration Django + Celery (beat schedule)
 ├── apps/
-│   ├── authentication/  # JWT + OAuth2 PKCE
-│   ├── users/           # Utilisateurs SOC + Audit Trail
-│   ├── collectors/      # Collecteurs Microsoft/Google/Wazuh
-│   ├── logs/            # Logs bruts + normalisés (CEF)
-│   ├── correlation/     # Moteur de corrélation (5 règles)
-│   ├── alerts/          # Alertes SOC
-│   ├── ml/              # Isolation Forest
-│   └── dashboard/       # KPIs et métriques
-└── utils/               # Utilitaires partagés
+│   ├── authentication/  # JWT + OTP email + OAuth2 PKCE + comptes liés
+│   ├── users/            # Utilisateurs SOC + Audit Trail
+│   ├── collectors/       # Collecteurs Microsoft/Google/Wazuh
+│   ├── logs/              # Logs bruts + normalisés (CEF) + rétention
+│   ├── correlation/      # Moteur de corrélation (9 règles)
+│   ├── alerts/            # Alertes SOC
+│   ├── ml/                # Isolation Forest (détection d'anomalies)
+│   ├── dashboard/         # KPIs et métriques
+│   ├── threat_intel/      # VirusTotal / AbuseIPDB / CriminalIP / Shodan
+│   ├── hunting/           # Threat hunting
+│   ├── soar/               # Playbooks de réponse automatisée
+│   ├── reports/            # Rapports de conformité (PCI DSS, RGPD, ISO 27001)
+│   └── notifications/      # Notifications temps réel (WebSocket)
+└── utils/                # Utilitaires partagés
 ```
 
 ---
