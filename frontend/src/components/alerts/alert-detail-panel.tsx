@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { SeverityBadge } from "./severity-badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -300,12 +301,12 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
 
                   {/* Add comment */}
                   <div className="flex gap-2">
-                    <textarea
+                    <Textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       placeholder="Ajouter un commentaire..."
                       rows={2}
-                      className="flex-1 text-xs rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="flex-1"
                     />
                     <Button
                       size="icon"

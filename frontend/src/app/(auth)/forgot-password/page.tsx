@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Shield, Mail, AlertCircle, ChevronRight, RefreshCw, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { authApi } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -89,9 +92,9 @@ export default function ForgotPasswordPage() {
                 </span>
               </div>
             </div>
-            <a href="/login" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px 14px", fontSize: 13.5, textDecoration: "none" }}>
-              Retour à la connexion
-            </a>
+            <Button asChild className="w-full">
+              <a href="/login">Retour à la connexion</a>
+            </Button>
           </>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -102,35 +105,27 @@ export default function ForgotPasswordPage() {
 
             {error && <ErrorBanner message={error} />}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Email</label>
-                <div style={{ position: "relative" }}>
-                  <Mail size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
-                  <input
-                    className="input"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={{ paddingLeft: 36 }}
-                    autoComplete="email"
-                    autoFocus
-                  />
-                </div>
+            <div className="flex flex-col gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  leftIcon={<Mail size={15} />}
+                  autoComplete="email"
+                  autoFocus
+                />
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-primary"
-                style={{ width: "100%", justifyContent: "center", padding: "11px 14px", fontSize: 13.5, marginTop: 4 }}
-              >
+              <Button type="submit" disabled={isLoading} className="w-full mt-1">
                 {isLoading ? (
-                  <><RefreshCw size={14} style={{ animation: "spin 0.8s linear infinite" }} /> Envoi…</>
+                  <><RefreshCw size={14} className="animate-spin" /> Envoi…</>
                 ) : (
                   <>Envoyer le lien <ChevronRight size={14} /></>
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         )}

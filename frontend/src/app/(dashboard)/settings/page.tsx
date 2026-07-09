@@ -22,6 +22,10 @@ import { useConnectors } from "@/hooks/use-collectors";
 import { usersApi } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage } from "@/lib/i18n";
+import { validatePasswordChange } from "@/lib/validation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { LinkedAccountsPanel } from "@/components/settings/linked-accounts-panel";
 import { CountryFlag } from "@/components/common/country-flag";
 import toast from "react-hot-toast";
@@ -230,9 +234,8 @@ function SettingsPageContent() {
   };
 
   const handleChangePwd = async () => {
-    if (!pwd.current || !pwd.next) return toast.error("Remplissez tous les champs");
-    if (pwd.next !== pwd.confirm) return toast.error("Les mots de passe ne correspondent pas");
-    if (pwd.next.length < 8) return toast.error("Min. 8 caractères");
+    const validationError = validatePasswordChange(pwd.current, pwd.next, pwd.confirm);
+    if (validationError) return toast.error(validationError);
     setSaving(true);
     try {
       await usersApi.changePassword(pwd.current, pwd.next);
@@ -381,48 +384,18 @@ function SettingsPageContent() {
                 </div>
 
                 {/* First + Last name row */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 14,
-                    marginBottom: 14,
-                  }}
-                  className="profile-names"
-                >
-                  <div>
-                    <label
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--text-2)",
-                        display: "block",
-                        marginBottom: 6,
-                      }}
-                    >
-                      Prénom
-                    </label>
-                    <input
-                      className="input"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label>Prénom</Label>
+                    <Input
                       value={profile.first_name}
                       onChange={(e) => setProfile((p) => ({ ...p, first_name: e.target.value }))}
                       placeholder="Prénom"
                     />
                   </div>
-                  <div>
-                    <label
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--text-2)",
-                        display: "block",
-                        marginBottom: 6,
-                      }}
-                    >
-                      Nom
-                    </label>
-                    <input
-                      className="input"
+                  <div className="space-y-2">
+                    <Label>Nom</Label>
+                    <Input
                       value={profile.last_name}
                       onChange={(e) => setProfile((p) => ({ ...p, last_name: e.target.value }))}
                       placeholder="Nom de famille"
@@ -431,42 +404,23 @@ function SettingsPageContent() {
                 </div>
 
                 {/* Email */}
-                <div style={{ marginBottom: 24 }}>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--text-2)",
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Adresse email
-                  </label>
-                  <input
-                    className="input"
+                <div className="space-y-2 mb-6">
+                  <Label>Adresse email</Label>
+                  <Input
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
                     placeholder="votre@email.com"
                   />
-                  <div style={{ fontSize: 11, color: "var(--text-2)", marginTop: 5 }}>
+                  <p className="text-xs text-muted-foreground">
                     Utilisée pour les notifications et l&apos;authentification
-                  </div>
+                  </p>
                 </div>
 
                 {/* Actions */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 8,
-                    paddingTop: 18,
-                    borderTop: "1px solid var(--border)",
-                  }}
-                >
-                  <button
-                    className="btn"
+                <div className="flex justify-end gap-2 pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
                     onClick={() =>
                       setProfile({
                         first_name: user?.first_name || "",
@@ -476,15 +430,11 @@ function SettingsPageContent() {
                     }
                   >
                     Annuler
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                  >
+                  </Button>
+                  <Button onClick={handleSaveProfile} disabled={saving}>
                     <Save size={13} />
                     {saving ? "Enregistrement…" : "Enregistrer"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -493,46 +443,40 @@ function SettingsPageContent() {
           {tab === "security" && (
             <>
               <Card title="Changer le mot de passe" desc="Min. 8 caractères, une majuscule et un chiffre recommandés">
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Actuel</label>
-                    <input
-                      className="input"
+                <div className="flex flex-col gap-3 mt-3">
+                  <div className="space-y-2">
+                    <Label>Actuel</Label>
+                    <Input
                       type="password"
                       value={pwd.current}
                       onChange={(e) => setPwd((p) => ({ ...p, current: e.target.value }))}
-                      style={{ marginTop: 4 }}
                       placeholder="••••••••"
                     />
                   </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Nouveau</label>
-                    <input
-                      className="input"
+                  <div className="space-y-2">
+                    <Label>Nouveau</Label>
+                    <Input
                       type="password"
                       value={pwd.next}
                       onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))}
-                      style={{ marginTop: 4 }}
                       placeholder="Min. 8 caractères"
                     />
                   </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Confirmer</label>
-                    <input
-                      className="input"
+                  <div className="space-y-2">
+                    <Label>Confirmer</Label>
+                    <Input
                       type="password"
                       value={pwd.confirm}
                       onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))}
-                      style={{ marginTop: 4 }}
                       placeholder="••••••••"
                     />
                   </div>
                 </div>
-                <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-                  <button className="btn btn-primary" onClick={handleChangePwd} disabled={saving}>
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={handleChangePwd} disabled={saving}>
                     <Key size={13} />
                     Mettre à jour
-                  </button>
+                  </Button>
                 </div>
               </Card>
 
@@ -544,7 +488,10 @@ function SettingsPageContent() {
                   <Toggle on={prefs.sso} onChange={(v) => setPrefs((p) => ({ ...p, sso: v }))} />
                 </SettingRow>
                 <SettingRow label="Durée max de session" desc="Déconnexion forcée après inactivité">
-                  <select className="input" defaultValue="8" style={{ width: 160 }}>
+                  <select
+                    defaultValue="8"
+                    className="h-9 w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     <option value="4">4 heures</option>
                     <option value="8">8 heures</option>
                     <option value="24">24 heures</option>

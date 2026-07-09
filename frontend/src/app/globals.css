@@ -571,7 +571,6 @@
 /* Paramètres : grille profil + infos compte → 1 colonne sous 800px */
 @media (max-width: 800px) {
   .settings-grid { grid-template-columns: 1fr !important; }
-  .profile-names { grid-template-columns: 1fr !important; }
 }
 
 /* Rapports : grille génération + historique → 1 colonne sous 900px */

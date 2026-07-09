@@ -129,57 +129,26 @@ export function PinEntryInline({
   };
 
   return (
-    <div style={{ marginTop: 16 }}>
+    <div className="mt-4">
       {/* Divider */}
-      <div
-        style={{
-          height: 1,
-          background: "var(--border)",
-          margin: "0 -18px 16px",
-        }}
-      />
+      <div className="h-px bg-border -mx-[18px] mb-4" />
 
       {/* Email hint */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          marginBottom: 5,
-        }}
-      >
+      <div className="flex items-center gap-2 mb-1.5">
         <Mail size={13} style={{ color: meta.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+        <span className="text-sm font-semibold">
           Entrez le code reçu par email
         </span>
       </div>
-      <p
-        style={{
-          fontSize: 11.5,
-          color: "var(--text-2)",
-          marginBottom: 18,
-          lineHeight: 1.5,
-        }}
-      >
+      <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
         Envoyé à{" "}
-        <span
-          style={{
-            fontFamily: "monospace",
-            fontSize: 11,
-            color: "var(--text)",
-          }}
-        >
-          {email}
-        </span>
+        <span className="font-mono text-xs text-foreground">{email}</span>
       </p>
 
       {/* OTP inputs */}
       <div
+        className="flex gap-2.5 justify-center mb-4"
         style={{
-          display: "flex",
-          gap: 10,
-          justifyContent: "center",
-          marginBottom: 14,
           animation: shake
             ? "pin-shake 0.4s cubic-bezier(.36,.07,.19,.97)"
             : "none",
@@ -200,14 +169,8 @@ export function PinEntryInline({
             onPaste={i === 0 ? handlePaste : undefined}
             disabled={loading || expired || status === "success"}
             autoFocus={i === 0}
+            className="w-[52px] h-14 text-center text-2xl font-extrabold font-mono rounded-lg outline-none transition-[border-color,background,box-shadow] duration-150"
             style={{
-              width: 52,
-              height: 56,
-              textAlign: "center",
-              fontSize: 24,
-              fontWeight: 800,
-              fontFamily: "monospace",
-              letterSpacing: 0,
               background:
                 status === "success"
                   ? "color-mix(in srgb,#22c55e 10%,var(--surface))"
@@ -225,10 +188,7 @@ export function PinEntryInline({
                   ? meta.color
                   : "var(--border)"
               }`,
-              borderRadius: 10,
               color: status === "success" ? "#22c55e" : "var(--text)",
-              outline: "none",
-              transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
               cursor: expired ? "not-allowed" : "text",
               boxShadow:
                 d && status === "idle"
@@ -240,31 +200,15 @@ export function PinEntryInline({
       </div>
 
       {/* Timer */}
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
+      <div className="text-center mb-4">
         {expired ? (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11.5,
-              color: "#ef4444",
-              fontWeight: 600,
-            }}
-          >
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500">
             <AlertCircle size={12} /> Code expiré — relancez la liaison
           </span>
         ) : (
           <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11.5,
-              color: timerColor,
-              fontFamily: "monospace",
-              fontWeight: 600,
-            }}
+            className="inline-flex items-center gap-1 text-xs font-mono font-semibold"
+            style={{ color: timerColor }}
           >
             <Clock size={11} />
             Expire dans {minutes}:{secs.toString().padStart(2, "0")}
@@ -274,12 +218,8 @@ export function PinEntryInline({
 
       {/* Confirm button */}
       <button
-        className="btn btn-primary"
+        className="btn btn-primary w-full justify-center text-sm"
         style={{
-          width: "100%",
-          fontSize: 12,
-          padding: "8px 10px",
-          justifyContent: "center",
           background:
             status === "success"
               ? "#22c55e"

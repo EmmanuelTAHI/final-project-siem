@@ -4,6 +4,9 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, Lock, Eye, EyeOff, AlertCircle, ChevronRight, RefreshCw, CheckCircle2 } from "lucide-react";
 import { authApi } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -101,58 +104,49 @@ function ResetPasswordContent() {
 
             {error && <ErrorBanner message={error} />}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Nouveau mot de passe</label>
-                <div style={{ position: "relative" }}>
-                  <Lock size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
-                  <input
-                    className="input"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={{ paddingLeft: 36, paddingRight: 40 }}
-                    autoComplete="new-password"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", background: "transparent", border: "none", color: "var(--text-2)", cursor: "pointer", display: "flex" }}
-                    aria-label={showPassword ? "Masquer" : "Afficher"}
-                  >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
+            <div className="flex flex-col gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-password">Nouveau mot de passe</Label>
+                <Input
+                  id="reset-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  leftIcon={<Lock size={15} />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="flex text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Masquer" : "Afficher"}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  }
+                  autoComplete="new-password"
+                  autoFocus
+                />
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Confirmer le mot de passe</label>
-                <div style={{ position: "relative" }}>
-                  <Lock size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
-                  <input
-                    className="input"
-                    type={showPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    style={{ paddingLeft: 36 }}
-                    autoComplete="new-password"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="reset-password-confirm">Confirmer le mot de passe</Label>
+                <Input
+                  id="reset-password-confirm"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  leftIcon={<Lock size={15} />}
+                  autoComplete="new-password"
+                />
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-primary"
-                style={{ width: "100%", justifyContent: "center", padding: "11px 14px", fontSize: 13.5, marginTop: 4 }}
-              >
+              <Button type="submit" disabled={isLoading} className="w-full mt-1">
                 {isLoading ? (
-                  <><RefreshCw size={14} style={{ animation: "spin 0.8s linear infinite" }} /> Réinitialisation…</>
+                  <><RefreshCw size={14} className="animate-spin" /> Réinitialisation…</>
                 ) : (
                   <>Réinitialiser <ChevronRight size={14} /></>
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         )}

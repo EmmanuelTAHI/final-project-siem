@@ -13,6 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import toast from "react-hot-toast";
 import type { Playbook, TriggerType } from "@/types";
 
@@ -298,62 +307,61 @@ export default function SOARPage() {
           <div className="space-y-5 py-3">
             {/* Nom */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground block">
+              <Label>
                 Nom du playbook <span className="text-destructive">*</span>
-              </label>
+              </Label>
               <Input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Ex: Blocage brute force critique"
-                className="text-sm h-10"
               />
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground block">Description</label>
+              <Label>Description</Label>
               <Input
                 value={formDesc}
                 onChange={(e) => setFormDesc(e.target.value)}
                 placeholder="Décrivez l'objectif de ce playbook…"
-                className="text-sm h-10"
               />
             </div>
 
             {/* Déclencheur */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground block">Type de déclencheur</label>
-              <select
-                value={formTrigger}
-                onChange={(e) => setFormTrigger(e.target.value as TriggerType)}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+              <Label>Type de déclencheur</Label>
+              <Select value={formTrigger} onValueChange={(v) => setFormTrigger(v as TriggerType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Conditions JSON */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground block">Conditions de déclenchement</label>
+              <Label>Conditions de déclenchement</Label>
               <p className="text-xs text-muted-foreground">
                 Exemple pour sévérité :{" "}
                 <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">
                   {"{"}&quot;severities&quot;: [&quot;critical&quot;, &quot;high&quot;]{"}"}
                 </code>
               </p>
-              <textarea
+              <Textarea
                 value={formConditions}
                 onChange={(e) => setFormConditions(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-3 rounded-lg border border-border bg-background text-sm text-foreground font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed"
+                className="font-mono leading-relaxed"
               />
             </div>
 
             {/* Actions JSON */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground block">Actions à exécuter</label>
+              <Label>Actions à exécuter</Label>
               <p className="text-xs text-muted-foreground mb-2">
                 Cliquez sur un modèle pour le charger, puis personnalisez les paramètres.
               </p>
@@ -371,11 +379,11 @@ export default function SOARPage() {
                   </button>
                 ))}
               </div>
-              <textarea
+              <Textarea
                 value={formActions}
                 onChange={(e) => setFormActions(e.target.value)}
                 rows={7}
-                className="w-full px-3 py-3 rounded-lg border border-border bg-background text-sm text-foreground font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed"
+                className="font-mono leading-relaxed"
               />
             </div>
           </div>
