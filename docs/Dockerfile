@@ -5,7 +5,11 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# --ignore-scripts : le postinstall `fumadocs-mdx` a besoin de source.config.ts
+# et du contenu MDX, absents à ce stade (cache des dépendances seul, sans le
+# code source). La génération MDX se fait de toute façon automatiquement
+# pendant `next build` (plugin fumadocs-mdx/next) dans le stage builder.
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS builder
 WORKDIR /app
