@@ -27,6 +27,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - docs
     healthcheck:
       # /healthz renvoie toujours 200 ; /api/ renvoie 404 (pas de route racine
       # DRF) et wget considère toute réponse non-2xx comme un échec.
@@ -61,6 +62,10 @@ services:
   frontend:
     ports: !override
       - "127.0.0.1:3000:3000"
+
+  docs:
+    ports: !override
+      - "127.0.0.1:3001:3000"
 
 volumes:
   logs:
