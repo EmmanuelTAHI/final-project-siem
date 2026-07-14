@@ -32,10 +32,14 @@ echo "Collecting static files..."
 python manage.py collectstatic --noinput 2>/dev/null || true
 
 # Charge les règles de corrélation par défaut (brute force, impossible travel,
-# off-hours, élévation de privilèges, MFA bypass, etc.). loaddata est
-# idempotent : les règles existantes (même pk) sont simplement mises à jour.
-echo "Chargement des règles de corrélation par défaut..."
-python manage.py loaddata apps/correlation/fixtures/default_rules.json || true
+# off-hours, élévation de privilèges, MFA bypass, etc.) pour chaque
+# organisation qui ne les a pas encore — idempotent. Remplace l'ancien
+# fixture global (incompatible avec le multi-tenant : les règles sont
+# maintenant scopées par organisation). Les nouvelles organisations créées
+# via /register/ reçoivent déjà ces règles à la création (RegisterView) ;
+# cette étape couvre les organisations existantes (ex: legacy).
+echo "Chargement des règles de corrélation par défaut (par organisation)..."
+python manage.py seed_default_rules || true
 
 # Crée automatiquement un compte administrateur au premier démarrage si
 # DJANGO_SUPERUSER_EMAIL / DJANGO_SUPERUSER_PASSWORD sont définis (ex: via

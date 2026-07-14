@@ -404,6 +404,8 @@ class RegisterView(APIView):
                 organization=organization,
                 is_active=False,
             )
+            from apps.correlation.default_rules import seed_default_rules_for_organization
+            seed_default_rules_for_organization(organization)
 
         send_verification_email(user, organization)
         AuditTrail.log(
