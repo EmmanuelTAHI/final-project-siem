@@ -16,7 +16,13 @@ class Playbook(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200, unique=True)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="playbooks",
+        verbose_name="Organisation",
+    )
+    name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     trigger_type = models.CharField(max_length=30, choices=TRIGGER_TYPES, default="severity")
     trigger_conditions = models.JSONField(
@@ -40,6 +46,11 @@ class Playbook(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"], name="unique_playbook_name_per_org"
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -55,6 +66,13 @@ class PlaybookExecution(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="playbook_executions",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis playbook.organization pour l'isolation multi-tenant.",
+    )
     playbook = models.ForeignKey(
         Playbook,
         on_delete=models.CASCADE,
@@ -76,6 +94,11 @@ class PlaybookExecution(models.Model):
 
     class Meta:
         ordering = ["-started_at"]
+
+    def save(self, *args, **kwargs):
+        if self.playbook_id and not self.organization_id:
+            self.organization_id = self.playbook.organization_id
+        super().save(*args, **kwargs)
 
     @property
     def duration_seconds(self):

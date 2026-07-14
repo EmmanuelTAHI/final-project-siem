@@ -10,6 +10,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from utils.permissions import IsAdmin, IsAnalyst
 from utils.response import created_response, error_response, no_content_response, success_response
+from utils.tenant import OrganizationFilterBackend
 
 from .models import CorrelationRule
 from .serializers import CorrelationRuleCreateSerializer, CorrelationRuleSerializer
@@ -30,7 +31,7 @@ class CorrelationRuleViewSet(ModelViewSet):
     """
 
     queryset = CorrelationRule.objects.prefetch_related("matches").all()
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["is_active", "severity", "mitre_tactic"]
     search_fields = ["name", "description"]
 
@@ -57,7 +58,7 @@ class CorrelationRuleViewSet(ModelViewSet):
         serializer = CorrelationRuleCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return error_response(message="Données invalides.", errors=serializer.errors)
-        rule = serializer.save(created_by=request.user)
+        rule = serializer.save(created_by=request.user, organization=request.user.organization)
         from apps.users.models import AuditTrail
         AuditTrail.log(action="rule_create", user=request.user, target_model="CorrelationRule", target_id=rule.id)
         return created_response(

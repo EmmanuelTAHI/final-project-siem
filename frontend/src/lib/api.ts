@@ -2,11 +2,16 @@ import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosReques
 import { useAuthStore } from "@/stores/auth-store";
 import type {
   Alert,
+  AgentEnrollmentToken,
+  AgentEnrollmentTokenCreated,
   AlertStats,
   AuthTokens,
   AuthUser,
   CollectorJob,
   Connector,
+  Organization,
+  OrganizationStats,
+  PlatformOverview,
   CorrelationRule,
   CTIStats,
   DashboardSummary,
@@ -156,6 +161,33 @@ export const authApi = {
 
   confirmPasswordReset: async (token: string, password: string): Promise<void> => {
     await api.post("/api/auth/password-reset/confirm/", { token, password });
+  },
+
+  register: async (payload: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    organization_name: string;
+  }): Promise<void> => {
+    await api.post("/api/auth/register/", payload);
+  },
+
+  verifyEmail: async (token: string): Promise<void> => {
+    await api.post("/api/auth/verify-email/", { token });
+  },
+
+  acceptInvite: async (token: string, password: string): Promise<void> => {
+    await api.post("/api/users/accept-invite/", { token, password });
+  },
+
+  inviteUser: async (payload: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+  }): Promise<void> => {
+    await api.post("/api/users/invite/", payload);
   },
 };
 
@@ -441,6 +473,45 @@ export const collectorsApi = {
   testConnection: async (id: string): Promise<{ success: boolean; latency_ms?: number; message?: string }> => {
     const { data } = await api.post(`/api/collectors/connectors/${id}/test/`);
     return unwrap<{ success: boolean; latency_ms?: number; message?: string }>(data);
+  },
+};
+
+// ─── Agents (enrôlement) API ────────────────────────────────────────────────────
+
+export const agentsApi = {
+  list: async (): Promise<AgentEnrollmentToken[]> => {
+    const { data } = await api.get("/api/collectors/enrollment-tokens/");
+    const raw = unwrap<AgentEnrollmentToken[]>(data);
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  generate: async (name: string): Promise<AgentEnrollmentTokenCreated> => {
+    const { data } = await api.post("/api/collectors/enrollment-tokens/", { name });
+    return unwrap<AgentEnrollmentTokenCreated>(data);
+  },
+
+  revoke: async (id: string): Promise<void> => {
+    await api.delete(`/api/collectors/enrollment-tokens/${id}/`);
+  },
+};
+
+// ─── Platform (super-admin) API ────────────────────────────────────────────────
+
+export const platformApi = {
+  listOrganizations: async (): Promise<Organization[]> => {
+    const { data } = await api.get("/api/platform/organizations/");
+    const raw = unwrap<Organization[]>(data);
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  getOverview: async (): Promise<PlatformOverview> => {
+    const { data } = await api.get("/api/platform/organizations/overview/");
+    return unwrap<PlatformOverview>(data);
+  },
+
+  getOrganizationStats: async (id: string): Promise<OrganizationStats> => {
+    const { data } = await api.get(`/api/platform/organizations/${id}/stats/`);
+    return unwrap<OrganizationStats>(data);
   },
 };
 

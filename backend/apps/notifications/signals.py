@@ -48,15 +48,19 @@ def _serialize_alert(alert) -> dict:
 
 
 def _broadcast_alert(alert, event_type: str):
-    """Envoie une alerte via le channel layer Redis vers tous les consumers SOC."""
+    """
+    Envoie une alerte via le channel layer Redis vers les consumers de
+    l'organisation de l'alerte uniquement (isolation multi-tenant — ancien
+    groupe "soc_global" diffusait à tout le monde, toutes orgs confondues).
+    """
     channel_layer = get_channel_layer()
-    if channel_layer is None:
+    if channel_layer is None or not alert.organization_id:
         return
 
     try:
         alert_data = _serialize_alert(alert)
         async_to_sync(channel_layer.group_send)(
-            "soc_global",
+            f"org_{alert.organization_id}_alerts",
             {"type": event_type.replace("_", "."), "alert": alert_data},
         )
     except Exception as exc:

@@ -1,0 +1,67 @@
+---
+title: Linux — rsyslog
+description: Envoyer les logs d'un serveur Linux vers Log+ via rsyslog
+---
+
+`rsyslog` est installé par défaut sur la quasi-totalité des distributions
+Linux (Debian, Ubuntu, RHEL, CentOS…). Il sait nativement envoyer des logs
+vers une URL HTTP via le module `omhttp`.
+
+## 1. Installer le module omhttp
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install rsyslog-omhttp
+
+# RHEL / CentOS / Rocky
+sudo dnf install rsyslog-omhttp
+```
+
+## 2. Configurer l'envoi vers Log+
+
+Créez `/etc/rsyslog.d/60-logplus.conf` :
+
+```text
+module(load="omhttp")
+
+# Remplacez par votre token d'agent (voir page Agents du tableau de bord)
+# et l'URL de votre instance Log+.
+template(name="logplus_fmt" type="string" string="%msg%\n")
+
+action(
+  type="omhttp"
+  server="votre-instance.example"
+  serverport="443"
+  usehttps="on"
+  restpath="api/ingest/agent/logs/"
+  httpheaderkey1="Authorization"
+  httpheadervalue1="Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  contenttype="text/plain"
+  template="logplus_fmt"
+  batch="on"
+  batch.maxsize="500"
+)
+```
+
+## 3. Redémarrer rsyslog
+
+```bash
+sudo systemctl restart rsyslog
+```
+
+## 4. Vérifier
+
+Générez un événement de test (ex. une tentative de connexion SSH échouée)
+et vérifiez qu'il apparaît dans **Logs** sur le tableau de bord Log+ dans la
+minute qui suit. Si rien n'apparaît, voir [Dépannage](/docs/troubleshooting).
+
+## Ne remonter que certains logs
+
+Pour éviter d'envoyer l'intégralité des logs système, filtrez en amont de
+l'action, par exemple pour ne remonter que l'authentification :
+
+```text
+if $programname == 'sshd' or $syslogfacility-text == 'auth' then {
+  action(type="omhttp" ...)
+}
+```

@@ -1,0 +1,54 @@
+---
+title: Référence API
+description: Endpoints essentiels pour l'inscription, l'authentification et l'ingestion
+---
+
+Cette page couvre les endpoints essentiels pour l'auto-déploiement. Toutes
+les réponses suivent l'enveloppe `{ "status": "success"|"error", "data": ...,
+"message": "..." }`.
+
+## Authentification & organisation
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/auth/register/` | Crée une organisation + compte administrateur (inactif jusqu'à vérification email). |
+| `POST` | `/api/auth/verify-email/` | Active le compte via le token reçu par email. |
+| `POST` | `/api/auth/login/` | Étape 1 : vérifie email/mot de passe, envoie un code OTP. |
+| `POST` | `/api/auth/verify-otp/` | Étape 2 : valide le code OTP, retourne les tokens JWT. |
+| `POST` | `/api/auth/token/refresh/` | Renouvelle un token d'accès JWT expiré. |
+| `POST` | `/api/auth/logout/` | Invalide le refresh token courant. |
+| `POST` | `/api/users/invite/` | *(admin)* Invite un membre dans votre organisation. |
+| `POST` | `/api/users/accept-invite/` | Finalise une invitation (définit le mot de passe). |
+
+## Agents & ingestion
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/collectors/enrollment-tokens/` | *(admin/analyste)* Liste les tokens d'agent de votre organisation. |
+| `POST` | `/api/collectors/enrollment-tokens/` | *(admin)* Génère un nouveau token (affiché une seule fois). |
+| `DELETE` | `/api/collectors/enrollment-tokens/{id}/` | *(admin)* Révoque un token. |
+| `POST` | `/api/ingest/agent/logs/` | Ingestion de logs, authentifiée par `Authorization: Bearer <token>` — voir [Agents de collecte](/docs/agents). |
+
+## Logs & alertes
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/logs/raw/` | Logs bruts de votre organisation. |
+| `GET` | `/api/logs/normalized/` | Logs normalisés de votre organisation. |
+| `GET` | `/api/logs/stats/` | Statistiques agrégées (volume, top IP, top utilisateurs…). |
+| `GET` | `/api/alerts/` | Alertes de votre organisation. |
+| `PATCH` | `/api/alerts/{id}/` | Met à jour le statut d'une alerte. |
+
+## Authentification des requêtes
+
+- **Sessions utilisateur** : header `Authorization: Bearer <access_token JWT>`,
+  obtenu via `/api/auth/verify-otp/`.
+- **Agents** : header `Authorization: Bearer logplus_agt_<token>`, jamais
+  interchangeable avec un token de session utilisateur (voir [Modèle de
+  sécurité](/docs/security)).
+
+<Callout type="info">
+  Une référence OpenAPI complète et auto-générée (tous les endpoints, tous
+  les schémas de requête/réponse) est prévue comme amélioration future de
+  cette documentation.
+</Callout>

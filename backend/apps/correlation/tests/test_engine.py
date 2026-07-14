@@ -9,7 +9,13 @@ from django.utils import timezone
 
 
 @pytest.fixture
-def make_normalized_log(db):
+def org(db):
+    from apps.organizations.models import Organization
+    return Organization.objects.create(name="Test Org", slug="test-org")
+
+
+@pytest.fixture
+def make_normalized_log(db, org):
     """Factory pour créer des NormalizedLog de test."""
     from apps.logs.models import NormalizedLog, RawLog
     from apps.collectors.models import ConnectorConfig
@@ -30,10 +36,12 @@ def make_normalized_log(db):
             event_time = timezone.now()
 
         raw = RawLog.objects.create(
+            organization=org,
             source_type="microsoft365",
             raw_data={"_test": True},
         )
         return NormalizedLog.objects.create(
+            organization=org,
             raw_log=raw,
             event_time=event_time,
             source_type="microsoft365",

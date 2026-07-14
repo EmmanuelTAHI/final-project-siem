@@ -3,7 +3,7 @@ Serializers pour les connecteurs et jobs de collecte.
 """
 from rest_framework import serializers
 
-from .models import CollectionJob, ConnectorConfig
+from .models import AgentEnrollmentToken, CollectionJob, ConnectorConfig
 
 
 class ConnectorConfigSerializer(serializers.ModelSerializer):
@@ -94,6 +94,7 @@ class ConnectorConfigCreateSerializer(serializers.ModelSerializer):
             "credentials",
             "polling_interval_seconds",
             "is_active",
+            "allowed_source_ips",
         ]
 
     def create(self, validated_data):
@@ -112,6 +113,28 @@ class ConnectorConfigCreateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class AgentEnrollmentTokenSerializer(serializers.ModelSerializer):
+    """Lecture — ne renvoie jamais le token en clair ni son hash."""
+
+    created_by_email = serializers.CharField(source="created_by.email", read_only=True, allow_null=True)
+    connector_name = serializers.CharField(source="connector.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = AgentEnrollmentToken
+        fields = [
+            "id", "name", "token_prefix", "connector", "connector_name",
+            "created_by", "created_by_email", "is_active",
+            "last_used_at", "last_used_ip", "expires_at", "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AgentEnrollmentTokenCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentEnrollmentToken
+        fields = ["name", "expires_at"]
 
 
 class CollectionJobSerializer(serializers.ModelSerializer):

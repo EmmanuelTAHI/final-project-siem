@@ -17,9 +17,9 @@ class GDPRReportGenerator(BaseReportGenerator):
         from apps.users.models import AuditTrail, User
 
         cutoff = timezone.now() - timedelta(days=self.period_days)
-        logs = NormalizedLog.objects.filter(indexed_at__gte=cutoff)
-        alerts = Alert.objects.filter(created_at__gte=cutoff)
-        audit = AuditTrail.objects.filter(timestamp__gte=cutoff)
+        logs = NormalizedLog.objects.filter(organization_id=self.organization_id, indexed_at__gte=cutoff)
+        alerts = Alert.objects.filter(organization_id=self.organization_id, created_at__gte=cutoff)
+        audit = AuditTrail.objects.filter(organization_id=self.organization_id, timestamp__gte=cutoff)
 
         return {
             "data_subjects_monitored": logs.values("user_email").exclude(user_email="").distinct().count(),

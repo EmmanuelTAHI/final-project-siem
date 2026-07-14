@@ -32,9 +32,15 @@ class DashboardSummaryView(APIView):
 
         now = timezone.now()
         last_24h = now - timedelta(hours=24)
+        org_id = request.user.organization_id
+
+        alerts_qs = Alert.objects.filter(organization_id=org_id)
+        logs_qs = NormalizedLog.objects.filter(organization_id=org_id)
+        connectors_qs = ConnectorConfig.objects.filter(organization_id=org_id)
+        predictions_qs = Prediction.objects.filter(organization_id=org_id)
 
         # ─── Alertes ouvertes ─────────────────────────────────────────────────
-        open_alerts = Alert.objects.filter(status="open")
+        open_alerts = alerts_qs.filter(status="open")
         total_open = open_alerts.count()
         open_by_severity = {
             item["severity"]: item["count"]
@@ -42,29 +48,29 @@ class DashboardSummaryView(APIView):
         }
 
         # ─── Logs collectés dans les 24 dernières heures ──────────────────────
-        logs_24h = NormalizedLog.objects.filter(event_time__gte=last_24h).count()
+        logs_24h = logs_qs.filter(event_time__gte=last_24h).count()
 
         # ─── Connecteurs ──────────────────────────────────────────────────────
-        total_connectors = ConnectorConfig.objects.count()
-        active_connectors = ConnectorConfig.objects.filter(is_active=True).count()
+        total_connectors = connectors_qs.count()
+        active_connectors = connectors_qs.filter(is_active=True).count()
 
         # ─── Anomalies ML dans les 24 dernières heures ────────────────────────
-        ml_anomalies_24h = Prediction.objects.filter(
+        ml_anomalies_24h = predictions_qs.filter(
             is_anomaly=True,
             predicted_at__gte=last_24h,
         ).count()
 
         # ─── Taux de faux positifs ────────────────────────────────────────────
-        total_resolved = Alert.objects.filter(
+        total_resolved = alerts_qs.filter(
             status__in=("resolved", "false_positive")
         ).count()
-        false_positives = Alert.objects.filter(status="false_positive").count()
+        false_positives = alerts_qs.filter(status="false_positive").count()
         fp_rate = round(false_positives / total_resolved * 100, 1) if total_resolved > 0 else 0.0
 
         # ─── Alertes par sévérité (toutes) ────────────────────────────────────
         all_alerts_by_severity = {
             item["severity"]: item["count"]
-            for item in Alert.objects.values("severity").annotate(count=Count("id"))
+            for item in alerts_qs.values("severity").annotate(count=Count("id"))
         }
 
         return success_response(
@@ -118,11 +124,12 @@ class DashboardTimelineView(APIView):
 
         delta, trunc_fn, trunc_label = period_map[period]
         since = now - delta
+        org_id = request.user.organization_id
 
         # Volume de logs par unité de temps
         log_timeline = (
             NormalizedLog.objects
-            .filter(event_time__gte=since)
+            .filter(organization_id=org_id, event_time__gte=since)
             .annotate(time_bucket=trunc_fn("event_time"))
             .values("time_bucket")
             .annotate(count=Count("id"))
@@ -132,7 +139,7 @@ class DashboardTimelineView(APIView):
         # Volume d'alertes par unité de temps
         alert_timeline = (
             Alert.objects
-            .filter(created_at__gte=since)
+            .filter(organization_id=org_id, created_at__gte=since)
             .annotate(time_bucket=trunc_fn("created_at"))
             .values("time_bucket")
             .annotate(count=Count("id"))
@@ -168,6 +175,7 @@ class DashboardTopThreatsView(APIView):
 
         top_rules = (
             CorrelationRule.objects
+            .filter(organization_id=request.user.organization_id)
             .annotate(alert_count=Count("alerts"))
             .order_by("-alert_count")[:10]
         )
@@ -207,7 +215,11 @@ class DashboardGeoMapView(APIView):
 
         geo_data = (
             NormalizedLog.objects
-            .filter(event_time__gte=last_24h, geo_country__isnull=False)
+            .filter(
+                organization_id=request.user.organization_id,
+                event_time__gte=last_24h,
+                geo_country__isnull=False,
+            )
             .values("geo_country")
             .annotate(
                 total=Count("id"),

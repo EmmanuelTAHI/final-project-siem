@@ -120,7 +120,11 @@ class CorrelationEngine:
         }
 
     def _evaluate_rule(self, rule: CorrelationRule, logs: QuerySet) -> list[RuleMatch]:
-        """Exécute une règle sur les logs et retourne les correspondances."""
+        """
+        Exécute une règle sur les logs et retourne les correspondances.
+        Isolation multi-tenant : une règle ne doit JAMAIS être évaluée contre
+        les logs d'une autre organisation que la sienne.
+        """
         condition = rule.condition_logic
         rule_type = condition.get("type")
 
@@ -133,9 +137,11 @@ class CorrelationEngine:
             logger.warning("Type de règle inconnu : '%s' (règle: %s)", rule_type, rule.name)
             return []
 
+        org_logs = logs.filter(organization_id=rule.organization_id)
+
         rule_class = _import_rule_class(rule_class_path)
         rule_instance = rule_class()
-        return rule_instance.evaluate(logs, condition)
+        return rule_instance.evaluate(org_logs, condition)
 
     def _create_alert_if_new(self, rule: CorrelationRule, match: RuleMatch, now: datetime):
         """
@@ -198,6 +204,7 @@ class CorrelationEngine:
             severity=rule.severity,
             status="open",
             rule=rule,
+            organization=rule.organization,
         )
 
         # Lier les logs à l'alerte

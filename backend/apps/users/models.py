@@ -5,6 +5,7 @@ User étendu (AbstractUser), AuditTrail.
 import uuid
 
 from django.contrib.auth.models import AbstractUser, UserManager
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -48,6 +49,15 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, verbose_name="Adresse email")
     first_name = models.CharField(max_length=150, blank=False, verbose_name="Prénom")
     last_name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="users",
+        verbose_name="Organisation",
+        help_text="Null uniquement pour le staff plateforme (is_superuser).",
+    )
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
@@ -75,6 +85,18 @@ class User(AbstractUser):
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
 
+    @property
+    def is_platform_staff(self) -> bool:
+        """Staff plateforme (super-admin) : voit toutes les organisations."""
+        return self.is_superuser
+
+    def clean(self):
+        super().clean()
+        if self.organization_id is None and not self.is_superuser:
+            raise ValidationError(
+                "Un utilisateur non-superuser doit appartenir à une organisation."
+            )
+
 
 class AuditTrail(models.Model):
     """
@@ -90,6 +112,15 @@ class AuditTrail(models.Model):
         blank=True,
         related_name="audit_trails",
         verbose_name="Utilisateur",
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_trails",
+        verbose_name="Organisation",
+        help_text="Null pour les évènements système plateforme (visibles du super-admin uniquement).",
     )
     action = models.CharField(
         max_length=100,
@@ -157,6 +188,7 @@ class AuditTrail(models.Model):
         cls,
         action: str,
         user=None,
+        organization=None,
         target_model: str = "",
         target_id: str = None,
         ip_address: str = None,
@@ -165,10 +197,18 @@ class AuditTrail(models.Model):
         geo_city: str = None,
         extra_data: dict = None,
     ):
-        """Méthode de classe utilitaire pour créer facilement une entrée d'audit."""
+        """
+        Méthode de classe utilitaire pour créer facilement une entrée d'audit.
+        `organization` est déduite de `user.organization` si non fournie
+        explicitement ; reste `None` pour un évènement système plateforme
+        (visible uniquement du super-admin).
+        """
+        if organization is None and user is not None:
+            organization = user.organization
         return cls.objects.create(
             action=action,
             user=user,
+            organization=organization,
             target_model=target_model,
             target_id=str(target_id) if target_id else None,
             ip_address=ip_address,

@@ -21,6 +21,13 @@ class MLModel(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="ml_models",
+        verbose_name="Organisation",
+        help_text="Chaque organisation entraîne son propre modèle sur son propre corpus de logs.",
+    )
     name = models.CharField(max_length=255, verbose_name="Nom du modèle")
     version = models.CharField(max_length=50, verbose_name="Version", help_text="Ex: 1.0.0")
     algorithm = models.CharField(
@@ -51,8 +58,10 @@ class MLModel(models.Model):
         return f"{self.name} v{self.version} [{self.algorithm}] {active}"
 
     def activate(self):
-        """Active ce modèle et désactive les autres."""
-        MLModel.objects.filter(is_active=True).update(is_active=False)
+        """Active ce modèle et désactive les autres modèles de la même organisation."""
+        MLModel.objects.filter(
+            organization_id=self.organization_id, is_active=True
+        ).exclude(pk=self.pk).update(is_active=False)
         self.is_active = True
         self.save(update_fields=["is_active"])
 
@@ -63,6 +72,15 @@ class Prediction(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="predictions",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis log.organization pour l'isolation multi-tenant.",
+    )
     log = models.OneToOneField(
         "logs.NormalizedLog",
         on_delete=models.CASCADE,
@@ -92,6 +110,11 @@ class Prediction(models.Model):
             models.Index(fields=["is_anomaly", "predicted_at"]),
             models.Index(fields=["anomaly_score"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.log_id and not self.organization_id:
+            self.organization_id = self.log.organization_id
+        super().save(*args, **kwargs)
 
     def __str__(self):
         flag = "⚠ ANOMALIE" if self.is_anomaly else "✓ Normal"

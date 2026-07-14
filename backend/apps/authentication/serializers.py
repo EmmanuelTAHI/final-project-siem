@@ -21,6 +21,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["email"] = user.email
         token["role"] = user.role
         token["full_name"] = user.full_name
+        token["is_superuser"] = user.is_superuser
+        token["organization_id"] = str(user.organization_id) if user.organization_id else None
+        token["organization_name"] = user.organization.name if user.organization_id else None
         return token
 
     def validate(self, attrs):
@@ -30,6 +33,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "email": self.user.email,
             "full_name": self.user.full_name,
             "role": self.user.role,
+            "is_superuser": self.user.is_superuser,
+            "organization_id": str(self.user.organization_id) if self.user.organization_id else None,
+            "organization_name": self.user.organization.name if self.user.organization_id else None,
         }
         return data
 
@@ -64,6 +70,61 @@ class TokenRefreshSerializer(serializers.Serializer):
     """Serializer pour le renouvellement du token d'accès."""
 
     refresh = serializers.CharField(required=True)
+
+
+class RegisterSerializer(serializers.Serializer):
+    """
+    Inscription publique : crée une nouvelle Organization + son premier
+    utilisateur (admin, inactif jusqu'à vérification email).
+    """
+
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
+    organization_name = serializers.CharField(required=True, max_length=200)
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists():
+            # Pas de distinction de message ici — la vue renvoie un succès
+            # générique dans tous les cas pour éviter l'énumération de comptes.
+            pass
+        return value
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+
+
+class InviteUserSerializer(serializers.Serializer):
+    """Invitation d'un membre par un admin d'organisation (déjà authentifié)."""
+
+    email = serializers.EmailField(required=True)
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, default="viewer")
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Un utilisateur avec cet email existe déjà.")
+        return value
+
+
+class AcceptInviteSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value
 
 
 class OAuthCallbackSerializer(serializers.Serializer):

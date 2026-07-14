@@ -76,6 +76,9 @@ class LogNormalizer:
         "google_workspace": "_map_google",
         "wazuh": "_map_wazuh",
         "syslog": "_map_syslog",
+        # Les agents (rsyslog/NXLog/Fluent Bit) poussent des lignes déjà
+        # parsées au même format que parse_syslog_message() — même mapper.
+        "agent": "_map_syslog",
     }
 
     def normalize(self, raw_log: RawLog) -> NormalizedLog | None:

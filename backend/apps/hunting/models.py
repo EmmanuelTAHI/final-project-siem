@@ -8,6 +8,12 @@ from django.db import models
 
 class HuntingQuery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="hunting_queries",
+        verbose_name="Organisation",
+    )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     query_params = models.JSONField(
@@ -39,6 +45,13 @@ class HuntingQuery(models.Model):
 class HuntingResult(models.Model):
     """Résultats d'une exécution de requête de chasse."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="hunting_results",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis query.organization pour l'isolation multi-tenant.",
+    )
     query = models.ForeignKey(HuntingQuery, on_delete=models.CASCADE, related_name="results")
     log = models.ForeignKey("logs.NormalizedLog", on_delete=models.CASCADE)
     executed_at = models.DateTimeField(auto_now_add=True)
@@ -46,3 +59,8 @@ class HuntingResult(models.Model):
     class Meta:
         ordering = ["-executed_at"]
         unique_together = [("query", "log")]
+
+    def save(self, *args, **kwargs):
+        if self.query_id and not self.organization_id:
+            self.organization_id = self.query.organization_id
+        super().save(*args, **kwargs)

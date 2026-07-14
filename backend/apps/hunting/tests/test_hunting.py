@@ -9,13 +9,17 @@ User = get_user_model()
 
 class HuntingQueryModelTest(TestCase):
     def setUp(self):
+        from apps.organizations.models import Organization
+        self.org = Organization.objects.create(name="Test Org", slug="test-org")
         self.analyst = User.objects.create_user(
-            email="analyst@test.ci", password="Test1234!", role="analyst"
+            email="analyst@test.ci", password="Test1234!", role="analyst",
+            organization=self.org,
         )
 
     def test_create_hunting_query(self):
         from apps.hunting.models import HuntingQuery
         query = HuntingQuery.objects.create(
+            organization=self.org,
             name="Détection connexions hors heures",
             description="Cherche les connexions entre 23h et 5h",
             query_params={
@@ -33,15 +37,18 @@ class HuntingQueryModelTest(TestCase):
 
     def test_hunting_query_uuid_pk(self):
         from apps.hunting.models import HuntingQuery
-        q1 = HuntingQuery.objects.create(name="Query A", created_by=self.analyst)
-        q2 = HuntingQuery.objects.create(name="Query B", created_by=self.analyst)
+        q1 = HuntingQuery.objects.create(organization=self.org, name="Query A", created_by=self.analyst)
+        q2 = HuntingQuery.objects.create(organization=self.org, name="Query B", created_by=self.analyst)
         self.assertNotEqual(q1.id, q2.id)
 
 
 class HuntingAPITest(TestCase):
     def setUp(self):
+        from apps.organizations.models import Organization
+        self.org = Organization.objects.create(name="Test Org", slug="test-org")
         self.analyst = User.objects.create_user(
-            email="analyst@test.ci", password="Test1234!", role="analyst"
+            email="analyst@test.ci", password="Test1234!", role="analyst",
+            organization=self.org,
         )
         self.client.force_login(self.analyst)
 
@@ -54,6 +61,7 @@ class HuntingAPITest(TestCase):
     def test_list_queries_authenticated(self):
         from apps.hunting.models import HuntingQuery
         HuntingQuery.objects.create(
+            organization=self.org,
             name="Test Query",
             created_by=self.analyst,
         )

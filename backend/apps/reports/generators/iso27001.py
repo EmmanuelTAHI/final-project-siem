@@ -18,8 +18,9 @@ class ISO27001ReportGenerator(BaseReportGenerator):
         from apps.users.models import AuditTrail, User
 
         cutoff = timezone.now() - timedelta(days=self.period_days)
-        alerts = Alert.objects.filter(created_at__gte=cutoff)
-        logs = NormalizedLog.objects.filter(indexed_at__gte=cutoff)
+        alerts = Alert.objects.filter(organization_id=self.organization_id, created_at__gte=cutoff)
+        logs = NormalizedLog.objects.filter(organization_id=self.organization_id, indexed_at__gte=cutoff)
+        rules = CorrelationRule.objects.filter(organization_id=self.organization_id)
 
         resolved = alerts.filter(status="resolved")
         mttr_avg = 0.0
@@ -32,13 +33,17 @@ class ISO27001ReportGenerator(BaseReportGenerator):
                 mttr_avg = round(statistics.mean(mttr_values), 1)
 
         return {
-            "active_rules": CorrelationRule.objects.filter(is_active=True).count(),
-            "total_rules": CorrelationRule.objects.count(),
+            "active_rules": rules.filter(is_active=True).count(),
+            "total_rules": rules.count(),
             "total_alerts": alerts.count(),
             "resolved_alerts": resolved.count(),
             "mttr_hours": mttr_avg,
-            "total_users": User.objects.filter(is_active=True).count(),
-            "audit_entries": AuditTrail.objects.filter(timestamp__gte=cutoff).count(),
+            "total_users": User.objects.filter(
+                is_active=True, organization_id=self.organization_id
+            ).count(),
+            "audit_entries": AuditTrail.objects.filter(
+                organization_id=self.organization_id, timestamp__gte=cutoff
+            ).count(),
             "total_logs": logs.count(),
             "sources_active": logs.values("source_type").distinct().count(),
         }

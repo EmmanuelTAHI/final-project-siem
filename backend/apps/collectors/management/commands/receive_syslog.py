@@ -98,25 +98,39 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from django.conf import settings
+
+        if not getattr(settings, "SYSLOG_RECEIVER_ENABLED", True):
+            self.stdout.write(
+                self.style.WARNING(
+                    "SYSLOG_RECEIVER_ENABLED=False — récepteur syslog UDP désactivé "
+                    "(profil SaaS : utilisez l'ingestion HTTP par token d'agent)."
+                )
+            )
+            return
+
         host = options["host"]
         port = options["port"]
         batch_size = options["batch_size"]
 
         self.stdout.write(
             self.style.MIGRATE_HEADING(
-                f"[Syslog Receiver] Démarrage écoute UDP sur {host}:{port}"
+                f"[Syslog Receiver] Démarrage écoute UDP sur {host}:{port} "
+                "— mode self-host : IP source vérifiée contre allowlist par connecteur."
             )
         )
-        logger.info("Récepteur syslog démarré sur %s:%d", host, port)
+        logger.warning(
+            "receive_syslog : mode UDP non chiffré, non authentifié au-delà de "
+            "l'allowlist IP. Réservé à un déploiement self-host mono-organisation "
+            "sur réseau privé — jamais recommandé sur une instance SaaS mutualisée."
+        )
 
-        # Charger le connecteur syslog actif (sera rechargé si absent)
-        connector = self._load_connector()
-        if not connector:
+        connectors = self._load_syslog_connectors()
+        if not connectors:
             self.stderr.write(
                 self.style.WARNING(
-                    "Aucun connecteur syslog actif en base. "
-                    "Créez-en un depuis l'interface → Collectors. "
-                    "Les logs reçus seront ignorés jusqu'à création du connecteur."
+                    "Aucun connecteur syslog actif avec allowlist IP configurée. "
+                    "Les paquets reçus seront ignorés jusqu'à configuration."
                 )
             )
 
@@ -133,35 +147,30 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"Récepteur syslog actif — UDP {host}:{port}")
         )
 
-        buffer_count = 0
-        reload_counter = 0  # recharge le connecteur toutes les N itérations sans message
+        pending_by_connector = {}  # {connector_id: count}
+        reload_counter = 0  # recharge la liste de connecteurs toutes les N itérations sans message
         # Flush temporel : normalise les logs en attente même sous le seuil de
         # batch, pour que les alertes (brute force…) sortent en quelques secondes
         # au lieu d'attendre l'accumulation de `batch_size` messages.
         FLUSH_INTERVAL = 5.0  # secondes
+        RELOAD_INTERVAL = 30  # ~60s d'inactivité (2s de select() par itération)
         last_flush = time.monotonic()
 
         try:
             while True:
                 readable, _, _ = select.select([sock], [], [], 2.0)
 
-                # Flush périodique des logs en attente
-                if buffer_count > 0 and (time.monotonic() - last_flush) >= FLUSH_INTERVAL:
-                    self._trigger_normalization(connector)
-                    buffer_count = 0
+                # Flush périodique des logs en attente, connecteur par connecteur
+                if pending_by_connector and (time.monotonic() - last_flush) >= FLUSH_INTERVAL:
+                    for connector_id in list(pending_by_connector):
+                        self._trigger_normalization(connector_id)
+                    pending_by_connector.clear()
                     last_flush = time.monotonic()
 
                 if not readable:
                     reload_counter += 1
-                    # Recharger le connecteur toutes les ~60s si absent
-                    if not connector and reload_counter % 30 == 0:
-                        connector = self._load_connector()
-                        if connector:
-                            self.stdout.write(
-                                self.style.SUCCESS(
-                                    f"Connecteur syslog chargé : {connector.name}"
-                                )
-                            )
+                    if reload_counter % RELOAD_INTERVAL == 0:
+                        connectors = self._load_syslog_connectors()
                     continue
 
                 data_bytes, addr = sock.recvfrom(65535)
@@ -174,28 +183,29 @@ class Command(BaseCommand):
 
                 parsed = parse_syslog_message(raw_message, source_ip)
 
-                # Recharger le connecteur si nécessaire
-                if not connector:
-                    connector = self._load_connector()
+                connector = self._resolve_connector_by_ip(connectors, source_ip)
 
                 if connector:
                     self._store_raw_log(connector, parsed)
-                    buffer_count += 1
+                    pending_by_connector[connector.id] = pending_by_connector.get(connector.id, 0) + 1
                     logger.debug(
-                        "Syslog reçu de %s [%s] : %s",
+                        "Syslog reçu de %s [%s] → connecteur %s : %s",
                         source_ip,
                         parsed.get("facility", "?"),
+                        connector.name,
                         parsed.get("message", "")[:120],
                     )
 
-                    # Déclencher la normalisation dès le batch atteint
-                    if buffer_count >= batch_size:
-                        self._trigger_normalization(connector)
-                        buffer_count = 0
+                    if pending_by_connector[connector.id] >= batch_size:
+                        self._trigger_normalization(connector.id)
+                        pending_by_connector[connector.id] = 0
                         last_flush = time.monotonic()
                 else:
-                    logger.debug(
-                        "Log syslog de %s ignoré — pas de connecteur syslog actif.",
+                    # Aucune correspondance d'allowlist IP : le paquet est
+                    # rejeté et JAMAIS rattaché arbitrairement à un connecteur
+                    # (c'est exactement le bug corrigé par ce durcissement).
+                    logger.warning(
+                        "Syslog de %s rejeté — aucune allowlist IP ne correspond.",
                         source_ip,
                     )
 
@@ -206,13 +216,51 @@ class Command(BaseCommand):
             sock.close()
 
     @staticmethod
-    def _load_connector():
-        """Charge le premier connecteur syslog actif depuis la BDD."""
+    def _load_syslog_connectors():
+        """
+        Charge tous les connecteurs syslog actifs disposant d'une allowlist
+        IP configurée (ceux sans allowlist sont ignorés : jamais de fallback
+        global ambigu comme dans l'ancienne version).
+        """
         from apps.collectors.models import ConnectorConfig
-        return ConnectorConfig.objects.filter(
-            source_type="syslog",
-            is_active=True,
-        ).first()
+        return [
+            c for c in ConnectorConfig.objects.filter(source_type="syslog", is_active=True)
+            if c.allowed_source_ips
+        ]
+
+    @staticmethod
+    def _resolve_connector_by_ip(connectors, source_ip: str):
+        """
+        Résout le connecteur dont l'allowlist contient `source_ip`. En cas de
+        correspondances multiples (mauvaise config), rejette plutôt que de
+        choisir arbitrairement — évite toute attribution ambiguë entre orgs.
+        """
+        import ipaddress
+
+        try:
+            ip = ipaddress.ip_address(source_ip)
+        except ValueError:
+            return None
+
+        matches = []
+        for connector in connectors:
+            for entry in connector.allowed_source_ips:
+                try:
+                    if ip in ipaddress.ip_network(entry, strict=False):
+                        matches.append(connector)
+                        break
+                except ValueError:
+                    continue
+
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            logger.error(
+                "IP %s correspond à l'allowlist de plusieurs connecteurs (%s) — "
+                "rejet pour éviter une attribution ambiguë entre organisations.",
+                source_ip, [c.id for c in matches],
+            )
+        return None
 
     @staticmethod
     def _store_raw_log(connector, parsed: dict):
@@ -221,14 +269,15 @@ class Command(BaseCommand):
         RawLog.objects.create(
             source_type="syslog",
             connector=connector,
+            organization=connector.organization,
             raw_data=parsed,
         )
 
     @staticmethod
-    def _trigger_normalization(connector):
+    def _trigger_normalization(connector_id):
         """Déclenche la normalisation des RawLog syslog en attente via Celery."""
         try:
             from apps.collectors.tasks import normalize_syslog_raw_logs
-            normalize_syslog_raw_logs.delay(str(connector.id))
+            normalize_syslog_raw_logs.delay(str(connector_id))
         except Exception as exc:
             logger.warning("Impossible de déclencher la normalisation syslog : %s", exc)

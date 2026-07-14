@@ -69,3 +69,36 @@ class IsOwnerOrAdmin(BasePermission):
         if request.user.role == "admin":
             return True
         return obj == request.user or getattr(obj, "user", None) == request.user
+
+
+class IsPlatformStaff(BasePermission):
+    """
+    Staff plateforme (super-admin) uniquement — voit toutes les organisations.
+    Utilisée exclusivement par les ViewSets marqués
+    `allow_cross_org_for_platform_staff = True` (voir utils.tenant), qui sont
+    le SEUL endroit du code où ce bypass cross-org doit apparaître.
+    """
+
+    message = "Réservé au staff de la plateforme."
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+
+
+class IsSameOrganization(BasePermission):
+    """
+    Isolation multi-tenant — Couche 3 (défense en profondeur pour les routes
+    de détail). OrganizationFilterBackend (couche 1) pré-filtre déjà le
+    queryset avant get_object(), mais cette permission protège contre tout
+    ViewSet qui surchargerait get_queryset() d'une façon qui court-circuite
+    la chaîne de filter_backends par accident.
+    """
+
+    message = "Cette ressource appartient à une autre organisation."
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.is_superuser and getattr(view, "allow_cross_org_for_platform_staff", False):
+            return True
+        org = getattr(obj, "organization", None)
+        return org is not None and org.id == user.organization_id

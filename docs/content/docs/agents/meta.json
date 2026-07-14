@@ -1,0 +1,4 @@
+{
+  "title": "Agents de collecte",
+  "pages": ["index", "linux-rsyslog", "windows-nxlog", "fluent-bit", "network-devices-syslog"]
+}

@@ -481,6 +481,13 @@ function LoginPageContent() {
                   <>Continuer <ChevronRight size={14} /></>
                 )}
               </button>
+
+              <div style={{ textAlign: "center", fontSize: 12.5, color: "var(--text-2)", marginTop: 4 }}>
+                Pas encore de compte ?{" "}
+                <a href="/register" style={{ color: "var(--primary, #3B82F6)" }}>
+                  Créer votre organisation
+                </a>
+              </div>
             </div>
           </form>
 

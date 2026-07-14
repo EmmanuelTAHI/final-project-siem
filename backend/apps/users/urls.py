@@ -1,6 +1,8 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.authentication.views import AcceptInviteView, InviteUserView
+
 from .views import AuditTrailViewSet, UserViewSet
 
 router = DefaultRouter()
@@ -12,5 +14,9 @@ router.register(r"audit-trail", AuditTrailViewSet, basename="audit-trail")
 router.register(r"", UserViewSet, basename="users")
 
 urlpatterns = [
+    # invite/accept-invite AVANT le router : même piège que audit-trail
+    # ci-dessus, "invite" serait sinon traité comme un pk utilisateur.
+    path("invite/", InviteUserView.as_view(), name="users-invite"),
+    path("accept-invite/", AcceptInviteView.as_view(), name="users-accept-invite"),
     path("", include(router.urls)),
 ]

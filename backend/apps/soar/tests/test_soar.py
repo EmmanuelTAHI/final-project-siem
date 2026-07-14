@@ -10,6 +10,8 @@ User = get_user_model()
 
 class PlaybookModelTest(TestCase):
     def setUp(self):
+        from apps.organizations.models import Organization
+        self.org = Organization.objects.create(name="Test Org", slug="test-org")
         self.admin = User.objects.create_superuser(
             email="admin@test.ci", password="Test1234!", role="admin"
         )
@@ -17,6 +19,7 @@ class PlaybookModelTest(TestCase):
     def test_playbook_creation(self):
         from apps.soar.models import Playbook
         pb = Playbook.objects.create(
+            organization=self.org,
             name="Test Playbook",
             description="Test",
             trigger_type="severity",
@@ -30,7 +33,7 @@ class PlaybookModelTest(TestCase):
 
     def test_playbook_uuid_primary_key(self):
         from apps.soar.models import Playbook
-        pb = Playbook.objects.create(name="UUID Test", created_by=self.admin)
+        pb = Playbook.objects.create(organization=self.org, name="UUID Test", created_by=self.admin)
         self.assertIsInstance(pb.id, uuid.UUID)
 
 

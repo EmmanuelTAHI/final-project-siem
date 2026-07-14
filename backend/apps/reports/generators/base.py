@@ -76,8 +76,9 @@ class BaseReportGenerator:
     FRAMEWORK = "BASE"
     TITLE = "Rapport de conformité"
 
-    def __init__(self, period_days: int = 30):
+    def __init__(self, period_days: int = 30, organization_id=None):
         self.period_days = period_days
+        self.organization_id = organization_id
         self.styles = build_styles()
         self.generated_at = datetime.utcnow()
 

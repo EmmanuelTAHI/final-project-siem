@@ -1,0 +1,57 @@
+---
+title: Modèle de sécurité
+description: Gestion des secrets, chiffrement, TLS, divulgation responsable
+---
+
+## Authentification des utilisateurs
+
+- Mot de passe + code à usage unique envoyé par email (OTP) à chaque
+  connexion — voir [Premier login](/docs/getting-started/first-login).
+- Détection de "voyage impossible" (connexions géographiquement
+  incompatibles en peu de temps).
+- Toutes les sessions actives sont révoquées automatiquement lors d'une
+  réinitialisation de mot de passe.
+
+## Authentification des agents
+
+Les agents de collecte s'authentifient avec un **token bearer dédié**,
+totalement distinct des sessions utilisateur (JWT) :
+
+- Le token est généré côté serveur (256 bits d'entropie), affiché **une
+  seule fois** à la création, jamais stocké en clair côté serveur (seul un
+  hash SHA-256 est conservé, à la manière d'un mot de passe).
+- Ce type de token ne peut **jamais** authentifier une requête vers un
+  endpoint utilisateur normal — il n'est reconnu que par l'endpoint
+  d'ingestion dédié.
+- Un token révoqué est immédiatement invalide pour toute nouvelle requête.
+
+## Chiffrement
+
+- **Au repos** : les identifiants de connecteurs (Microsoft 365, Google
+  Workspace, Wazuh) et les tokens OAuth2 sont chiffrés (AES-256/Fernet)
+  avant stockage en base de données.
+- **En transit** : toutes les communications avec la plateforme SaaS
+  passent par HTTPS/TLS (Let's Encrypt, renouvellement automatique). Le mode
+  syslog UDP (self-host uniquement, voir [Équipements
+  réseau](/docs/agents/network-devices-syslog)) est délibérément exclu de
+  cette garantie et documenté comme tel.
+
+## Isolation multi-tenant
+
+Voir [Architecture & isolation](/docs/architecture) pour le détail complet
+du modèle d'isolation entre organisations.
+
+## Limitation de débit (rate limiting)
+
+Les endpoints sensibles (connexion, inscription, réinitialisation de mot de
+passe, code OTP, ingestion d'agents) sont soumis à des limites de débit par
+IP/organisation pour limiter l'impact d'un abus ou d'une fuite de
+identifiants/token.
+
+## Divulgation responsable
+
+Log+ est un projet open source. Si vous découvrez une vulnérabilité de
+sécurité, merci de la signaler de façon responsable plutôt que de
+l'exploiter ou de la divulguer publiquement avant correction — ouvrez un
+ticket privé (Security Advisory) sur le dépôt du projet plutôt qu'une issue
+publique.

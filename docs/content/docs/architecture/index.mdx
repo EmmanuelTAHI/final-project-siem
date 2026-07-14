@@ -1,0 +1,79 @@
+---
+title: Architecture & isolation multi-tenant
+description: Comment Log+ garantit qu'aucune organisation ne voit les données d'une autre
+---
+
+Log+ est une plateforme **multi-tenant** : plusieurs organisations
+partagent la même instance, mais chacune est strictement isolée des autres.
+Cette page explique le fonctionnement interne — la transparence sur le
+modèle d'isolation est volontaire, c'est un projet de sécurité open source.
+
+## Flux de données
+
+```
+Agent (rsyslog/NXLog/Fluent Bit)
+   │  POST /api/ingest/agent/logs/  (Bearer token d'organisation)
+   ▼
+RawLog  (rattaché à l'organisation résolue depuis le token)
+   │  normalisation
+   ▼
+NormalizedLog
+   │  corrélation (règles de VOTRE organisation uniquement)
+   ▼
+Alert  /  ML Prediction  /  CTI Enrichment
+   │
+   ▼
+Tableau de bord (filtré par votre organisation à chaque requête)
+```
+
+## Le principe : chaque table métier porte une organisation
+
+Chaque enregistrement (log, alerte, règle, connecteur, modèle ML…) porte une
+référence explicite vers l'organisation qui l'a produit. Cette référence est
+fixée **au moment de la création**, jamais modifiable par la suite via
+l'API, et jamais acceptée depuis une requête client.
+
+## Trois couches d'isolation indépendantes
+
+1. **Filtrage automatique des requêtes API** — chaque requête vers l'API est
+   automatiquement restreinte aux données de l'organisation de l'utilisateur
+   connecté, avant même d'atteindre la logique métier.
+2. **Permissions au niveau objet** — une seconde vérification protège
+   chaque accès à une ressource individuelle (ex. `GET /alerts/{id}/`)
+   contre toute tentative d'accès à une ressource d'une autre organisation.
+3. **Garde-fou automatisé** — chaque nouvel endpoint de l'API est vérifié
+   automatiquement (tests) pour s'assurer qu'il applique bien
+   l'isolation — un oubli de scoping ne peut pas passer en production
+   silencieusement.
+
+## Modèle ML par organisation
+
+Le module de détection d'anomalies (Machine Learning) est entraîné
+**séparément pour chaque organisation**, sur son propre historique de logs.
+Aucun modèle n'est partagé ou mutualisé entre organisations — le
+comportement d'une organisation n'influence jamais la détection d'une
+autre.
+
+## Ce qui reste volontairement partagé
+
+- **Renseignement sur les menaces (CTI)** — les indicateurs de compromission
+  (IP malveillantes connues, domaines, hashs) proviennent de sources
+  publiques (AbuseIPDB, VirusTotal…) et sont objectivement les mêmes pour
+  tout le monde ; il n'y a pas de sens à les isoler par organisation.
+
+## Le staff plateforme (super-admin)
+
+Un compte "staff plateforme" (distinct des rôles d'organisation) peut
+consulter une vue d'ensemble agrégée de toutes les organisations
+(nombre d'utilisateurs, de logs, d'alertes) à des fins d'exploitation de
+l'instance — jamais le détail des logs ou alertes d'une organisation
+particulière. Cet accès est strictement réservé à l'équipe qui opère
+l'instance, jamais accessible à un administrateur d'organisation normal.
+
+## Ingestion d'agents : jamais d'attribution ambiguë
+
+Le point le plus sensible d'un système multi-tenant est l'ingestion : un
+agent qui pousse des logs doit être rattaché à la bonne organisation, sans
+ambiguïté possible. Log+ résout cela par un **token bearer unique par
+organisation** (voir [Agents de collecte](/docs/agents)) — jamais par une
+IP source seule ou par un choix "premier connecteur disponible".

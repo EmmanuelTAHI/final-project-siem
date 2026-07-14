@@ -147,3 +147,21 @@ export function calcPercent(value: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
 }
+
+// Site de documentation : app Next.js indépendante (basePath=/docs), servie
+// sous /docs/ sur le même domaine via nginx (voir nginx.conf). En dev local,
+// elle tourne sur son propre port (3001). NEXT_PUBLIC_DOCS_URL permet de
+// surcharger explicitement.
+export function getDocsUrl(path = ""): string {
+  const base = (() => {
+    if (process.env.NEXT_PUBLIC_DOCS_URL) return process.env.NEXT_PUBLIC_DOCS_URL;
+    if (typeof window !== "undefined") {
+      const { hostname } = window.location;
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return "http://localhost:3001/docs";
+      }
+    }
+    return "/docs";
+  })();
+  return path ? `${base}/${path.replace(/^\//, "")}` : base;
+}

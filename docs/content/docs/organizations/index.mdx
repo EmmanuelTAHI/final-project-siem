@@ -1,0 +1,43 @@
+---
+title: Organisations & équipe
+description: Inviter des collègues, gérer les rôles, comprendre l'isolation
+---
+
+## Qu'est-ce qu'une organisation ?
+
+Chaque inscription sur Log+ crée une **organisation** : un espace isolé qui
+contient vos utilisateurs, vos connecteurs, vos logs, vos alertes, vos
+règles de corrélation. Aucune donnée n'est jamais partagée entre deux
+organisations — voir [Architecture & isolation](/docs/architecture) pour le
+détail technique de cette garantie.
+
+## Inviter un membre de votre équipe
+
+Seul un **administrateur** de votre organisation peut inviter de nouveaux
+membres :
+
+1. Allez dans **Utilisateurs** dans le tableau de bord.
+2. Cliquez sur **Inviter un utilisateur**, renseignez son email, prénom, nom
+   et son rôle.
+3. La personne invitée reçoit un email avec un lien (valide 7 jours) pour
+   définir son mot de passe et activer son compte.
+
+Le nouvel utilisateur est automatiquement rattaché à **votre** organisation
+— il n'y a aucun moyen, ni pour vous ni pour lui, de le rattacher à une
+autre organisation.
+
+## Rôles disponibles
+
+| Rôle | Peut faire |
+|---|---|
+| **Administrateur** | Tout : gérer les utilisateurs, les connecteurs, les règles, les playbooks, générer des tokens d'agent. |
+| **Analyste SOC** | Consulter et traiter les alertes/logs, lancer des collectes et des recherches, exécuter des playbooks. Ne peut pas gérer les utilisateurs ni les connecteurs. |
+| **Observateur** | Lecture seule sur les tableaux de bord, alertes et rapports. |
+
+## Bonnes pratiques
+
+- Limitez le nombre d'administrateurs au strict nécessaire — ce rôle peut
+  générer des tokens d'agent et gérer tous les utilisateurs.
+- Révoquez l'accès (désactivez le compte) d'un collaborateur qui quitte
+  l'organisation plutôt que de partager des identifiants.
+- Un compte ne peut appartenir qu'à **une seule** organisation à la fois.

@@ -1,0 +1,47 @@
+---
+title: Créer votre organisation
+description: Inscription et création du compte administrateur
+---
+
+## 1. Inscription
+
+Rendez-vous sur la page [`/register`](/register) de la plateforme Log+.
+Remplissez :
+
+- **Nom de l'organisation** — le nom de votre PME, ou votre propre nom si
+  vous êtes indépendant/particulier.
+- **Prénom / Nom / Email** — vos informations personnelles.
+- **Mot de passe** — au moins 8 caractères, pas uniquement numérique, pas un
+  mot de passe trop commun (règles Django standard).
+
+En validant, deux choses sont créées automatiquement :
+
+1. Une **organisation** qui vous est propre — totalement isolée des autres
+   organisations de la plateforme. Personne d'autre ne pourra jamais voir
+   vos logs, vos alertes, vos utilisateurs ou vos connecteurs.
+2. Votre **compte administrateur** au sein de cette organisation, en attente
+   de vérification email.
+
+## 2. Vérification email
+
+Un email vous est envoyé avec un lien de confirmation (valide 24h). Cliquez
+dessus pour activer votre compte. Si vous ne recevez rien après quelques
+minutes, vérifiez vos spams.
+
+<Callout type="info">
+  Sans vérification email, votre compte reste inactif — c'est une protection
+  contre les inscriptions automatisées et les fausses organisations.
+</Callout>
+
+## 3. Premier login
+
+Une fois votre email vérifié, connectez-vous depuis [`/login`](/login) avec
+votre email et votre mot de passe. Log+ vous enverra un **code de
+vérification (OTP)** par email à chaque connexion — voir
+[Premier login](/docs/getting-started/first-login) pour le détail de ce flux.
+
+## Inviter votre équipe
+
+Une fois connecté en tant qu'administrateur, vous pouvez inviter des
+collègues depuis la page **Utilisateurs** du tableau de bord — voir
+[Organisations & équipe](/docs/organizations).

@@ -15,7 +15,9 @@ class PlaybookSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "execution_count", "created_by", "created_at", "updated_at"]
 
     def create(self, validated_data):
-        validated_data["created_by"] = self.context["request"].user
+        request_user = self.context["request"].user
+        validated_data["created_by"] = request_user
+        validated_data["organization"] = request_user.organization
         return super().create(validated_data)
 
 

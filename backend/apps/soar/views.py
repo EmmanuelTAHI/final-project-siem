@@ -57,10 +57,12 @@ class SOARStatsView(APIView):
         last_24h = timezone.now() - timedelta(hours=24)
         last_7d = timezone.now() - timedelta(days=7)
 
-        executions = PlaybookExecution.objects.all()
+        org_id = request.user.organization_id
+        playbooks = Playbook.objects.filter(organization_id=org_id)
+        executions = PlaybookExecution.objects.filter(organization_id=org_id)
         stats = {
-            "total_playbooks": Playbook.objects.count(),
-            "active_playbooks": Playbook.objects.filter(is_active=True).count(),
+            "total_playbooks": playbooks.count(),
+            "active_playbooks": playbooks.filter(is_active=True).count(),
             "executions_24h": executions.filter(started_at__gte=last_24h).count(),
             "executions_7d": executions.filter(started_at__gte=last_7d).count(),
             "success_rate": _compute_success_rate(executions),
@@ -68,7 +70,7 @@ class SOARStatsView(APIView):
                 executions.values("status").annotate(count=Count("id"))
             ),
             "top_playbooks": list(
-                Playbook.objects.order_by("-execution_count").values("name", "execution_count")[:5]
+                playbooks.order_by("-execution_count").values("name", "execution_count")[:5]
             ),
         }
         return Response(stats)

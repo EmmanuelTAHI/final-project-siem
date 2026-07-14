@@ -16,6 +16,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from utils.pagination import LargeResultsPagination, StandardResultsPagination
 from utils.permissions import IsAnalyst
 from utils.response import success_response
+from utils.tenant import OrganizationFilterBackend
 
 from .filters import NormalizedLogFilter, RawLogFilter
 from .models import NormalizedLog, RawLog
@@ -37,6 +38,7 @@ class RawLogViewSet(ReadOnlyModelViewSet):
     pagination_class = StandardResultsPagination
     filterset_class = RawLogFilter
     filter_backends = [
+        OrganizationFilterBackend,
         __import__("django_filters.rest_framework", fromlist=["DjangoFilterBackend"]).DjangoFilterBackend,
         filters.OrderingFilter,
     ]
@@ -61,6 +63,7 @@ class NormalizedLogViewSet(ReadOnlyModelViewSet):
     pagination_class = LargeResultsPagination
     filterset_class = NormalizedLogFilter
     filter_backends = [
+        OrganizationFilterBackend,
         __import__("django_filters.rest_framework", fromlist=["DjangoFilterBackend"]).DjangoFilterBackend,
         filters.SearchFilter,
         filters.OrderingFilter,
@@ -87,9 +90,18 @@ class LogStatsView(APIView):
         last_24h = now - timedelta(hours=24)
         last_30d = now - timedelta(days=30)
 
+        # Isolation multi-tenant : un APIView n'est pas couvert par
+        # OrganizationFilterBackend (réservé aux ViewSets/GenericAPIView via
+        # filter_queryset) — le scoping doit être fait explicitement ici.
+        user = request.user
+        if user.is_superuser and user.organization_id is None:
+            org_logs = NormalizedLog.objects.none()
+        else:
+            org_logs = NormalizedLog.objects.filter(organization_id=user.organization_id)
+
         # Volume par heure — 24 dernières heures
         hourly_volume = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_24h)
             .annotate(hour=TruncHour("event_time"))
             .values("hour")
@@ -99,7 +111,7 @@ class LogStatsView(APIView):
 
         # Volume par jour — 30 derniers jours
         daily_volume = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_30d)
             .annotate(day=TruncDay("event_time"))
             .values("day")
@@ -109,7 +121,7 @@ class LogStatsView(APIView):
 
         # Top 10 IP sources
         top_ips = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_24h, source_ip__isnull=False)
             .values("source_ip")
             .annotate(count=Count("id"))
@@ -118,7 +130,7 @@ class LogStatsView(APIView):
 
         # Top 10 utilisateurs
         top_users = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_24h, user_email__isnull=False)
             .values("user_email")
             .annotate(count=Count("id"))
@@ -127,7 +139,7 @@ class LogStatsView(APIView):
 
         # Répartition par action
         by_action = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_24h)
             .values("action")
             .annotate(count=Count("id"))
@@ -136,7 +148,7 @@ class LogStatsView(APIView):
 
         # Répartition par pays
         by_country = (
-            NormalizedLog.objects
+            org_logs
             .filter(event_time__gte=last_24h, geo_country__isnull=False)
             .values("geo_country")
             .annotate(count=Count("id"))

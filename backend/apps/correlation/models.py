@@ -24,7 +24,13 @@ class CorrelationRule(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, unique=True, verbose_name="Nom de la règle")
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="correlation_rules",
+        verbose_name="Organisation",
+    )
+    name = models.CharField(max_length=255, verbose_name="Nom de la règle")
     description = models.TextField(verbose_name="Description")
     is_active = models.BooleanField(default=True, verbose_name="Active")
     severity = models.CharField(
@@ -71,6 +77,11 @@ class CorrelationRule(models.Model):
         verbose_name = "Règle de corrélation"
         verbose_name_plural = "Règles de corrélation"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"], name="unique_rule_name_per_org"
+            )
+        ]
 
     def __str__(self):
         status = "✓" if self.is_active else "✗"
@@ -84,6 +95,13 @@ class RuleMatch(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="rule_matches",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis rule.organization pour l'isolation multi-tenant.",
+    )
     rule = models.ForeignKey(
         CorrelationRule,
         on_delete=models.CASCADE,
@@ -110,6 +128,11 @@ class RuleMatch(models.Model):
         verbose_name = "Correspondance de règle"
         verbose_name_plural = "Correspondances de règles"
         ordering = ["-matched_at"]
+
+    def save(self, *args, **kwargs):
+        if self.rule_id and not self.organization_id:
+            self.organization_id = self.rule.organization_id
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Match: {self.rule.name} → Alert {self.alert_id or 'N/A'} @ {self.matched_at:%Y-%m-%d %H:%M}"

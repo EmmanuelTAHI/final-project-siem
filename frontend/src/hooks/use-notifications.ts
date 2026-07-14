@@ -26,7 +26,7 @@ function getWsBase(): string {
  * - expose markRead / markAllRead / clearTransient
  */
 export function useNotifications() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, accessToken } = useAuthStore();
   const qc = useQueryClient();
   const [transient, setTransient] = useState<WSNotification[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
@@ -102,10 +102,13 @@ export function useNotifications() {
 
   // ── WebSocket: notifications temps réel ────────────────────────────────────
   const connect = useCallback(() => {
-    if (!isAuthenticated || !user?.id) return;
+    if (!isAuthenticated || !user?.id || !accessToken) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const url = `${getWsBase()}/ws/notifications/${user.id}/`;
+    // Le navigateur ne peut pas fixer de header Authorization sur un
+    // handshake WebSocket : le JWT passe en query string, validé côté
+    // serveur par JWTAuthMiddleware (jamais un user_id fourni par le client).
+    const url = `${getWsBase()}/ws/notifications/?token=${encodeURIComponent(accessToken)}`;
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);
@@ -171,7 +174,7 @@ export function useNotifications() {
     ws.onerror = () => {
       try { ws.close(); } catch { /* noop */ }
     };
-  }, [isAuthenticated, user?.id, qc, syncAlertCaches, setRtConnected]);
+  }, [isAuthenticated, user?.id, accessToken, qc, syncAlertCaches, setRtConnected]);
 
   useEffect(() => {
     connect();

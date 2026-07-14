@@ -46,7 +46,9 @@ class ComplianceReportView(APIView):
         generator_class = getattr(module, class_name)
 
         try:
-            generator = generator_class(period_days=period)
+            generator = generator_class(
+                period_days=period, organization_id=request.user.organization_id
+            )
             pdf_bytes = generator.generate()
         except Exception as exc:
             return Response(

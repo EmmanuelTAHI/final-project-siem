@@ -1,0 +1,70 @@
+---
+title: Concepts
+description: Tokens d'enrôlement, connecteurs, endpoint d'ingestion
+---
+
+Pour envoyer les logs de vos machines (serveurs, postes de travail,
+équipements réseau) vers Log+, vous déployez un **agent** — un outil open
+source léger (rsyslog, NXLog, Fluent Bit…) déjà installé ou facile à
+installer sur la plupart des systèmes. Log+ ne réinvente pas d'agent
+propriétaire : il fournit un point d'entrée HTTP authentifié que ces outils
+savent déjà utiliser nativement.
+
+## 1. Générer un token d'enrôlement
+
+Dans le tableau de bord, allez dans **Agents** → **Générer un token**,
+donnez-lui un nom (ex. "Serveurs web prod"). Le token est affiché **une
+seule fois** — copiez-le immédiatement dans un gestionnaire de secrets ou
+une variable d'environnement, il ne sera plus jamais récupérable.
+
+```text
+logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+<Callout type="warn">
+  Ce token identifie votre organisation de façon unique. Quiconque le
+  possède peut envoyer des logs en votre nom — traitez-le comme un mot de
+  passe. En cas de doute, révoquez-le immédiatement depuis la page Agents.
+</Callout>
+
+## 2. Configurer votre agent
+
+Chaque outil (rsyslog, NXLog, Fluent Bit) doit envoyer une requête :
+
+```
+POST https://votre-instance.example/api/ingest/agent/logs/
+Authorization: Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxx
+Content-Type: text/plain
+
+<ligne de log 1>
+<ligne de log 2>
+...
+```
+
+Une ligne = un événement. Chaque ligne peut être une ligne syslog brute
+(format RFC 3164, `<PRI>message`) ou du texte libre. Les batchs volumineux
+peuvent être compressés avec `Content-Encoding: gzip`.
+
+Voir les guides détaillés par plateforme :
+
+<Cards>
+  <Card title="Linux — rsyslog" href="/docs/agents/linux-rsyslog" />
+  <Card title="Windows — NXLog" href="/docs/agents/windows-nxlog" />
+  <Card title="Fluent Bit (générique / conteneurs)" href="/docs/agents/fluent-bit" />
+  <Card title="Équipements réseau (syslog UDP)" href="/docs/agents/network-devices-syslog" />
+</Cards>
+
+## 3. Ce qui se passe côté serveur
+
+Au premier envoi, Log+ crée automatiquement un **connecteur** dédié à ce
+token, et rattache tous les logs suivants à ce connecteur — jamais à un
+connecteur choisi arbitrairement. Vos logs sont ensuite normalisés,
+corrélés avec vos propres règles, et analysés par votre propre modèle de
+détection d'anomalies (jamais mutualisé avec une autre organisation).
+
+## Limites
+
+- Chaque requête est limitée à 5000 lignes.
+- Le débit est limité par organisation (généreux pour un usage normal —
+  contactez l'administrateur de l'instance si vous avez un besoin
+  particulièrement élevé).

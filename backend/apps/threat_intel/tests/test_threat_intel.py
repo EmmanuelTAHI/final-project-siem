@@ -37,8 +37,17 @@ class ThreatIndicatorTest(TestCase):
 
 class EnrichedLogTest(TestCase):
     def setUp(self):
-        from apps.logs.models import NormalizedLog
+        from django.utils import timezone
+        from apps.logs.models import NormalizedLog, RawLog
+        from apps.organizations.models import Organization
+        self.org = Organization.objects.create(name="Test Org", slug="test-org")
+        raw = RawLog.objects.create(
+            organization=self.org, source_type="wazuh", raw_data={"_test": True},
+        )
         self.log = NormalizedLog.objects.create(
+            organization=self.org,
+            raw_log=raw,
+            event_time=timezone.now(),
             source_type="wazuh",
             action="Login",
             severity="warning",

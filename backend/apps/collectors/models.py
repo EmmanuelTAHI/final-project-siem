@@ -21,9 +21,16 @@ class ConnectorConfig(models.Model):
         ("google_workspace", "Google Workspace"),
         ("wazuh", "Wazuh SIEM"),
         ("syslog", "Syslog"),
+        ("agent", "Agent Log+ (HTTP authentifié)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="connectors",
+        verbose_name="Organisation",
+    )
     name = models.CharField(max_length=255, verbose_name="Nom du connecteur")
     source_type = models.CharField(
         max_length=50,
@@ -61,6 +68,15 @@ class ConnectorConfig(models.Model):
         null=True,
         blank=True,
         verbose_name="Dernière collecte",
+    )
+    allowed_source_ips = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Adresses IP autorisées (mode syslog UDP self-host uniquement)",
+        help_text=(
+            "Liste d'IP/CIDR autorisées à pousser du syslog UDP vers ce connecteur. "
+            "Non utilisé par l'ingestion HTTP authentifiée par token (agents)."
+        ),
     )
     created_by = models.ForeignKey(
         User,
@@ -113,6 +129,13 @@ class CollectionJob(models.Model):
         related_name="jobs",
         verbose_name="Connecteur",
     )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="collection_jobs",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis connector.organization pour l'isolation multi-tenant.",
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -140,6 +163,11 @@ class CollectionJob(models.Model):
             models.Index(fields=["started_at"]),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.connector_id and not self.organization_id:
+            self.organization_id = self.connector.organization_id
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Job {self.id} — {self.connector.name} [{self.status}]"
 
@@ -149,3 +177,63 @@ class CollectionJob(models.Model):
         if self.started_at and self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
+
+
+class AgentEnrollmentToken(models.Model):
+    """
+    Token bearer permettant à un agent de collecte (rsyslog, NXLog, Fluent
+    Bit...) déployé chez une organisation de pousser des logs vers
+    /api/ingest/agent/logs/. Stocké en hash (jamais réversible) — c'est un
+    secret bearer vérifié à chaque requête, pas une donnée à relire.
+
+    Le token brut n'est renvoyé qu'une seule fois à la création (voir
+    AgentEnrollmentTokenViewSet), jamais stocké en clair.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="enrollment_tokens",
+        verbose_name="Organisation",
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name="Nom",
+        help_text="Ex: « Serveurs web prod », « Parc Windows siège »",
+    )
+    token_prefix = models.CharField(max_length=8, db_index=True, verbose_name="Préfixe (lookup rapide)")
+    token_hash = models.CharField(max_length=64, verbose_name="Hash SHA-256 du token")
+    connector = models.ForeignKey(
+        ConnectorConfig,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_tokens",
+        verbose_name="Connecteur associé",
+        help_text="Créé/lié automatiquement au premier usage du token.",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_tokens",
+        verbose_name="Créé par",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    last_used_at = models.DateTimeField(null=True, blank=True, verbose_name="Dernier usage")
+    last_used_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Dernière IP")
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Expiration")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+
+    class Meta:
+        verbose_name = "Token d'enrôlement d'agent"
+        verbose_name_plural = "Tokens d'enrôlement d'agents"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["token_prefix", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} [{self.organization.name}] {'✓' if self.is_active else '✗'}"

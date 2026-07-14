@@ -32,7 +32,7 @@ class HuntingQueryViewSet(ModelViewSet):
     def execute(self, request, pk=None):
         """Exécute une requête de chasse et retourne les logs correspondants."""
         query_obj = self.get_object()
-        return _run_hunt(query_obj, request)
+        return _run_hunt(query_obj, request, organization_id=request.user.organization_id)
 
     @action(detail=True, methods=["get"])
     def results(self, request, pk=None):
@@ -61,13 +61,13 @@ class HuntView(APIView):
     def post(self, request):
         params = request.data.get("params", {})
         limit = int(request.data.get("limit", 500))
-        return Response(_execute_hunt(params, limit=limit))
+        return Response(_execute_hunt(params, limit=limit, organization_id=request.user.organization_id))
 
 
-def _run_hunt(query_obj: HuntingQuery, request):
+def _run_hunt(query_obj: HuntingQuery, request, organization_id):
     from apps.logs.serializers import NormalizedLogSerializer
 
-    result = _execute_hunt(query_obj.query_params)
+    result = _execute_hunt(query_obj.query_params, organization_id=organization_id)
     logs_data = result["results"]
 
     query_obj.last_run_at = timezone.now()
@@ -78,16 +78,17 @@ def _run_hunt(query_obj: HuntingQuery, request):
     return Response(result)
 
 
-def _execute_hunt(params: dict, limit: int = 500) -> dict:
+def _execute_hunt(params: dict, organization_id, limit: int = 500) -> dict:
     """
-    Exécute une requête de chasse sur NormalizedLog.
+    Exécute une requête de chasse sur NormalizedLog, strictement limitée à
+    l'organisation de l'utilisateur appelant (isolation multi-tenant).
     Filtres supportés: action, outcome, severity, source_type, geo_country,
     user_email, source_ip, destination_ip, date_from, date_to, extra_fields_contains.
     """
     from apps.logs.models import NormalizedLog
     from apps.logs.serializers import NormalizedLogSerializer
 
-    qs = NormalizedLog.objects.all().order_by("-event_time")
+    qs = NormalizedLog.objects.filter(organization_id=organization_id).order_by("-event_time")
 
     for field in ALLOWED_FIELDS:
         val = params.get(field)

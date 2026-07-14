@@ -1,7 +1,9 @@
 """
 Vues pour les connecteurs et jobs de collecte.
 """
+import hashlib
 import logging
+import secrets
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
@@ -10,13 +12,18 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from utils.permissions import IsAdmin, IsAnalyst
 from utils.response import created_response, error_response, no_content_response, success_response
+from utils.tenant import OrganizationFilterBackend
 
-from .models import CollectionJob, ConnectorConfig
+from .models import AgentEnrollmentToken, CollectionJob, ConnectorConfig
 from .serializers import (
+    AgentEnrollmentTokenCreateSerializer,
+    AgentEnrollmentTokenSerializer,
     CollectionJobSerializer,
     ConnectorConfigCreateSerializer,
     ConnectorConfigSerializer,
 )
+
+TOKEN_PREFIX = "logplus_agt_"
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +41,7 @@ class ConnectorConfigViewSet(ModelViewSet):
     """
 
     queryset = ConnectorConfig.objects.all().order_by("-created_at")
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["source_type", "is_active"]
     search_fields = ["name"]
 
@@ -63,7 +70,7 @@ class ConnectorConfigViewSet(ModelViewSet):
         serializer = ConnectorConfigCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return error_response(message="Données invalides.", errors=serializer.errors)
-        connector = serializer.save(created_by=request.user)
+        connector = serializer.save(created_by=request.user, organization=request.user.organization)
         from apps.users.models import AuditTrail
         AuditTrail.log(
             action="connector_create",
@@ -157,7 +164,7 @@ class CollectionJobViewSet(ReadOnlyModelViewSet):
     queryset = CollectionJob.objects.select_related("connector").all()
     serializer_class = CollectionJobSerializer
     permission_classes = [IsAnalyst]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["connector", "status"]
     ordering_fields = ["started_at", "finished_at", "logs_collected_count"]
     ordering = ["-started_at"]
@@ -182,3 +189,83 @@ class CollectionJobViewSet(ReadOnlyModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         job = self.get_object()
         return success_response(data=self.get_serializer(job).data)
+
+
+class AgentEnrollmentTokenViewSet(ModelViewSet):
+    """
+    Gestion des tokens d'enrôlement d'agents (rsyslog/NXLog/Fluent Bit).
+    GET    /api/collectors/enrollment-tokens/
+    POST   /api/collectors/enrollment-tokens/            (IsAdmin — génère et renvoie le token EN CLAIR une seule fois)
+    DELETE /api/collectors/enrollment-tokens/{id}/        (révocation)
+    """
+
+    queryset = AgentEnrollmentToken.objects.select_related("connector", "created_by").all()
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["is_active"]
+    ordering = ["-created_at"]
+    http_method_names = ["get", "post", "delete", "head", "options"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return AgentEnrollmentTokenCreateSerializer
+        return AgentEnrollmentTokenSerializer
+
+    def get_permissions(self):
+        if self.action in ("create", "destroy"):
+            return [IsAdmin()]
+        return [IsAnalyst()]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = AgentEnrollmentTokenSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = AgentEnrollmentTokenSerializer(queryset, many=True)
+        return success_response(data=serializer.data, message="Liste des tokens d'agent.")
+
+    def create(self, request, *args, **kwargs):
+        serializer = AgentEnrollmentTokenCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(message="Données invalides.", errors=serializer.errors)
+
+        raw_secret = secrets.token_urlsafe(32)
+        prefix = raw_secret[:8]
+        token_hash = hashlib.sha256(raw_secret.encode()).hexdigest()
+
+        token = serializer.save(
+            organization=request.user.organization,
+            created_by=request.user,
+            token_prefix=prefix,
+            token_hash=token_hash,
+        )
+
+        from apps.users.models import AuditTrail
+        AuditTrail.log(
+            action="agent_token_create",
+            user=request.user,
+            target_model="AgentEnrollmentToken",
+            target_id=token.id,
+        )
+
+        return created_response(
+            data={
+                **AgentEnrollmentTokenSerializer(token).data,
+                # Renvoyé UNE seule fois — jamais stocké en clair, jamais récupérable ensuite.
+                "token": f"{TOKEN_PREFIX}{raw_secret}",
+            },
+            message="Token généré. Copiez-le maintenant : il ne sera plus jamais affiché.",
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        token = self.get_object()
+        token.is_active = False
+        token.save(update_fields=["is_active"])
+        from apps.users.models import AuditTrail
+        AuditTrail.log(
+            action="agent_token_revoke",
+            user=request.user,
+            target_model="AgentEnrollmentToken",
+            target_id=token.id,
+        )
+        return no_content_response("Token révoqué.")

@@ -1,0 +1,13 @@
+{
+  "title": "Log+",
+  "pages": [
+    "index",
+    "getting-started",
+    "organizations",
+    "agents",
+    "architecture",
+    "security",
+    "troubleshooting",
+    "api-reference"
+  ]
+}

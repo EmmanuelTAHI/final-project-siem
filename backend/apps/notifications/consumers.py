@@ -16,14 +16,34 @@ class AlertNotificationConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
-        self.user_id = self.scope["url_route"]["kwargs"].get("user_id", "anonymous")
+        user = self.scope.get("user")
+
+        if not user or not user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        organization_id = getattr(user, "organization_id", None)
+        if organization_id is None and not user.is_superuser:
+            await self.close(code=4403)
+            return
+
+        self.user_id = str(user.id)
         self.user_group = f"user_{self.user_id}"
-        self.soc_group = "soc_global"
+        # Groupe par organisation : jamais un groupe global partagé entre
+        # tenants (ancienne faille "soc_global" — toutes les alertes de
+        # toutes les orgs étaient diffusées à tout le monde).
+        self.org_group = f"org_{organization_id}_alerts" if organization_id else None
+        # Flux cross-org réservé au staff plateforme (super-admin).
+        self.platform_group = "platform_staff" if user.is_superuser else None
 
         await self.channel_layer.group_add(self.user_group, self.channel_name)
-        await self.channel_layer.group_add(self.soc_group, self.channel_name)
+        if self.org_group:
+            await self.channel_layer.group_add(self.org_group, self.channel_name)
+        if self.platform_group:
+            await self.channel_layer.group_add(self.platform_group, self.channel_name)
+
         await self.accept()
-        logger.debug("WS connect: user=%s", self.user_id)
+        logger.debug("WS connect: user=%s org=%s", self.user_id, organization_id)
 
         await self.send(text_data=json.dumps({
             "type": "connection_established",
@@ -31,8 +51,13 @@ class AlertNotificationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
+        if not getattr(self, "user_id", None):
+            return
         await self.channel_layer.group_discard(self.user_group, self.channel_name)
-        await self.channel_layer.group_discard(self.soc_group, self.channel_name)
+        if self.org_group:
+            await self.channel_layer.group_discard(self.org_group, self.channel_name)
+        if self.platform_group:
+            await self.channel_layer.group_discard(self.platform_group, self.channel_name)
         logger.debug("WS disconnect: user=%s code=%s", self.user_id, close_code)
 
     async def receive(self, text_data):

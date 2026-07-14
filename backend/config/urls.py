@@ -6,6 +6,8 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
+from apps.collectors.ingest_views import AgentLogIngestView
+
 
 def health_check(request):
     from django.core.cache import cache
@@ -34,4 +36,8 @@ urlpatterns = [
     path("api/soar/", include("apps.soar.urls")),
     path("api/reports/", include("apps.reports.urls")),
     path("api/hunting/", include("apps.hunting.urls")),
+    # Ingestion agents — auth par token bearer dédiée, PAS de session JWT humaine.
+    path("api/ingest/agent/logs/", AgentLogIngestView.as_view(), name="agent-log-ingest"),
+    # Vue cross-org réservée au staff plateforme (super-admin) — IsPlatformStaff.
+    path("api/platform/", include("apps.organizations.urls")),
 ]

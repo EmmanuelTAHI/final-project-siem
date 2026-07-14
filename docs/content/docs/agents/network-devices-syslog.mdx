@@ -1,0 +1,48 @@
+---
+title: Équipements réseau (syslog UDP)
+description: Pare-feu, routeurs, switches — mode self-host uniquement
+---
+
+<Callout type="warn">
+  Ce mode (syslog UDP brut) est **réservé à un déploiement self-host
+  mono-organisation sur réseau privé**. Il est en clair, non chiffré, et
+  authentifié seulement par une liste d'IP autorisées — jamais recommandé
+  sur une instance Log+ mutualisée (SaaS). Sur une instance partagée,
+  utilisez plutôt un agent HTTP (voir les autres pages de cette section).
+</Callout>
+
+La plupart des pare-feu, routeurs et switches savent nativement envoyer du
+syslog UDP, mais ne savent pas parler HTTP avec un token bearer. Si vous
+auto-hébergez votre propre instance Log+ sur un réseau privé, vous pouvez
+utiliser le récepteur syslog UDP intégré.
+
+## 1. Configurer l'allowlist IP du connecteur
+
+Dans le tableau de bord, créez un connecteur de type **Syslog**, et
+renseignez la liste des IP (ou plages CIDR) autorisées à lui envoyer des
+paquets — par exemple l'IP de votre pare-feu. Un paquet dont l'IP source ne
+correspond à aucune allowlist est **rejeté**, jamais rattaché
+arbitrairement à un connecteur.
+
+## 2. Pointer votre équipement vers le récepteur
+
+Configurez votre équipement pour envoyer son syslog vers l'IP de votre
+serveur Log+, port UDP 514 (redirigé vers 5140 dans le conteneur Docker).
+
+Exemple générique (syntaxe Cisco-like) :
+
+```text
+logging host 203.0.113.10
+logging trap informational
+```
+
+## 3. Vérifier
+
+Les logs reçus apparaissent avec `source_type: syslog` dans **Logs** sur le
+tableau de bord. Si rien n'apparaît, vérifiez :
+
+- que l'IP de votre équipement figure bien dans l'allowlist du connecteur ;
+- que le port UDP 514 est ouvert entre votre équipement et le serveur
+  (pare-feu, groupe de sécurité) ;
+- les logs du service `syslog_receiver` sur votre serveur
+  (`docker compose logs syslog_receiver`).

@@ -46,6 +46,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    "apps.organizations",
     "apps.users",
     "apps.authentication",
     "apps.collectors",
@@ -143,6 +144,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_FILTER_BACKENDS": [
+        "utils.tenant.OrganizationFilterBackend",
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
@@ -157,6 +159,8 @@ REST_FRAMEWORK = {
         "login": env("THROTTLE_RATE_LOGIN", default="10/min"),
         "password_reset": env("THROTTLE_RATE_PASSWORD_RESET", default="5/hour"),
         "otp": env("THROTTLE_RATE_OTP", default="5/min"),
+        "register": env("THROTTLE_RATE_REGISTER", default="5/hour"),
+        "agent_ingest": env("THROTTLE_RATE_AGENT_INGEST", default="10000/min"),
     },
 }
 
@@ -303,6 +307,11 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Log+ <noreply@logplus.ci>")
 
 # ─── Syslog Receiver ─────────────────────────────────────────────────────────
+# UDP, non chiffré, authentifié seulement par allowlist IP par connecteur —
+# réservé au self-host mono-organisation sur réseau privé. Sur la plateforme
+# SaaS mutualisée, laisser à False et utiliser l'ingestion HTTP par token
+# d'agent (/api/ingest/agent/logs/) à la place.
+SYSLOG_RECEIVER_ENABLED = env.bool("SYSLOG_RECEIVER_ENABLED", default=True)
 SYSLOG_HOST = env("SYSLOG_HOST", default="0.0.0.0")
 SYSLOG_PORT = int(env("SYSLOG_PORT", default=5140))
 

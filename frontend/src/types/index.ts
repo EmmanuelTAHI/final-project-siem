@@ -21,6 +21,9 @@ export interface AuthUser {
   avatar?: string;
   date_joined: string;
   last_login: string;
+  is_superuser?: boolean;
+  organization_id?: string | null;
+  organization_name?: string | null;
 }
 
 export interface Session {
@@ -384,6 +387,53 @@ export interface CollectorJob {
   finished_at?: string | null;
   error_message?: string | null;
   duration_seconds?: number | null;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  is_active: boolean;
+  is_platform_internal: boolean;
+  user_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformOverview {
+  organization_count: number;
+  active_organization_count: number;
+  total_user_count: number;
+  platform_staff_count: number;
+}
+
+export interface OrganizationStats {
+  user_count: number;
+  connector_count: number;
+  active_connector_count: number;
+  log_count: number;
+  open_alert_count: number;
+}
+
+export interface AgentEnrollmentToken {
+  id: string;
+  name: string;
+  token_prefix: string;
+  connector: string | null;
+  connector_name: string | null;
+  created_by: string | null;
+  created_by_email: string | null;
+  is_active: boolean;
+  last_used_at: string | null;
+  last_used_ip: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface AgentEnrollmentTokenCreated extends AgentEnrollmentToken {
+  /** Uniquement présent dans la réponse de création — jamais récupérable ensuite. */
+  token: string;
 }
 
 // ─── API Pagination ───────────────────────────────────────────────────────────

@@ -97,6 +97,7 @@ class BaseCollector(ABC):
         return RawLog.objects.create(
             source_type=self.connector.source_type,
             connector=self.connector,
+            organization=self.connector.organization,
             raw_data=raw_data,
         )
 

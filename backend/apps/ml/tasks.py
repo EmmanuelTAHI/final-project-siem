@@ -14,113 +14,141 @@ ANOMALY_ALERT_THRESHOLD = 0.7
 
 
 @shared_task(name="apps.ml.tasks.train_isolation_forest", bind=True, max_retries=1)
-def train_isolation_forest(self, days_of_data: int = 30, contamination: float = None):
+def train_isolation_forest(
+    self, days_of_data: int = 30, contamination: float = None, organization_id: str = None
+):
     """
-    Entraîne un nouveau modèle Isolation Forest sur les données récentes.
-    Planifié chaque dimanche à 02h00 UTC.
+    Entraîne un nouveau modèle Isolation Forest par organisation, sur les
+    données récentes de cette organisation uniquement (isolation multi-tenant
+    : pas de modèle mutualisé entre tenants).
 
-    Args:
-        days_of_data: Nombre de jours d'historique à utiliser.
-        contamination: Taux de contamination (proportion d'anomalies attendues).
+    - `organization_id` fourni (déclenchement manuel depuis /api/ml/train/) :
+      entraîne uniquement cette organisation.
+    - `organization_id` omis (planifié chaque dimanche 02h00 UTC par Celery
+      Beat) : entraîne toutes les organisations actives.
     """
-    from apps.ml.anomaly_detector import AnomalyDetector
-    from apps.ml.models import MLModel
+    from apps.organizations.models import Organization
 
     if contamination is None:
         contamination = float(getattr(settings, "ML_CONTAMINATION_RATE", 0.05))
 
-    logger.info(
-        "Démarrage entraînement Isolation Forest — days=%d, contamination=%.2f",
-        days_of_data,
-        contamination,
+    orgs = (
+        Organization.objects.filter(pk=organization_id)
+        if organization_id
+        else Organization.objects.filter(is_active=True)
     )
 
-    try:
-        detector = AnomalyDetector()
-        metrics = detector.train(days_of_data=days_of_data, contamination=contamination)
-
-        # Créer le MLModel en base
-        import uuid
-        version = f"1.{MLModel.objects.count()}.0"
-        ml_model = MLModel.objects.create(
-            name="Log+ Isolation Forest",
-            version=version,
-            algorithm="isolation_forest",
-            trained_at=timezone.now(),
-            is_active=False,
-            model_file="placeholder",
-            training_samples=metrics["training_samples"],
-            contamination_rate=contamination,
-        )
-
-        # Sauvegarder le modèle sur disque
-        filepath = detector.save_model(ml_model)
-
-        # Mettre à jour le chemin du fichier
-        from django.core.files import File
-        with open(filepath, "rb") as f:
-            ml_model.model_file.save(
-                f"isolation_forest_{version}.joblib",
-                File(f),
-                save=True,
+    results = {}
+    for org in orgs:
+        try:
+            results[str(org.id)] = _train_isolation_forest_for_org(
+                org, days_of_data=days_of_data, contamination=contamination
             )
+        except Exception as exc:
+            logger.exception("Erreur entraînement ML pour l'org %s : %s", org.id, exc)
+            results[str(org.id)] = {"status": "error", "reason": str(exc)}
+    return results
 
-        # Activer le nouveau modèle
-        ml_model.activate()
 
-        logger.info(
-            "Modèle ML v%s entraîné et activé avec succès. Métriques : %s",
-            version,
-            metrics,
+def _train_isolation_forest_for_org(org, days_of_data: int, contamination: float) -> dict:
+    from apps.ml.anomaly_detector import AnomalyDetector
+    from apps.ml.models import MLModel
+
+    logger.info(
+        "Démarrage entraînement Isolation Forest — org=%s, days=%d, contamination=%.2f",
+        org.id, days_of_data, contamination,
+    )
+
+    detector = AnomalyDetector()
+    try:
+        metrics = detector.train(
+            organization_id=org.id, days_of_data=days_of_data, contamination=contamination
         )
-        return {"status": "success", "version": version, "metrics": metrics}
+    except ValueError as exc:
+        logger.info("Entraînement ML ignoré pour l'org %s : %s", org.id, exc)
+        return {"status": "skipped", "reason": str(exc)}
 
-    except Exception as exc:
-        logger.exception("Erreur entraînement ML : %s", exc)
-        raise self.retry(exc=exc, countdown=300)
+    version = f"1.{MLModel.objects.filter(organization=org).count()}.0"
+    ml_model = MLModel.objects.create(
+        organization=org,
+        name="Log+ Isolation Forest",
+        version=version,
+        algorithm="isolation_forest",
+        trained_at=timezone.now(),
+        is_active=False,
+        model_file="placeholder",
+        training_samples=metrics["training_samples"],
+        contamination_rate=contamination,
+    )
+
+    filepath = detector.save_model(ml_model)
+
+    from django.core.files import File
+    with open(filepath, "rb") as f:
+        ml_model.model_file.save(
+            f"isolation_forest_{version}.joblib",
+            File(f),
+            save=True,
+        )
+
+    ml_model.activate()
+
+    logger.info(
+        "Modèle ML v%s (org=%s) entraîné et activé avec succès. Métriques : %s",
+        version, org.id, metrics,
+    )
+    return {"status": "success", "version": version, "metrics": metrics}
 
 
 @shared_task(name="apps.ml.tasks.run_anomaly_detection_on_new_logs", bind=True, max_retries=2)
 def run_anomaly_detection_on_new_logs(self):
     """
-    Exécute l'inférence ML sur les logs sans Prediction.
+    Exécute l'inférence ML par organisation active, sur les logs de cette
+    organisation uniquement (isolation multi-tenant : un modèle ne voit
+    jamais les logs d'une autre org).
     Planifié toutes les 10 minutes par Celery Beat.
-    Si is_anomaly=True et score > ANOMALY_ALERT_THRESHOLD → crée une alerte.
     """
+    from apps.organizations.models import Organization
+
+    results = {}
+    for org in Organization.objects.filter(is_active=True):
+        try:
+            results[str(org.id)] = _run_anomaly_detection_for_org(org)
+        except Exception as exc:
+            logger.exception("Erreur inférence ML pour l'org %s : %s", org.id, exc)
+            results[str(org.id)] = {"status": "error", "reason": str(exc)}
+    return results
+
+
+def _run_anomaly_detection_for_org(org) -> dict:
+    """Si is_anomaly=True et score > ANOMALY_ALERT_THRESHOLD → crée une alerte."""
     from apps.alerts.models import Alert
     from apps.logs.models import NormalizedLog
     from apps.ml.anomaly_detector import AnomalyDetector
     from apps.ml.models import MLModel, Prediction
 
-    # Vérifier qu'un modèle actif existe
     try:
-        active_ml_model = MLModel.objects.filter(is_active=True).latest("created_at")
+        active_ml_model = MLModel.objects.filter(
+            is_active=True, organization=org
+        ).latest("created_at")
     except MLModel.DoesNotExist:
-        logger.info("Aucun modèle ML actif — skip inférence.")
         return {"status": "skipped", "reason": "no_active_model"}
 
-    # Charger le modèle
-    detector = AnomalyDetector.load_active_model()
+    detector = AnomalyDetector.load_active_model(organization_id=org.id)
     if not detector:
         return {"status": "error", "reason": "model_load_failed"}
 
-    # Logs sans Prediction (pas encore analysés)
     logs_without_prediction = NormalizedLog.objects.filter(
-        prediction__isnull=True
+        organization=org, prediction__isnull=True
     ).order_by("indexed_at")[:1000]
 
     count = logs_without_prediction.count()
     if count == 0:
-        logger.info("Aucun nouveau log à analyser.")
         return {"status": "success", "analyzed": 0, "anomalies": 0}
 
-    logger.info("Inférence ML sur %d logs...", count)
+    logger.info("Inférence ML sur %d logs (org=%s)...", count, org.id)
 
-    try:
-        predictions = detector.predict(logs_without_prediction)
-    except Exception as exc:
-        logger.exception("Erreur inférence ML : %s", exc)
-        raise self.retry(exc=exc, countdown=60)
+    predictions = detector.predict(logs_without_prediction)
 
     anomaly_count = 0
     alerts_created = 0
@@ -154,6 +182,7 @@ def run_anomaly_detection_on_new_logs(self):
                 status__in=("open", "in_progress"),
                 title__icontains="Anomalie ML",
                 description__icontains=str(log_id),
+                organization=log.organization,
             ).exists()
 
             if not existing_alert:
@@ -171,6 +200,7 @@ def run_anomaly_detection_on_new_logs(self):
                     ),
                     severity="high",
                     status="open",
+                    organization=log.organization,
                 )
                 alerts_created += 1
 

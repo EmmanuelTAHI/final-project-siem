@@ -1,0 +1,39 @@
+---
+title: Premier login et code OTP
+description: Comprendre le flux de connexion en deux étapes
+---
+
+Log+ n'utilise jamais un simple mot de passe pour se connecter : chaque
+connexion nécessite un second facteur envoyé par email.
+
+## Déroulé
+
+1. Vous saisissez votre email et votre mot de passe sur `/login`.
+2. Si les identifiants sont corrects, un **code à 6 chiffres (OTP)** est
+   envoyé à votre adresse email, valable quelques minutes.
+3. Vous saisissez ce code sur l'écran suivant. Une fois validé, vous êtes
+   connecté et redirigé vers le tableau de bord.
+
+## Pourquoi ce flux ?
+
+- Il protège votre compte même si votre mot de passe fuite ailleurs (aucun
+  attaquant ne peut se connecter sans accès à votre boîte mail).
+- Log+ détecte aussi les connexions "impossibles" (deux connexions
+  géographiquement incompatibles en peu de temps) et vous alerte par email
+  si cela se produit sur votre propre compte.
+
+## Je n'ai pas reçu le code
+
+- Vérifiez vos spams.
+- Vous pouvez redemander un nouveau code (3 renvois maximum par tentative de
+  connexion).
+- Si le problème persiste, contactez l'administrateur de votre organisation
+  pour vérifier que le serveur d'envoi d'email (SMTP) de votre instance est
+  bien configuré — voir [Dépannage](/docs/troubleshooting).
+
+## Mot de passe oublié
+
+Utilisez le lien **Mot de passe oublié ?** sur la page de connexion. Un lien
+de réinitialisation (valide 30 minutes) vous est envoyé par email. En
+confirmant un nouveau mot de passe, toutes vos sessions actives ailleurs
+sont automatiquement déconnectées.

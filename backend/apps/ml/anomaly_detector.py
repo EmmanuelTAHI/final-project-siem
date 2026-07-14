@@ -33,14 +33,18 @@ class AnomalyDetector:
 
     def train(
         self,
+        organization_id,
         days_of_data: int = 30,
         contamination: float = 0.05,
         n_estimators: int = 100,
     ) -> dict:
         """
-        Entraîne le modèle Isolation Forest sur les NormalizedLog récents.
+        Entraîne le modèle Isolation Forest sur les NormalizedLog récents
+        d'UNE SEULE organisation (isolation multi-tenant : chaque org a son
+        propre modèle, jamais un modèle mutualisé entre tenants).
 
         Args:
+            organization_id: organisation dont les logs servent à l'entraînement.
             days_of_data: Nombre de jours d'historique à utiliser.
             contamination: Proportion estimée d'anomalies (0 < x < 0.5).
             n_estimators: Nombre d'arbres dans la forêt.
@@ -51,7 +55,9 @@ class AnomalyDetector:
         from apps.logs.models import NormalizedLog
 
         since = timezone.now() - timedelta(days=days_of_data)
-        train_qs = NormalizedLog.objects.filter(event_time__gte=since)
+        train_qs = NormalizedLog.objects.filter(
+            event_time__gte=since, organization_id=organization_id
+        )
         train_count = train_qs.count()
 
         if train_count < 50:
@@ -132,16 +138,19 @@ class AnomalyDetector:
         return str(filepath)
 
     @classmethod
-    def load_active_model(cls) -> "AnomalyDetector | None":
+    def load_active_model(cls, organization_id) -> "AnomalyDetector | None":
         """
-        Charge le modèle actif depuis le fichier enregistré dans MLModel.
+        Charge le modèle actif de l'organisation donnée depuis le fichier
+        enregistré dans MLModel. Ne charge jamais le modèle d'une autre org.
         """
         from apps.ml.models import MLModel
 
         try:
-            active_ml_model = MLModel.objects.filter(is_active=True).latest("created_at")
+            active_ml_model = MLModel.objects.filter(
+                is_active=True, organization_id=organization_id
+            ).latest("created_at")
         except MLModel.DoesNotExist:
-            logger.warning("Aucun modèle ML actif trouvé.")
+            logger.warning("Aucun modèle ML actif trouvé pour l'organisation %s.", organization_id)
             return None
 
         try:

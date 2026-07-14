@@ -112,6 +112,10 @@ services:
     restart: unless-stopped
     # Écoute les paquets syslog UDP sur le port 5140 (interne)
     # Le port 514 de l'hôte est redirigé vers 5140 dans le conteneur
+    # Mode self-host mono-organisation (IP allowlist par connecteur) : sur
+    # une instance SaaS mutualisée, mettre SYSLOG_RECEIVER_ENABLED=False dans
+    # .env et utiliser l'ingestion HTTP par token d'agent à la place
+    # (/api/ingest/agent/logs/) — voir docs/security.
     command: python manage.py receive_syslog --host 0.0.0.0 --port 5140
     volumes:
       - ./backend:/app
@@ -145,6 +149,14 @@ services:
       NEXT_PUBLIC_APP_NAME: ${APP_NAME:-Log+}
     depends_on:
       - backend
+
+  docs:
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
 
 volumes:
   postgres_data:

@@ -19,8 +19,10 @@ import {
   FileCheck,
   Sun,
   Moon,
+  Cpu,
+  BookOpen,
 } from "lucide-react";
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials, getDocsUrl } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { authApi } from "@/lib/api";
 import { useAlertStats } from "@/hooks/use-alerts";
@@ -80,6 +82,7 @@ const sections: NavSection[] = [
     items: [
       { label: "Rapports", href: "/reports", icon: FileCheck },
       { label: "Collecteurs", href: "/collectors", icon: Database },
+      { label: "Agents", href: "/agents", icon: Cpu },
     ],
   },
   {
@@ -164,6 +167,19 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
 
+  // Vue cross-org réservée au staff plateforme (is_superuser) — jamais
+  // visible pour un admin d'organisation normal.
+  const visibleSections: NavSection[] = user?.is_superuser
+    ? [
+        ...sections,
+        {
+          id: "platform",
+          label: "Plateforme",
+          items: [{ label: "Organisations", href: "/platform/organizations", icon: Shield }],
+        },
+      ]
+    : sections;
+
   return (
     <TooltipProvider delayDuration={200}>
       <aside
@@ -247,7 +263,7 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
             overflowX: "hidden",
           }}
         >
-          {sections.map((section, si) => (
+          {visibleSections.map((section, si) => (
             <div key={section.id} style={{ marginTop: si === 0 ? 4 : 12 }}>
               {!collapsed && (
                 <div
@@ -501,6 +517,27 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
                       {user.role}
                     </div>
                   </div>
+                  <a
+                    href={getDocsUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Documentation"
+                    title="Documentation"
+                    style={{
+                      padding: "5px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--text-2)",
+                      borderRadius: 7,
+                      display: "flex",
+                      alignItems: "center",
+                      transition: "color 140ms ease, background 140ms ease",
+                      flexShrink: 0,
+                    }}
+                    className="btn-ghost"
+                  >
+                    <BookOpen size={15} strokeWidth={1.8} />
+                  </a>
                   <button
                     onClick={handleLogout}
                     aria-label="Se déconnecter"

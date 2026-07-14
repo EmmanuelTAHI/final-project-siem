@@ -14,6 +14,7 @@ from rest_framework.viewsets import ModelViewSet
 from apps.users.models import AuditTrail
 from utils.permissions import IsAnalyst
 from utils.response import error_response, success_response
+from utils.tenant import OrganizationFilterBackend
 
 from .models import Alert, AlertComment
 from .serializers import (
@@ -52,7 +53,9 @@ class AlertViewSet(ModelViewSet):
         .all()
     )
     permission_classes = [IsAnalyst]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        OrganizationFilterBackend, DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter,
+    ]
     filterset_fields = ["status", "severity", "assigned_to", "rule"]
     search_fields = ["title", "description"]
     ordering_fields = ["created_at", "severity", "status"]

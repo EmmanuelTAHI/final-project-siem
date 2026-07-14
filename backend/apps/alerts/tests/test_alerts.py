@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.alerts.models import Alert, AlertComment
+from apps.organizations.models import Organization
 from apps.users.models import User
 
 
@@ -16,13 +17,19 @@ def api_client():
 
 
 @pytest.fixture
-def analyst_user(db):
+def org(db):
+    return Organization.objects.create(name="Test Org", slug="test-org")
+
+
+@pytest.fixture
+def analyst_user(db, org):
     return User.objects.create_user(
         email="analyst@logplus.ci",
         password="Analyst@2025!",
         first_name="Analyst",
         last_name="SOC",
         role="analyst",
+        organization=org,
     )
 
 
@@ -33,8 +40,9 @@ def authenticated_analyst(api_client, analyst_user):
 
 
 @pytest.fixture
-def sample_alert(db):
+def sample_alert(db, org):
     return Alert.objects.create(
+        organization=org,
         title="Test Brute Force Alert",
         description="5 login failures detected for user@test.ci",
         severity="high",
@@ -45,8 +53,9 @@ def sample_alert(db):
 class TestAlertModel:
     """Tests du modèle Alert."""
 
-    def test_alert_creation(self, db):
+    def test_alert_creation(self, db, org):
         alert = Alert.objects.create(
+            organization=org,
             title="Test Alert",
             description="Description de test",
             severity="high",
@@ -56,8 +65,9 @@ class TestAlertModel:
         assert alert.status == "open"
         assert alert.resolved_at is None
 
-    def test_alert_resolve(self, db, analyst_user):
+    def test_alert_resolve(self, db, org, analyst_user):
         alert = Alert.objects.create(
+            organization=org,
             title="Resolvable Alert",
             description="Test",
             severity="medium",
@@ -68,8 +78,9 @@ class TestAlertModel:
         assert alert.resolved_at is not None
         assert alert.resolution_note == "Faux positif confirmé."
 
-    def test_time_to_resolve_calculated(self, db, analyst_user):
+    def test_time_to_resolve_calculated(self, db, org, analyst_user):
         alert = Alert.objects.create(
+            organization=org,
             title="Timed Alert",
             description="Test timing",
             severity="low",

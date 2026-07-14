@@ -21,11 +21,18 @@ class RawLog(models.Model):
         ("google_workspace", "Google Workspace"),
         ("wazuh", "Wazuh"),
         ("syslog", "Syslog"),
+        ("agent", "Agent Log+ (HTTP authentifié)"),
         ("manual", "Manuel"),
         ("logplus", "Log+ (plateforme)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="raw_logs",
+        verbose_name="Organisation",
+    )
     source_type = models.CharField(
         max_length=50,
         choices=SOURCE_TYPE_CHOICES,
@@ -51,6 +58,7 @@ class RawLog(models.Model):
             models.Index(fields=["source_type", "received_at"]),
             models.Index(fields=["is_normalized"]),
             models.Index(fields=["connector"]),
+            models.Index(fields=["organization", "received_at"]),
         ]
 
     def __str__(self):
@@ -78,6 +86,13 @@ class NormalizedLog(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="normalized_logs",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis raw_log.organization pour l'isolation multi-tenant.",
+    )
     raw_log = models.OneToOneField(
         RawLog,
         on_delete=models.CASCADE,
@@ -174,7 +189,13 @@ class NormalizedLog(models.Model):
             models.Index(fields=["action", "outcome"]),
             models.Index(fields=["geo_country"]),
             models.Index(fields=["severity", "event_time"]),
+            models.Index(fields=["organization", "event_time"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.raw_log_id and not self.organization_id:
+            self.organization_id = self.raw_log.organization_id
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (

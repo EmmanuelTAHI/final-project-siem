@@ -13,14 +13,21 @@ def record_platform_login(
     *,
     user_email: str,
     success: bool,
+    organization=None,
     ip_address: str | None = None,
     geo_country: str | None = None,
     geo_city: str | None = None,
     user_agent: str | None = None,
 ) -> NormalizedLog:
-    """Journalise un login (réussi ou échoué) à la plateforme Log+ elle-même."""
+    """
+    Journalise un login (réussi ou échoué) à la plateforme Log+ elle-même.
+    `organization` doit être celle de l'utilisateur qui se connecte (None
+    uniquement pour un staff plateforme sans organisation) afin que
+    l'isolation multi-tenant s'applique aussi aux événements d'auth internes.
+    """
     raw_log = RawLog.objects.create(
         source_type="logplus",
+        organization=organization,
         raw_data={
             "user_email": user_email,
             "success": success,
@@ -32,6 +39,7 @@ def record_platform_login(
     )
     return NormalizedLog.objects.create(
         raw_log=raw_log,
+        organization=organization,
         event_time=timezone.now(),
         source_ip=ip_address or None,
         user_email=user_email,

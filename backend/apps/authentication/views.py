@@ -25,13 +25,17 @@ from apps.users.models import AuditTrail, User
 
 from .models import LinkedAccount, LoginConfirmation, SecurityNotification
 from .serializers import (
+    AcceptInviteSerializer,
+    InviteUserSerializer,
     LinkedAccountSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     ProviderLoginEventSerializer,
+    RegisterSerializer,
     SecurityNotificationSerializer,
+    VerifyEmailSerializer,
 )
 from .services.link_oauth_service import link_oauth_service
 from .services.login_email_service import (
@@ -43,6 +47,12 @@ from .services.notification_service import notify, read_confirmation_token
 from .services.oauth_service import oauth_service
 from .services.password_reset_service import read_reset_token, send_password_reset_email
 from .services.personal_security_service import check_own_login_impossible_travel
+from .services.registration_service import (
+    read_invite_token,
+    read_verify_email_token,
+    send_invite_email,
+    send_verification_email,
+)
 from apps.threat_intel.services.ip_enrichment import geo_lookup
 from apps.logs.platform_events import record_platform_login
 
@@ -343,6 +353,252 @@ class PasswordResetConfirmView(APIView):
             user_agent=request.META.get("HTTP_USER_AGENT"),
         )
         return success_response(message="Mot de passe réinitialisé avec succès.")
+
+
+class RegisterView(APIView):
+    """
+    POST /api/auth/register/
+    Inscription publique : crée une nouvelle Organization + son premier
+    utilisateur (role=admin, is_active=False jusqu'à vérification email).
+    Ne connecte jamais automatiquement — l'utilisateur repasse par le flux
+    normal (email+mdp+OTP) une fois son email vérifié.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
+
+    def post(self, request):
+        from django.db import transaction
+        from apps.organizations.models import Organization
+
+        serializer = RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = serializer.validated_data
+        generic_message = (
+            "Si cette adresse n'est pas déjà utilisée, un email de "
+            "confirmation vient d'être envoyé pour activer votre organisation."
+        )
+
+        # Pas d'énumération de compte : réponse générique même si l'email existe déjà.
+        if User.objects.filter(email__iexact=data["email"]).exists():
+            return success_response(message=generic_message)
+
+        with transaction.atomic():
+            organization = Organization.objects.create(
+                name=data["organization_name"],
+                slug=Organization.generate_unique_slug(data["organization_name"]),
+            )
+            user = User.objects.create_user(
+                email=data["email"],
+                password=data["password"],
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                role="admin",
+                organization=organization,
+                is_active=False,
+            )
+
+        send_verification_email(user, organization)
+        AuditTrail.log(
+            action="org_register",
+            user=user,
+            organization=organization,
+            target_model="Organization",
+            target_id=organization.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+        return success_response(message=generic_message, http_status=status.HTTP_201_CREATED)
+
+
+class VerifyEmailView(APIView):
+    """
+    POST /api/auth/verify-email/
+    Body: { "token": "<signed>" }
+    Active le compte admin créé par /register/ (lien valide 24h).
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
+
+    def post(self, request):
+        serializer = VerifyEmailSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user_id = read_verify_email_token(serializer.validated_data["token"])
+        except signing.SignatureExpired:
+            return error_response(
+                message="Ce lien de confirmation a expiré. Contactez un administrateur de votre organisation.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        except signing.BadSignature:
+            return error_response(
+                message="Lien de confirmation invalide.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return error_response(
+                message="Utilisateur introuvable.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+            AuditTrail.log(
+                action="email_verified",
+                user=user,
+                organization=user.organization,
+                target_model="User",
+                target_id=user.id,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT"),
+            )
+
+        return success_response(message="Adresse email confirmée. Vous pouvez maintenant vous connecter.")
+
+
+class InviteUserView(APIView):
+    """
+    POST /api/users/invite/
+    Un admin d'organisation invite un nouveau membre. `organization` et
+    `role` ne sont JAMAIS pris depuis le payload autrement que via ce
+    serializer contrôlé — organization vient toujours de request.user.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != "admin":
+            return error_response(
+                message="Seuls les administrateurs peuvent inviter des utilisateurs.",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+        if request.user.organization_id is None:
+            return error_response(
+                message="Compte non rattaché à une organisation.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = InviteUserSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        import secrets
+
+        data = serializer.validated_data
+        user = User.objects.create_user(
+            email=data["email"],
+            password=secrets.token_urlsafe(32),
+            first_name=data["first_name"],
+            last_name=data["last_name"],
+            role=data["role"],
+            organization=request.user.organization,
+            is_active=False,
+        )
+
+        send_invite_email(user, request.user.organization, request.user)
+        AuditTrail.log(
+            action="user_invite",
+            user=request.user,
+            organization=request.user.organization,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+        return success_response(
+            message=f"Invitation envoyée à {user.email}.",
+            http_status=status.HTTP_201_CREATED,
+        )
+
+
+class AcceptInviteView(APIView):
+    """
+    POST /api/users/accept-invite/
+    Body: { "token": "<signed>", "password": "<mot de passe choisi>" }
+    Finalise une invitation : active le compte et fixe le mot de passe.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
+
+    def post(self, request):
+        serializer = AcceptInviteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Données invalides.",
+                errors=serializer.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user_id = read_invite_token(serializer.validated_data["token"])
+        except signing.SignatureExpired:
+            return error_response(
+                message="Cette invitation a expiré. Demandez à un administrateur de vous réinviter.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        except signing.BadSignature:
+            return error_response(
+                message="Lien d'invitation invalide.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id, is_active=False)
+        except User.DoesNotExist:
+            return error_response(
+                message="Invitation introuvable ou déjà utilisée.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        password = serializer.validated_data["password"]
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return error_response(
+                message="Mot de passe trop faible.",
+                errors={"password": list(exc.messages)},
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(password)
+        user.is_active = True
+        user.save(update_fields=["password", "is_active"])
+
+        AuditTrail.log(
+            action="invite_accepted",
+            user=user,
+            organization=user.organization,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+        return success_response(message="Compte activé. Vous pouvez maintenant vous connecter.")
 
 
 class MicrosoftOAuthInitiateView(APIView):
@@ -1026,6 +1282,9 @@ class VerifyLoginOTPView(APIView):
         refresh["email"] = user.email
         refresh["role"] = user.role
         refresh["full_name"] = user.full_name
+        refresh["is_superuser"] = user.is_superuser
+        refresh["organization_id"] = str(user.organization_id) if user.organization_id else None
+        refresh["organization_name"] = user.organization.name if user.organization_id else None
 
         login_ip = get_client_ip(request)
         geo = geo_lookup(login_ip)
@@ -1052,6 +1311,7 @@ class VerifyLoginOTPView(APIView):
             record_platform_login(
                 user_email=user.email,
                 success=True,
+                organization=user.organization,
                 ip_address=login_ip,
                 geo_country=geo_country,
                 geo_city=geo_city,
@@ -1070,6 +1330,9 @@ class VerifyLoginOTPView(APIView):
                     "email": user.email,
                     "full_name": user.full_name,
                     "role": user.role,
+                    "is_superuser": user.is_superuser,
+                    "organization_id": str(user.organization_id) if user.organization_id else None,
+                    "organization_name": user.organization.name if user.organization_id else None,
                 },
             },
             message="Connexion réussie.",

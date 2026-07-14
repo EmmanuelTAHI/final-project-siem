@@ -1,0 +1,70 @@
+---
+title: Mes logs n'apparaissent pas
+description: Checklist de dépannage pour l'ingestion d'agents
+---
+
+## 1. Vérifier que l'agent envoie bien des requêtes
+
+```bash
+# rsyslog
+sudo journalctl -u rsyslog -f
+
+# NXLog (Windows)
+Get-Content "C:\Program Files\nxlog\data\nxlog.log" -Wait
+
+# Fluent Bit
+sudo journalctl -u fluent-bit -f
+```
+
+Cherchez des erreurs de connexion, de certificat TLS, ou des codes HTTP
+différents de `201`.
+
+## 2. Tester manuellement l'endpoint
+
+Depuis la machine qui héberge l'agent :
+
+```bash
+curl -i -X POST https://votre-instance.example/api/ingest/agent/logs/ \
+  -H "Authorization: Bearer logplus_agt_VOTRE_TOKEN" \
+  -H "Content-Type: text/plain" \
+  --data-binary "<34>test message depannage"
+```
+
+| Réponse | Signification |
+|---|---|
+| `201 Created` | Le log a bien été reçu — vérifiez ensuite le tableau de bord (délai de quelques secondes pour la normalisation). |
+| `401` / `403` | Token invalide, révoqué ou expiré. Régénérez-en un depuis la page **Agents**. |
+| `429` | Limite de débit atteinte — réduisez la fréquence d'envoi ou regroupez vos logs en batchs. |
+| Pas de réponse / timeout | Problème réseau : pare-feu, DNS, ou l'instance est injoignable. |
+
+## 3. Vérifier le token
+
+- Le token n'a-t-il pas été révoqué (page **Agents** du tableau de bord) ?
+- Avez-vous bien copié le token en entier, avec le préfixe `logplus_agt_` ?
+- Le token n'a-t-il pas de date d'expiration dépassée ?
+
+## 4. Vérifier côté tableau de bord
+
+- Allez dans **Logs** → filtrez par type de source `agent` — vos logs
+  bruts (non normalisés) doivent apparaître même avant traitement complet.
+- Si les logs bruts apparaissent mais pas dans **Logs normalisés**, le
+  souci vient de la normalisation — contactez l'administrateur de
+  l'instance avec l'heure exacte de l'envoi.
+
+## 5. Mode syslog UDP (self-host)
+
+Si vous utilisez le mode syslog UDP (voir [Équipements
+réseau](/docs/agents/network-devices-syslog)) :
+
+- Vérifiez que l'IP source de votre équipement figure bien dans
+  l'allowlist du connecteur — un paquet hors allowlist est **rejeté
+  silencieusement** (par conception, pour éviter toute attribution
+  ambiguë).
+- Vérifiez que le port UDP 514 est bien ouvert entre l'équipement et le
+  serveur : `docker compose logs syslog_receiver`.
+
+## Toujours bloqué ?
+
+Vérifiez le [modèle de sécurité](/docs/security) pour comprendre les
+contraintes d'authentification, ou consultez les logs applicatifs de votre
+instance (`docker compose logs backend`).

@@ -64,12 +64,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        # organization vient toujours de request.user (jamais du payload
+        # client) — passé explicitement par la vue via serializer.save(...).
         user = User.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
             role=validated_data.get("role", "viewer"),
+            organization=validated_data.get("organization"),
         )
         return user
 

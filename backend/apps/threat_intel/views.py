@@ -171,8 +171,10 @@ class CTIStatsView(APIView):
         last_24h = timezone.now() - timedelta(hours=24)
         last_7d = timezone.now() - timedelta(days=7)
 
+        # ThreatIndicator est un référentiel CTI partagé (pas de notion de
+        # tenant) ; EnrichedLog en revanche porte les données de l'org.
         indicators = ThreatIndicator.objects.all()
-        enriched = EnrichedLog.objects.all()
+        enriched = EnrichedLog.objects.filter(organization_id=request.user.organization_id)
 
         stats = {
             "total_indicators": indicators.count(),

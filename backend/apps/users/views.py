@@ -11,6 +11,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from utils.permissions import IsAdmin
 from utils.response import created_response, error_response, no_content_response, success_response
+from utils.tenant import OrganizationFilterBackend
 
 from .models import AuditTrail, User
 from .serializers import (
@@ -42,7 +43,9 @@ class UserViewSet(ModelViewSet):
     """
 
     queryset = User.objects.all().order_by("-created_at")
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        OrganizationFilterBackend, DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter,
+    ]
     filterset_fields = ["role", "is_active"]
     search_fields = ["email", "first_name", "last_name"]
     ordering_fields = ["created_at", "email", "role"]
@@ -78,7 +81,7 @@ class UserViewSet(ModelViewSet):
                 errors=serializer.errors,
                 http_status=status.HTTP_400_BAD_REQUEST,
             )
-        user = serializer.save()
+        user = serializer.save(organization=request.user.organization)
         AuditTrail.log(
             action="user_create",
             user=request.user,
@@ -174,7 +177,7 @@ class AuditTrailViewSet(ReadOnlyModelViewSet):
     queryset = AuditTrail.objects.select_related("user").all()
     serializer_class = AuditTrailSerializer
     permission_classes = [IsAdmin]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["action", "target_model", "user"]
     ordering_fields = ["timestamp"]
     ordering = ["-timestamp"]

@@ -53,6 +53,13 @@ class ThreatIndicator(models.Model):
 class EnrichedLog(models.Model):
     """Liaison entre un NormalizedLog et ses indicateurs CTI."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="enriched_logs",
+        verbose_name="Organisation",
+        help_text="Dénormalisé depuis log.organization pour l'isolation multi-tenant.",
+    )
     log = models.OneToOneField(
         "logs.NormalizedLog",
         on_delete=models.CASCADE,
@@ -65,6 +72,11 @@ class EnrichedLog(models.Model):
 
     class Meta:
         ordering = ["-enriched_at"]
+
+    def save(self, *args, **kwargs):
+        if self.log_id and not self.organization_id:
+            self.organization_id = self.log.organization_id
+        super().save(*args, **kwargs)
 
     def compute_max_score(self):
         agg = self.indicators.aggregate(models.Max("reputation_score"))

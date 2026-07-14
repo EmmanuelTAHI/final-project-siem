@@ -11,6 +11,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from utils.permissions import IsAdmin, IsAnalyst
 from utils.response import error_response, success_response
+from utils.tenant import OrganizationFilterBackend
 
 from .models import MLModel, Prediction
 from .serializers import MLModelSerializer, PredictionSerializer, TrainRequestSerializer
@@ -62,6 +63,7 @@ class TrainView(APIView):
         task = train_isolation_forest.delay(
             days_of_data=days_of_data,
             contamination=contamination,
+            organization_id=str(request.user.organization_id),
         )
 
         logger.info(
@@ -127,7 +129,7 @@ class PredictionViewSet(ReadOnlyModelViewSet):
     queryset = Prediction.objects.select_related("log", "model").all()
     serializer_class = PredictionSerializer
     permission_classes = [IsAnalyst]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [OrganizationFilterBackend, DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["is_anomaly", "model"]
     ordering_fields = ["predicted_at", "anomaly_score"]
     ordering = ["-predicted_at"]

@@ -18,13 +18,17 @@ from .views import (
     NotificationMarkReadView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    RegisterView,
     ResendOTPView,
     TokenRefreshView,
+    VerifyEmailView,
     VerifyLinkPinView,
     VerifyLoginOTPView,
 )
 
 urlpatterns = [
+    path("register/", RegisterView.as_view(), name="auth-register"),
+    path("verify-email/", VerifyEmailView.as_view(), name="auth-verify-email"),
     path("login/", LoginView.as_view(), name="auth-login"),
     path("token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),

@@ -25,5 +25,6 @@ class HuntingQuerySerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user and request.user.is_authenticated:
             validated_data["created_by"] = request.user
+            validated_data["organization"] = request.user.organization
         validated_data.setdefault("query_params", {})
         return super().create(validated_data)

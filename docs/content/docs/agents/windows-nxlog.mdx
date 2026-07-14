@@ -1,0 +1,79 @@
+---
+title: Windows — NXLog
+description: Envoyer les journaux d'événements Windows vers Log+ via NXLog Community Edition
+---
+
+Windows n'a pas de client syslog natif. **NXLog Community Edition** (open
+source, gratuit) sait lire le journal d'événements Windows et l'envoyer en
+HTTP.
+
+## 1. Installer NXLog CE
+
+Téléchargez et installez [NXLog Community
+Edition](https://nxlog.co/products/nxlog-community-edition) (MSI officiel).
+
+## 2. Configurer `nxlog.conf`
+
+Éditez `C:\Program Files\nxlog\conf\nxlog.conf` :
+
+```text
+Panic Soft
+
+define ROOT C:\Program Files\nxlog
+
+Moduledir %ROOT%\modules
+CacheDir   %ROOT%\data
+LogFile    %ROOT%\data\nxlog.log
+
+<Extension json>
+    Module xm_json
+</Extension>
+
+<Input windows_events>
+    Module    im_msvistalog
+    # Adaptez la requête aux canaux que vous voulez surveiller
+    Query     <QueryList>\
+                <Query Id="0">\
+                  <Select Path="Security">*</Select>\
+                  <Select Path="System">*</Select>\
+                </Query>\
+              </QueryList>
+</Input>
+
+<Output logplus>
+    Module      om_http
+    URL         https://votre-instance.example/api/ingest/agent/logs/
+    HTTPSAllowUntrusted FALSE
+    <Headers>
+        Authorization Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        Content-Type  text/plain
+    </Headers>
+    Exec        to_json();
+</Output>
+
+<Route windows_to_logplus>
+    Path windows_events => logplus
+</Route>
+```
+
+## 3. Redémarrer le service
+
+```powershell
+Restart-Service nxlog
+```
+
+## 4. Vérifier
+
+Provoquez un événement de sécurité (ex. échec de connexion RDP) et
+vérifiez son apparition dans **Logs** sur le tableau de bord Log+.
+
+<Callout type="info">
+  Remplacez le token dans `Authorization` par le vôtre (page Agents du
+  tableau de bord) et l'URL par celle de votre instance.
+</Callout>
+
+## Filtrer les canaux surveillés
+
+Pour un poste de travail plutôt qu'un serveur, adaptez la `Query` afin de ne
+suivre que les canaux pertinents (ex. `Security` pour les connexions,
+`Microsoft-Windows-Windows Defender/Operational` pour l'antivirus).

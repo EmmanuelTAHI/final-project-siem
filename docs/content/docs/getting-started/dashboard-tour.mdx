@@ -1,0 +1,55 @@
+---
+title: Tour du tableau de bord
+description: Où trouver quoi dans l'interface Log+
+---
+
+Une fois connecté, la barre latérale gauche organise les fonctionnalités en
+sections :
+
+## Vue d'ensemble
+
+- **Tableau de bord** — KPIs en temps réel : alertes ouvertes, volume de
+  logs, connecteurs actifs, anomalies ML détectées sur les dernières 24h.
+
+## Détection
+
+- **Alertes** — liste des alertes de sécurité générées par les règles de
+  corrélation, le module ML ou le CTI (menaces connues).
+- **Logs** — recherche dans les logs bruts et normalisés de votre
+  organisation.
+- **Corrélation** — gestion des règles de détection (brute force, voyage
+  impossible, élévation de privilèges, contournement MFA…).
+- **Machine Learning** — modèle de détection d'anomalies entraîné sur vos
+  propres logs (jamais mutualisé avec une autre organisation).
+
+## Opérations
+
+- **Threat Intel** — indicateurs de compromission (IP malveillantes,
+  domaines, hashs) issus de sources CTI publiques.
+- **SOAR** — playbooks de réponse automatisée (envoi d'email, webhook,
+  blocage d'IP…) déclenchés par des alertes.
+- **Threat Hunting** — recherches ad hoc et sauvegardées sur vos logs.
+
+## Rapports & Données
+
+- **Rapports** — génération de rapports de conformité PDF (PCI DSS, RGPD,
+  ISO 27001).
+- **Collecteurs** — connecteurs OAuth2 (Microsoft 365, Google Workspace,
+  Wazuh) qui vont chercher vos logs périodiquement.
+- **Agents** — génération de tokens pour déployer des agents de collecte
+  (rsyslog, NXLog, Fluent Bit) sur vos propres machines — voir
+  [Agents de collecte](/docs/agents).
+
+## Administration
+
+- **Utilisateurs** — gestion des membres de votre organisation, invitations,
+  rôles (admin / analyste / observateur).
+- **Paramètres** — préférences de votre compte.
+
+## Plateforme (super-admin uniquement)
+
+Si votre compte est administrateur de la plateforme (super-admin), une
+section supplémentaire **Plateforme → Organisations** apparaît, avec une vue
+d'ensemble de toutes les organisations hébergées — réservée à l'équipe
+opérant l'instance, jamais visible par un administrateur d'organisation
+normal.

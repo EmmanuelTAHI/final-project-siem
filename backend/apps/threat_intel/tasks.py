@@ -102,7 +102,9 @@ def _create_cti_alert(log, enriched_log):
     from apps.alerts.models import Alert
 
     title = f"CTI: IP malveillante détectée — {log.source_ip}"
-    if Alert.objects.filter(title=title, status__in=["open", "in_progress"]).exists():
+    if Alert.objects.filter(
+        title=title, status__in=["open", "in_progress"], organization=log.organization
+    ).exists():
         return
 
     Alert.objects.create(
@@ -116,6 +118,7 @@ def _create_cti_alert(log, enriched_log):
         ),
         severity="high" if enriched_log.max_score >= 75 else "medium",
         status="open",
+        organization=log.organization,
     )
     logger.info("Alerte CTI créée pour IP %s (score=%.1f)", log.source_ip, enriched_log.max_score)
 
