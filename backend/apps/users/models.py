@@ -65,6 +65,18 @@ class User(AbstractUser):
         verbose_name="Rôle",
     )
     is_active = models.BooleanField(default=True, verbose_name="Actif")
+    email_notifications = models.BooleanField(
+        default=True, verbose_name="Notifications par email",
+        help_text="Recevoir les notifications de sécurité par email.",
+    )
+    critical_alert_emails = models.BooleanField(
+        default=True, verbose_name="Alertes critiques par email",
+        help_text="Notification email immédiate pour les alertes critiques.",
+    )
+    weekly_report_email = models.BooleanField(
+        default=False, verbose_name="Rapport hebdomadaire par email",
+        help_text="Recevoir un résumé hebdomadaire de l'activité par email.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
 

@@ -5,6 +5,10 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
+from apps.alerts.models import Alert
+from apps.logs.models import NormalizedLog
+from apps.users.models import AuditTrail
+
 from .base import BaseReportGenerator, GREEN, RED, ORANGE, make_table
 
 
@@ -13,10 +17,6 @@ class PCIDSSReportGenerator(BaseReportGenerator):
     TITLE = "Rapport de conformité PCI DSS v4.0"
 
     def collect_data(self) -> dict:
-        from apps.alerts.models import Alert
-        from apps.logs.models import NormalizedLog
-        from apps.users.models import AuditTrail
-
         cutoff = timezone.now() - timedelta(days=self.period_days)
         alerts = Alert.objects.filter(organization_id=self.organization_id, created_at__gte=cutoff)
         logs = NormalizedLog.objects.filter(organization_id=self.organization_id, indexed_at__gte=cutoff)

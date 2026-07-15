@@ -17,9 +17,10 @@ import {
   Database,
   Link2,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConnectors } from "@/hooks/use-collectors";
-import { usersApi } from "@/lib/api";
+import { authApi, collectorsApi, usersApi } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
 import { SUPPORTED_LANGUAGES, getCurrentLanguage, setLanguage } from "@/lib/i18n";
 import { validatePasswordChange } from "@/lib/validation";
@@ -27,7 +28,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LinkedAccountsPanel } from "@/components/settings/linked-accounts-panel";
-import { CountryFlag } from "@/components/common/country-flag";
 import toast from "react-hot-toast";
 
 type TabId = "profile" | "security" | "linked_accounts" | "preferences" | "sources" | "about";
@@ -121,85 +121,6 @@ function SettingsPageContent() {
   useEffect(() => {
     setCurrentLang(getCurrentLanguage());
   }, []);
-  const [browser, setBrowser] = useState("Navigateur");
-  const [ip, setIp] = useState("—");
-  // Fallback hardcodé visible immédiatement — remplacé par les données réelles dès qu'elles arrivent
-  const [geo, setGeo] = useState<{ city: string; country: string; countryCode: string }>({
-    city: "Abidjan",
-    country: "Côte d'Ivoire",
-    countryCode: "CI",
-  });
-  const [geoSource, setGeoSource] = useState<"default" | "browser" | "ip">("default");
-
-  useEffect(() => {
-    // ─── Détection navigateur ─────────────────────────────────────────────────
-    const ua = navigator.userAgent.toLowerCase();
-    let b = "Navigateur";
-    if (ua.includes("chrome") && !ua.includes("edg")) b = "Chrome";
-    else if (ua.includes("firefox")) b = "Firefox";
-    else if (ua.includes("safari") && !ua.includes("chrome")) b = "Safari";
-    else if (ua.includes("edg")) b = "Edge";
-    setBrowser(b);
-
-    // ─── Fallback IP (pour l'adresse IP affichée) ─────────────────────────────
-    const fetchIpOnly = () =>
-      fetch("https://api.ipify.org?format=json")
-        .then((r) => r.json())
-        .then((d) => setIp(d.ip))
-        .catch(() => {});
-
-    // ─── Fallback 2 : géolocalisation par IP (pas de popup) ──────────────────
-    // ip-api.com (plan gratuit) ne répond qu'en HTTP, pas en HTTPS (403 sinon).
-    // Le site étant lui-même servi en HTTP, pas de blocage "mixed content" ici.
-    const fetchIpGeo = () =>
-      fetch("http://ip-api.com/json/?fields=status,city,country,countryCode,query")
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.status === "success") {
-            setIp(d.query);
-            setGeo({ city: d.city, country: d.country, countryCode: d.countryCode });
-            setGeoSource("ip");
-          } else {
-            fetchIpOnly();
-          }
-        })
-        .catch(() => fetchIpOnly());
-
-    // ─── Priorité 1 : geolocation navigateur (affiche la popup) ─────────────
-    if (typeof navigator !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          try {
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=fr`
-            );
-            const d = await res.json();
-            if (d.countryCode) {
-              setGeo({
-                city: d.city || d.locality || d.principalSubdivision || "—",
-                country: d.countryName,
-                countryCode: d.countryCode,
-              });
-              setGeoSource("browser");
-            }
-          } catch {
-            // reverse-geocode a échoué, on essaie par IP
-            fetchIpGeo();
-          }
-          // dans tous les cas on récupère l'IP publique
-          fetchIpOnly();
-        },
-        () => {
-          // Permission refusée ou timeout → fallback IP
-          fetchIpGeo();
-        },
-        { timeout: 8000, maximumAge: 300_000 }
-      );
-    } else {
-      fetchIpGeo();
-    }
-  }, []);
 
   const [profile, setProfile] = useState({
     first_name: user?.first_name || "",
@@ -208,23 +129,68 @@ function SettingsPageContent() {
   });
 
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+  const qc = useQueryClient();
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [prefs, setPrefs] = useState({
-    emailNotifs: true,
-    criticalAlerts: true,
-    weeklyReport: false,
-    twofa: true,
-    sso: true,
+    emailNotifs: user?.email_notifications ?? true,
+    criticalAlerts: user?.critical_alert_emails ?? true,
+    weeklyReport: user?.weekly_report_email ?? false,
   });
+
+  const handleTogglePref = async (
+    key: "emailNotifs" | "criticalAlerts" | "weeklyReport",
+    field: "email_notifications" | "critical_alert_emails" | "weekly_report_email",
+    value: boolean
+  ) => {
+    const previous = prefs[key];
+    setPrefs((p) => ({ ...p, [key]: value }));
+    try {
+      const updated = await usersApi.updateMe({ [field]: value });
+      if (user) setUser({ ...user, ...updated });
+    } catch {
+      setPrefs((p) => ({ ...p, [key]: previous }));
+      toast.error("Erreur lors de l'enregistrement de la préférence");
+    }
+  };
+
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: authApi.getSessions,
+    enabled: tab === "security",
+    staleTime: 10_000,
+  });
+  const sessions = sessionsData?.sessions ?? [];
+
+  const handleRevokeSession = async (id: string) => {
+    try {
+      await authApi.revokeSession(id);
+      toast.success("Session révoquée");
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    } catch {
+      toast.error("Erreur lors de la révocation de la session");
+    }
+  };
+
+  const handleToggleConnector = async (id: string, nextActive: boolean) => {
+    try {
+      await collectorsApi.updateConnector(id, { is_active: nextActive });
+      toast.success(nextActive ? "Connecteur activé" : "Connecteur désactivé");
+      qc.invalidateQueries({ queryKey: ["connectors"] });
+    } catch {
+      toast.error("Erreur lors de la mise à jour du connecteur");
+    }
+  };
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      await usersApi.updateMe({
+      const updated = await usersApi.updateMe({
         first_name: profile.first_name,
         last_name: profile.last_name,
         email: profile.email,
       });
+      setUser(updated);
       toast.success("Profil mis à jour");
     } catch {
       toast.error("Erreur lors de la mise à jour du profil");
@@ -480,23 +446,10 @@ function SettingsPageContent() {
                 </div>
               </Card>
 
-              <Card title="Authentification forte">
-                <SettingRow label="2FA obligatoire" desc="Exige TOTP pour tous les comptes">
-                  <Toggle on={prefs.twofa} onChange={(v) => setPrefs((p) => ({ ...p, twofa: v }))} />
-                </SettingRow>
-                <SettingRow label="SSO SAML" desc="Fournisseur : Microsoft Entra ID">
-                  <Toggle on={prefs.sso} onChange={(v) => setPrefs((p) => ({ ...p, sso: v }))} />
-                </SettingRow>
-                <SettingRow label="Durée max de session" desc="Déconnexion forcée après inactivité">
-                  <select
-                    defaultValue="8"
-                    className="h-9 w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="4">4 heures</option>
-                    <option value="8">8 heures</option>
-                    <option value="24">24 heures</option>
-                  </select>
-                </SettingRow>
+              <Card title="Authentification" desc="Une vérification par code envoyé par email est exigée à chaque connexion pour tous les comptes.">
+                <div style={{ fontSize: 12.5, color: "var(--text-2)", padding: "6px 0" }}>
+                  Aucune configuration nécessaire — le second facteur (OTP email) est actif en permanence.
+                </div>
               </Card>
 
               <Card title="Sessions actives" desc="Connexions en cours sur votre compte">
@@ -512,32 +465,33 @@ function SettingsPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td style={{ fontWeight: 500 }}>{browser} · {typeof navigator !== "undefined" && navigator.platform.includes("Win") ? "Windows" : "Inconnu"}</td>
-                      <td className="font-mono">{ip}</td>
-                      <td>
-                        <span className="inline-flex items-center gap-2">
-                          <CountryFlag code={geo.countryCode} size="md" />
-                          <span className="font-mono text-xs" style={{ color: "var(--text-2)" }}>
-                            {geo.city}, {geo.countryCode}
+                    {sessionsLoading && (
+                      <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-2)", padding: 20 }}>Chargement…</td></tr>
+                    )}
+                    {!sessionsLoading && sessions.length === 0 && (
+                      <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-2)", padding: 20 }}>Aucune session active</td></tr>
+                    )}
+                    {sessions.map((s) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 500 }}>{s.device}</td>
+                        <td className="font-mono">{s.ip}</td>
+                        <td className="font-mono text-xs" style={{ color: "var(--text-2)" }}>{s.location}</td>
+                        <td>
+                          <span className={s.current ? "badge badge-ok" : "badge badge-info"}>
+                            {s.current ? "Actuelle" : "Active"}
                           </span>
-                          {geoSource === "browser" && (
-                            <span
-                              title="Localisation précise — permission accordée"
-                              style={{ fontSize: 9, color: "var(--secondary)", fontWeight: 600, letterSpacing: "0.04em" }}
-                            >
-                              GPS
-                            </span>
+                        </td>
+                        <td>
+                          {s.current ? (
+                            <span className="chip">Vous</span>
+                          ) : (
+                            <button className="btn" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={() => handleRevokeSession(s.id)}>
+                              Déconnecter
+                            </button>
                           )}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="badge badge-ok">Actuelle</span>
-                      </td>
-                      <td>
-                        <span className="chip">Vous</span>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
                 </div>
@@ -586,7 +540,7 @@ function SettingsPageContent() {
                           )}
                         </td>
                         <td>
-                          <Toggle on={isActive} onChange={() => {}} />
+                          <Toggle on={isActive} onChange={(v) => handleToggleConnector(s.id, v)} />
                         </td>
                       </tr>
                     )})}
@@ -688,13 +642,13 @@ function SettingsPageContent() {
 
               <Card title="Notifications" desc="Canaux de diffusion des alertes">
                 <SettingRow label="Notifications par email" desc="Recevoir les alertes par email">
-                  <Toggle on={prefs.emailNotifs} onChange={(v) => setPrefs((p) => ({ ...p, emailNotifs: v }))} />
+                  <Toggle on={prefs.emailNotifs} onChange={(v) => handleTogglePref("emailNotifs", "email_notifications", v)} />
                 </SettingRow>
                 <SettingRow label="Alertes critiques" desc="Notification immédiate pour les alertes critiques">
-                  <Toggle on={prefs.criticalAlerts} onChange={(v) => setPrefs((p) => ({ ...p, criticalAlerts: v }))} />
+                  <Toggle on={prefs.criticalAlerts} onChange={(v) => handleTogglePref("criticalAlerts", "critical_alert_emails", v)} />
                 </SettingRow>
                 <SettingRow label="Rapport hebdomadaire" desc="Résumé hebdomadaire de l'activité Log+">
-                  <Toggle on={prefs.weeklyReport} onChange={(v) => setPrefs((p) => ({ ...p, weeklyReport: v }))} />
+                  <Toggle on={prefs.weeklyReport} onChange={(v) => handleTogglePref("weeklyReport", "weekly_report_email", v)} />
                 </SettingRow>
               </Card>
             </>

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Brain,
@@ -54,6 +54,17 @@ export default function MLPage() {
   const predictions = predictionsData?.results?.slice(0, 15) ?? [];
   const isTraining = trainMutation.isPending;
 
+  // Progression simulée pendant le poll réel (l'entraînement Celery ne
+  // rapporte pas d'avancement fin) — plafonnée à 90% tant que le statut
+  // SUCCESS n'est pas confirmé par le backend.
+  useEffect(() => {
+    if (!isTraining) return;
+    const t = setInterval(() => {
+      setTrainingProgress((p) => (p < 90 ? p + 2 : p));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [isTraining]);
+
   // Score distribution computed from real predictions
   const scoreDistribution = Array.from({ length: 20 }, (_, i) => {
     const low = i * 5;
@@ -71,14 +82,8 @@ export default function MLPage() {
     setTrainingProgress(0);
     toast("Entraînement lancé…", { icon: "🤖" });
     trainMutation.mutate(contamination, {
-      onSuccess: () => {
-        setTrainingProgress(100);
-        toast.success("Modèle entraîné avec succès !");
-      },
-      onError: () => {
-        setTrainingProgress(0);
-        toast.error("Erreur lors de l'entraînement");
-      },
+      onSuccess: () => setTrainingProgress(100),
+      onError: () => setTrainingProgress(0),
     });
   };
 

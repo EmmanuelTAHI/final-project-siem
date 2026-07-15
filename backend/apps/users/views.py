@@ -17,6 +17,7 @@ from .models import AuditTrail, User
 from .serializers import (
     AuditTrailSerializer,
     ChangePasswordSerializer,
+    SelfProfileUpdateSerializer,
     UserCreateSerializer,
     UserSerializer,
     UserUpdateSerializer,
@@ -136,7 +137,7 @@ class UserViewSet(ModelViewSet):
             serializer = UserSerializer(request.user)
             return success_response(data=serializer.data, message="Profil utilisateur.")
 
-        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer = SelfProfileUpdateSerializer(request.user, data=request.data, partial=True)
         if not serializer.is_valid():
             return error_response(message="Données invalides.", errors=serializer.errors)
         serializer.save()

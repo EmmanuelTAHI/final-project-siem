@@ -56,15 +56,24 @@ function CorrelationPageContent() {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
+    const previous = localRules;
     setLocalRules((prev) => (prev ?? []).filter((r) => r.id !== id));
-    toast.success("Règle supprimée");
-    refetch();
+    try {
+      await correlationApi.deleteRule(id);
+      toast.success("Règle supprimée");
+      refetch();
+    } catch {
+      setLocalRules(previous);
+      toast.error("Erreur lors de la suppression de la règle");
+    }
   };
 
+  // Le changement (ex: toggle actif/inactif) est déjà persisté côté serveur
+  // par l'appelant (RuleCard) avant d'invoquer ce callback — ne fait que
+  // refléter l'état local, pas de second appel API redondant.
   const handleUpdate = (updated: CorrelationRule) => {
     setLocalRules((prev) => (prev ?? []).map((r) => (r.id === updated.id ? updated : r)));
-    correlationApi.updateRule(updated.id, updated).catch(() => null);
   };
 
   const handleSave = (saved: CorrelationRule) => {

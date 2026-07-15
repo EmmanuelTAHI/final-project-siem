@@ -26,8 +26,27 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "created_at",
             "updated_at",
+            "email_notifications",
+            "critical_alert_emails",
+            "weekly_report_email",
         ]
         read_only_fields = ["id", "date_joined", "last_login", "created_at", "updated_at"]
+
+
+class SelfProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour la mise à jour de son PROPRE profil (GET/PATCH /api/users/me/).
+    N'expose jamais `role`/`is_active` : un utilisateur ne doit jamais pouvoir
+    s'auto-promouvoir admin ou se réactiver via ce endpoint (contrairement à
+    UserUpdateSerializer, réservé à la gestion admin d'autres utilisateurs).
+    """
+
+    class Meta:
+        model = User
+        fields = [
+            "first_name", "last_name", "email",
+            "email_notifications", "critical_alert_emails", "weekly_report_email",
+        ]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

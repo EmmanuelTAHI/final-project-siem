@@ -4,6 +4,11 @@ from datetime import timedelta
 from django.utils import timezone
 from reportlab.platypus import Paragraph, Spacer
 
+from apps.alerts.models import Alert
+from apps.correlation.models import CorrelationRule
+from apps.logs.models import NormalizedLog
+from apps.users.models import AuditTrail, User
+
 from .base import BaseReportGenerator, make_table
 
 
@@ -12,11 +17,6 @@ class ISO27001ReportGenerator(BaseReportGenerator):
     TITLE = "Rapport de conformité ISO/IEC 27001:2022 — Sécurité de l'Information"
 
     def collect_data(self) -> dict:
-        from apps.alerts.models import Alert
-        from apps.correlation.models import CorrelationRule
-        from apps.logs.models import NormalizedLog
-        from apps.users.models import AuditTrail, User
-
         cutoff = timezone.now() - timedelta(days=self.period_days)
         alerts = Alert.objects.filter(organization_id=self.organization_id, created_at__gte=cutoff)
         logs = NormalizedLog.objects.filter(organization_id=self.organization_id, indexed_at__gte=cutoff)

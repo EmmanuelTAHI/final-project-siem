@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Activity, Server, Gauge, RefreshCw, Download } from "lucide-react";
+import { ShieldAlert, Activity, Server, Gauge, RefreshCw, Download, Clock } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AlertsTimelineChart } from "@/components/dashboard/alerts-timeline-chart";
 import { SeverityDonut } from "@/components/dashboard/severity-donut";
@@ -11,12 +11,35 @@ import { CardGridSkeleton, ChartSkeleton } from "@/components/common/loading-ske
 import { useDashboardSummary, useTopThreats } from "@/hooks/use-dashboard";
 import { useRealtimeStore } from "@/stores/realtime-store";
 import { formatDate } from "@/lib/utils";
+import { reportsApi } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: summary, isLoading: summaryLoading, refetch } = useDashboardSummary();
   const { data: threats, isLoading: threatsLoading } = useTopThreats();
   const wsConnected = useRealtimeStore((s) => s.connected);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await reportsApi.generateReport("soc_weekly", 7);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `LogPlus_soc_weekly_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Rapport SOC exporté");
+    } catch {
+      toast.error("Erreur lors de l'export du rapport");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Horloge vivante : le header affiche l'heure qui avance seconde par seconde.
   const [now, setNow] = useState(() => new Date());
@@ -83,9 +106,9 @@ export default function DashboardPage() {
             <RefreshCw size={14} />
             Actualiser
           </button>
-          <button className="btn btn-primary">
-            <Download size={14} />
-            Exporter
+          <button className="btn btn-primary" onClick={handleExport} disabled={exporting}>
+            {exporting ? <Clock size={14} /> : <Download size={14} />}
+            {exporting ? "Export…" : "Exporter"}
           </button>
         </div>
       </div>

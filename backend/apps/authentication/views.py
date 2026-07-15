@@ -777,7 +777,8 @@ class ActiveSessionsView(APIView):
 
             browser = "Navigateur inconnu"
             os = "OS inconnu"
-            ip = token.jti  # Utilisons le JTI comme fallback pour l'IP, mais idéalement stocker l'IP dans OutstandingToken
+            ip = "—"
+            location = "—"
 
             if last_login and last_login.user_agent:
                 # Parser le user agent pour extraire navigateur et OS
@@ -809,13 +810,15 @@ class ActiveSessionsView(APIView):
                     os = 'OS inconnu'
 
                 ip = last_login.ip_address or ip
+                if last_login.geo_city or last_login.geo_country:
+                    location = ", ".join(filter(None, [last_login.geo_city, last_login.geo_country]))
 
             sessions.append({
                 'id': str(token.id),
                 'device': f"{browser} / {os}",
                 'ip': ip,
-                'location': last_login.ip_address or '—' if last_login else '—',
-                'current': str(token.id) == str(current_token.get('jti', '')) if current_token else False,
+                'location': location,
+                'current': str(token.jti) == str(current_token.get('jti', '')) if current_token else False,
                 'created_at': token.created_at.isoformat(),
                 'expires_at': token.expires_at.isoformat(),
             })
@@ -824,6 +827,33 @@ class ActiveSessionsView(APIView):
             data={'sessions': sessions},
             message="Sessions récupérées avec succès."
         )
+
+
+class SessionRevokeView(APIView):
+    """
+    DELETE /api/auth/sessions/<id>/
+    Révoque (blacklist) une session active de l'utilisateur connecté.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, session_id):
+        token = get_object_or_404(OutstandingToken, id=session_id, user=request.user)
+        current_token = request.auth
+        if current_token and str(token.jti) == str(current_token.get('jti', '')):
+            return error_response(
+                message="Impossible de révoquer la session en cours. Utilisez la déconnexion.",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        BlacklistedToken.objects.get_or_create(token=token)
+        AuditTrail.log(
+            action="session_revoke",
+            user=request.user,
+            target_model="OutstandingToken",
+            target_id=str(token.id),
+            ip_address=request.META.get("REMOTE_ADDR", ""),
+        )
+        return success_response(message="Session révoquée avec succès.")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

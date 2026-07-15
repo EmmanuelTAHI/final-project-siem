@@ -32,12 +32,18 @@ class DashboardSummaryView(APIView):
 
         now = timezone.now()
         last_24h = now - timedelta(hours=24)
+        prev_24h = now - timedelta(hours=48)
         org_id = request.user.organization_id
 
         alerts_qs = Alert.objects.filter(organization_id=org_id)
         logs_qs = NormalizedLog.objects.filter(organization_id=org_id)
         connectors_qs = ConnectorConfig.objects.filter(organization_id=org_id)
         predictions_qs = Prediction.objects.filter(organization_id=org_id)
+
+        def change_percent(current: int, previous: int) -> float:
+            if previous > 0:
+                return round((current - previous) / previous * 100, 1)
+            return 100.0 if current > 0 else 0.0
 
         # ─── Alertes ouvertes ─────────────────────────────────────────────────
         open_alerts = alerts_qs.filter(status="open")
@@ -46,9 +52,14 @@ class DashboardSummaryView(APIView):
             item["severity"]: item["count"]
             for item in open_alerts.values("severity").annotate(count=Count("id"))
         }
+        opened_last_24h = alerts_qs.filter(created_at__gte=last_24h).count()
+        opened_prev_24h = alerts_qs.filter(created_at__gte=prev_24h, created_at__lt=last_24h).count()
+        open_alerts_change_percent = change_percent(opened_last_24h, opened_prev_24h)
 
         # ─── Logs collectés dans les 24 dernières heures ──────────────────────
         logs_24h = logs_qs.filter(event_time__gte=last_24h).count()
+        logs_prev_24h = logs_qs.filter(event_time__gte=prev_24h, event_time__lt=last_24h).count()
+        logs_24h_change_percent = change_percent(logs_24h, logs_prev_24h)
 
         # ─── Connecteurs ──────────────────────────────────────────────────────
         total_connectors = connectors_qs.count()
@@ -59,6 +70,12 @@ class DashboardSummaryView(APIView):
             is_anomaly=True,
             predicted_at__gte=last_24h,
         ).count()
+        ml_anomalies_prev_24h = predictions_qs.filter(
+            is_anomaly=True,
+            predicted_at__gte=prev_24h,
+            predicted_at__lt=last_24h,
+        ).count()
+        ml_anomalies_change_percent = change_percent(ml_anomalies_24h, ml_anomalies_prev_24h)
 
         # ─── Taux de faux positifs ────────────────────────────────────────────
         total_resolved = alerts_qs.filter(
@@ -80,9 +97,11 @@ class DashboardSummaryView(APIView):
                     "open_by_severity": open_by_severity,
                     "all_by_severity": all_alerts_by_severity,
                     "false_positive_rate_percent": fp_rate,
+                    "change_percent_24h": open_alerts_change_percent,
                 },
                 "logs": {
                     "collected_last_24h": logs_24h,
+                    "change_percent_24h": logs_24h_change_percent,
                 },
                 "connectors": {
                     "active": active_connectors,
@@ -91,6 +110,7 @@ class DashboardSummaryView(APIView):
                 },
                 "ml": {
                     "anomalies_last_24h": ml_anomalies_24h,
+                    "change_percent_24h": ml_anomalies_change_percent,
                 },
                 "generated_at": now.isoformat(),
             },

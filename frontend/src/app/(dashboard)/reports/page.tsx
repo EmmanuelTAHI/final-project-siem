@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Shield,
   FileText,
@@ -35,7 +35,7 @@ const presets = [
     desc: "Synthèse des alertes, tendances et top menaces",
     icon: Shield,
     tone: "primary" as Tone,
-    framework: undefined,
+    reportType: "soc_weekly",
     tag: "SOC",
   },
   {
@@ -44,7 +44,7 @@ const presets = [
     desc: "Contrôles A.5 à A.18 — preuves et écarts",
     icon: FileText,
     tone: "secondary" as Tone,
-    framework: "iso27001",
+    reportType: "iso27001",
     tag: "ISO",
   },
   {
@@ -53,7 +53,7 @@ const presets = [
     desc: "Traçabilité des accès aux données personnelles",
     icon: FileText,
     tone: "info" as Tone,
-    framework: "gdpr",
+    reportType: "gdpr",
     tag: "RGPD",
   },
   {
@@ -62,7 +62,7 @@ const presets = [
     desc: "Surveillance des environnements de données de paiement",
     icon: FileText,
     tone: "warning" as Tone,
-    framework: "pci_dss",
+    reportType: "pci_dss",
     tag: "PCI",
   },
   {
@@ -71,7 +71,7 @@ const presets = [
     desc: "Classement MITRE ATT&CK des TTPs observés",
     icon: AlertTriangle,
     tone: "danger" as Tone,
-    framework: undefined,
+    reportType: "top_threats",
     tag: "MITRE",
   },
   {
@@ -80,57 +80,97 @@ const presets = [
     desc: "Connexions, escalades de privilèges et anomalies ML",
     icon: UserIcon,
     tone: "primary" as Tone,
-    framework: undefined,
+    reportType: "user_activity",
     tag: "IAM",
   },
 ];
 
-const sources = ["Microsoft 365", "Google WS", "Wazuh", "Syslog", "Firewall", "EDR"];
+// Doit rester aligné sur RawLog.SOURCE_TYPE_CHOICES côté backend.
+const sources = [
+  { label: "Microsoft 365", code: "microsoft365" },
+  { label: "Google Workspace", code: "google_workspace" },
+  { label: "Wazuh", code: "wazuh" },
+  { label: "Syslog", code: "syslog" },
+  { label: "Agent Log+", code: "agent" },
+];
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+const periodToDays = (p: Period) => (p === "24h" ? 1 : p === "7j" ? 7 : p === "30j" ? 30 : 90);
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>("7j");
   const [format, setFormat] = useState<Format>("pdf");
   const [generating, setGenerating] = useState<string | null>(null);
   const [checkedSources, setCheckedSources] = useState<string[]>(
-    sources.filter((s) => s !== "Google WS")
+    sources.filter((s) => s.code !== "google_workspace").map((s) => s.code)
   );
 
-  const { data: _frameworks } = useQuery({
-    queryKey: ["compliance-frameworks"],
-    queryFn: reportsApi.getFrameworks,
-    staleTime: Infinity,
-  });
-  void _frameworks;
+  const qc = useQueryClient();
 
-  const handleGenerate = async (id: string, framework?: string, label = id) => {
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ["report-history"],
+    queryFn: reportsApi.getHistory,
+    staleTime: 5_000,
+  });
+
+  const handleGenerate = async (id: string, reportType: string, label = id) => {
     setGenerating(id);
     try {
-      if (framework) {
-        const days = period === "24h" ? 1 : period === "7j" ? 7 : period === "30j" ? 30 : 90;
-        const blob = await reportsApi.downloadReport(framework, days);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `LogPlus_${framework.toUpperCase()}_${new Date().toISOString().slice(0, 10)}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast.success(`Rapport ${label} téléchargé`);
-      } else {
-        await new Promise((r) => setTimeout(r, 800));
-        toast.success(`Rapport « ${label} » mis en file d'attente`);
-      }
+      const days = periodToDays(period);
+      const blob = await reportsApi.generateReport(reportType, days);
+      triggerDownload(blob, `LogPlus_${reportType}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`Rapport « ${label} » généré et téléchargé`);
+      qc.invalidateQueries({ queryKey: ["report-history"] });
     } catch {
-      toast.error("Erreur lors de la génération");
+      toast.error("Erreur lors de la génération du rapport");
     } finally {
       setGenerating(null);
     }
   };
 
-  const toggleSource = (s: string) => {
+  const handleGenerateCustom = async () => {
+    setGenerating("custom");
+    try {
+      const days = periodToDays(period);
+      const blob = await reportsApi.exportCustom(checkedSources, days, format);
+      triggerDownload(blob, `LogPlus_custom_${new Date().toISOString().slice(0, 10)}.${format}`);
+      toast.success("Rapport personnalisé généré et téléchargé");
+      qc.invalidateQueries({ queryKey: ["report-history"] });
+    } catch {
+      toast.error("Erreur lors de la génération du rapport");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleDownloadHistoryItem = async (id: string, label: string, fmt: string) => {
+    try {
+      const blob = await reportsApi.downloadHistoryItem(id);
+      triggerDownload(blob, `${label.replace(/\s+/g, "_")}.${fmt}`);
+    } catch {
+      toast.error("Erreur lors du téléchargement");
+    }
+  };
+
+  const toggleSource = (code: string) => {
     setCheckedSources((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      prev.includes(code) ? prev.filter((x) => x !== code) : [...prev, code]
     );
   };
 
@@ -261,7 +301,7 @@ export default function ReportsPage() {
                   {/* Action */}
                   <button
                     className="btn btn-primary"
-                    onClick={() => handleGenerate(p.id, p.framework, p.title)}
+                    onClick={() => handleGenerate(p.id, p.reportType, p.title)}
                     disabled={!!generating}
                     style={{ flexShrink: 0, minWidth: 110 }}
                   >
@@ -370,10 +410,10 @@ export default function ReportsPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   {sources.map((s) => {
-                    const checked = checkedSources.includes(s);
+                    const checked = checkedSources.includes(s.code);
                     return (
                       <label
-                        key={s}
+                        key={s.code}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -405,11 +445,11 @@ export default function ReportsPage() {
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleSource(s)}
+                          onChange={() => toggleSource(s.code)}
                           style={{ display: "none" }}
                         />
                         <span style={{ fontSize: 12.5, fontWeight: checked ? 500 : 400, color: checked ? "var(--text)" : "var(--text-2)" }}>
-                          {s}
+                          {s.label}
                         </span>
                       </label>
                     );
@@ -420,7 +460,7 @@ export default function ReportsPage() {
               <button
                 className="btn btn-primary"
                 style={{ marginTop: 4 }}
-                onClick={() => handleGenerate("custom", undefined, "Rapport personnalisé")}
+                onClick={handleGenerateCustom}
                 disabled={!!generating || checkedSources.length === 0}
               >
                 <Play size={13} />
@@ -429,7 +469,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Recent reports placeholder */}
+          {/* Recent reports */}
           <div className="card" style={{ padding: 18 }}>
             <div className="font-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
               Historique
@@ -437,17 +477,59 @@ export default function ReportsPage() {
             <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 16 }}>
               Rapports récemment générés
             </div>
-            <div
-              style={{
-                padding: "24px 0",
-                textAlign: "center",
-                color: "var(--text-2)",
-                fontSize: 12,
-              }}
-            >
-              <Download size={22} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
-              Aucun rapport généré.
-            </div>
+            {historyLoading ? (
+              <div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-2)", fontSize: 12 }}>
+                Chargement…
+              </div>
+            ) : !history || history.length === 0 ? (
+              <div
+                style={{
+                  padding: "24px 0",
+                  textAlign: "center",
+                  color: "var(--text-2)",
+                  fontSize: 12,
+                }}
+              >
+                <Download size={22} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
+                Aucun rapport généré.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {history.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => handleDownloadHistoryItem(r.id, r.label, r.format)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border)",
+                      background: "transparent",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-2)", marginTop: 2 }}>
+                        {new Date(r.created_at).toLocaleString("fr-FR")} · {formatBytes(r.file_size)}
+                      </div>
+                    </div>
+                    <span
+                      className="chip font-mono"
+                      style={{ fontSize: 10, flexShrink: 0, textTransform: "uppercase" }}
+                    >
+                      {r.format}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

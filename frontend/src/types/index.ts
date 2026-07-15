@@ -24,6 +24,9 @@ export interface AuthUser {
   is_superuser?: boolean;
   organization_id?: string | null;
   organization_name?: string | null;
+  email_notifications?: boolean;
+  critical_alert_emails?: boolean;
+  weekly_report_email?: boolean;
 }
 
 export interface Session {
@@ -572,6 +575,18 @@ export interface ComplianceFramework {
   id: string;
   label: string;
   description: string;
+}
+
+export interface GeneratedReportEntry {
+  id: string;
+  report_type: string;
+  report_type_label: string;
+  label: string;
+  format: "pdf" | "csv" | "json";
+  period_days: number;
+  file_size: number;
+  created_at: string;
+  requested_by_name: string;
 }
 
 // ─── Threat Hunting ───────────────────────────────────────────────────────────

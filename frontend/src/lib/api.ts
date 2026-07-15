@@ -22,7 +22,6 @@ import type {
   LoginCredentials,
   MLModel,
   MLPrediction,
-  MLTrainingJob,
   NormalizedLog,
   PaginatedResponse,
   Playbook,
@@ -35,6 +34,7 @@ import type {
   User,
   AuditTrailEntry,
   ComplianceFramework,
+  GeneratedReportEntry,
   LogStats,
 } from "@/types";
 import type {
@@ -94,8 +94,7 @@ api.interceptors.response.use(
         });
 
         const inner = unwrap<{ access_token: string; refresh_token?: string }>(response.data);
-        localStorage.setItem("access_token", inner.access_token);
-        if (inner.refresh_token) localStorage.setItem("refresh_token", inner.refresh_token);
+        useAuthStore.getState().updateTokens(inner.access_token, inner.refresh_token);
         originalRequest.headers.Authorization = `Bearer ${inner.access_token}`;
 
         return api(originalRequest);
@@ -143,6 +142,10 @@ export const authApi = {
   getSessions: async (): Promise<{ sessions: Session[] }> => {
     const { data } = await api.get("/api/auth/sessions/");
     return unwrap<{ sessions: Session[] }>(data);
+  },
+
+  revokeSession: async (id: string): Promise<void> => {
+    await api.delete(`/api/auth/sessions/${id}/`);
   },
 
   refreshToken: async (refresh: string): Promise<AuthTokens> => {
@@ -200,23 +203,24 @@ export const dashboardApi = {
       alerts?: {
         total_open?: number;
         all_by_severity?: Record<string, number>;
+        change_percent_24h?: number;
       };
-      logs?: { collected_last_24h?: number };
+      logs?: { collected_last_24h?: number; change_percent_24h?: number };
       connectors?: { active?: number; total?: number };
-      ml?: { anomalies_last_24h?: number };
+      ml?: { anomalies_last_24h?: number; change_percent_24h?: number };
     }>(data);
 
     const sev = raw?.alerts?.all_by_severity ?? {};
     const n = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : 0);
     return {
       open_alerts: n(raw?.alerts?.total_open),
-      open_alerts_change: 0,
+      open_alerts_change: n(raw?.alerts?.change_percent_24h),
       logs_24h: n(raw?.logs?.collected_last_24h),
-      logs_24h_change: 0,
+      logs_24h_change: n(raw?.logs?.change_percent_24h),
       active_connectors: n(raw?.connectors?.active),
       total_connectors: n(raw?.connectors?.total),
       ml_anomalies_24h: n(raw?.ml?.anomalies_last_24h),
-      ml_anomalies_change: 0,
+      ml_anomalies_change: n(raw?.ml?.change_percent_24h),
       critical_alerts: n(sev.critical),
       high_alerts: n(sev.high),
       medium_alerts: n(sev.medium),
@@ -423,6 +427,10 @@ export const correlationApi = {
     return unwrap<{ is_active: boolean }>(data);
   },
 
+  deleteRule: async (id: number): Promise<void> => {
+    await api.delete(`/api/correlation/rules/${id}/`);
+  },
+
   testRule: async (id: number): Promise<RuleTestResult> => {
     const { data } = await api.post(`/api/correlation/rules/${id}/test/`);
     return unwrap<RuleTestResult>(data);
@@ -437,9 +445,16 @@ export const mlApi = {
     return unwrap<MLModel[]>(data);
   },
 
-  trainModel: async (config: { contamination: number }): Promise<MLTrainingJob> => {
+  trainModel: async (config: { contamination: number }): Promise<{ task_id: string; status: string }> => {
     const { data } = await api.post("/api/ml/train/", config);
-    return unwrap<MLTrainingJob>(data);
+    return unwrap<{ task_id: string; status: string }>(data);
+  },
+
+  getTrainStatus: async (
+    taskId: string
+  ): Promise<{ task_id: string; status: string; result?: unknown; error?: string }> => {
+    const { data } = await api.get(`/api/ml/train/${taskId}/status/`);
+    return unwrap<{ task_id: string; status: string; result?: unknown; error?: string }>(data);
   },
 
   getPredictions: async (anomalyOnly = true): Promise<PaginatedResponse<MLPrediction>> => {
@@ -473,6 +488,11 @@ export const collectorsApi = {
   testConnection: async (id: string): Promise<{ success: boolean; latency_ms?: number; message?: string }> => {
     const { data } = await api.post(`/api/collectors/connectors/${id}/test/`);
     return unwrap<{ success: boolean; latency_ms?: number; message?: string }>(data);
+  },
+
+  updateConnector: async (id: string, updates: { is_active: boolean }): Promise<Connector> => {
+    const { data } = await api.patch(`/api/collectors/connectors/${id}/`, updates);
+    return unwrap<Connector>(data);
   },
 };
 
@@ -528,7 +548,18 @@ export const usersApi = {
     return unwrap<AuthUser>(data);
   },
 
-  updateMe: async (updates: Partial<Pick<User, "first_name" | "last_name" | "email">>): Promise<AuthUser> => {
+  updateMe: async (
+    updates: Partial<
+      Pick<
+        User,
+        "first_name" | "last_name" | "email"
+      > & {
+        email_notifications: boolean;
+        critical_alert_emails: boolean;
+        weekly_report_email: boolean;
+      }
+    >
+  ): Promise<AuthUser> => {
     const { data } = await api.patch("/api/users/me/", updates);
     return unwrap<AuthUser>(data);
   },
@@ -654,6 +685,40 @@ export const reportsApi = {
   downloadReport: async (framework: string, period: number): Promise<Blob> => {
     const response = await api.get("/api/reports/compliance/", {
       params: { framework, period },
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  /** Rapports PDF (SOC hebdo, top menaces, activité utilisateurs, frameworks). */
+  generateReport: async (type: string, periodDays: number): Promise<Blob> => {
+    const response = await api.get("/api/reports/generate/", {
+      params: { type, period: periodDays },
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  /** Rapport personnalisé (sources sélectionnées, période, format pdf/csv/json). */
+  exportCustom: async (
+    sources: string[],
+    periodDays: number,
+    format: "pdf" | "csv" | "json"
+  ): Promise<Blob> => {
+    const response = await api.get("/api/reports/export/", {
+      params: { sources: sources.join(","), period: periodDays, format },
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  getHistory: async (): Promise<GeneratedReportEntry[]> => {
+    const { data } = await api.get("/api/reports/history/");
+    return unwrap<GeneratedReportEntry[]>(data);
+  },
+
+  downloadHistoryItem: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/api/reports/history/${id}/download/`, {
       responseType: "blob",
     });
     return response.data;

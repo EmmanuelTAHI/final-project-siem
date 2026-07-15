@@ -20,6 +20,7 @@ from .views import (
     PasswordResetRequestView,
     RegisterView,
     ResendOTPView,
+    SessionRevokeView,
     TokenRefreshView,
     VerifyEmailView,
     VerifyLinkPinView,
@@ -35,6 +36,7 @@ urlpatterns = [
     path("password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("sessions/", ActiveSessionsView.as_view(), name="auth-sessions"),
+    path("sessions/<int:session_id>/", SessionRevokeView.as_view(), name="auth-session-revoke"),
 
     # OAuth ingestion connecteurs (existant)
     path("oauth/microsoft/initiate/", MicrosoftOAuthInitiateView.as_view(), name="oauth-microsoft-initiate"),

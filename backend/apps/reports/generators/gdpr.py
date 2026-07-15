@@ -4,6 +4,10 @@ from datetime import timedelta
 from django.utils import timezone
 from reportlab.platypus import Paragraph, Spacer
 
+from apps.alerts.models import Alert
+from apps.logs.models import NormalizedLog
+from apps.users.models import AuditTrail
+
 from .base import BaseReportGenerator, make_table
 
 
@@ -12,10 +16,6 @@ class GDPRReportGenerator(BaseReportGenerator):
     TITLE = "Rapport de conformité RGPD (Règlement Général sur la Protection des Données)"
 
     def collect_data(self) -> dict:
-        from apps.alerts.models import Alert
-        from apps.logs.models import NormalizedLog
-        from apps.users.models import AuditTrail, User
-
         cutoff = timezone.now() - timedelta(days=self.period_days)
         logs = NormalizedLog.objects.filter(organization_id=self.organization_id, indexed_at__gte=cutoff)
         alerts = Alert.objects.filter(organization_id=self.organization_id, created_at__gte=cutoff)
