@@ -39,7 +39,7 @@ def _import_rule_class(class_path: str):
 class CorrelationEngine:
     """
     Moteur principal de corrélation.
-    Tourne en boucle via Celery Beat toutes les 2 minutes.
+    Tourne en boucle via Celery Beat toutes les 20 secondes.
     """
 
     def __init__(self):

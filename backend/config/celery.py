@@ -3,6 +3,7 @@ Configuration Celery + Celery Beat pour Log+.
 PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026
 """
 import os
+from datetime import timedelta
 
 from celery import Celery
 from celery.schedules import crontab
@@ -36,10 +37,11 @@ app.conf.beat_schedule = {
         "task": "apps.collectors.tasks.collect_all_syslog_connectors",
         "schedule": crontab(minute="*/2"),
     },
-    # Moteur de corrélation — toutes les 2 minutes
+    # Moteur de corrélation — toutes les 20s (crontab ne descend pas sous la
+    # minute, on utilise donc un timedelta pour un quasi temps-réel côté SOC).
     "run-correlation-engine": {
         "task": "apps.correlation.tasks.run_correlation_engine",
-        "schedule": crontab(minute="*/2"),
+        "schedule": timedelta(seconds=20),
     },
     # Inférence ML — toutes les 10 minutes
     "run-ml-inference": {

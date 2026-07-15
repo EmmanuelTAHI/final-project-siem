@@ -16,7 +16,7 @@ def run_correlation_engine(self):
     """
     Exécute le moteur de corrélation sur les nouveaux logs.
     Stocke l'horodatage de la dernière exécution dans Redis.
-    Planifié toutes les 2 minutes par Celery Beat.
+    Planifié toutes les 20 secondes par Celery Beat.
     """
     from apps.correlation.engine import correlation_engine
     from django.utils import timezone
