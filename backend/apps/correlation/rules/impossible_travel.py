@@ -45,7 +45,13 @@ class ImpossibleTravelRule(BaseRule):
             if len(user_logs) < 2:
                 continue
 
-            # Vérifier les paires de logs avec des pays différents
+            # Une alerte par PAIRE DE PAYS distincte (pas juste la première
+            # trouvée) : un utilisateur qui enchaîne FR→US→DE déclenche 2
+            # paires différentes (FR/US, US/DE), donc 2 alertes. On dédup
+            # seulement les paires identiques (ex: repasser deux fois par le
+            # même couple de pays ne recrée pas un doublon dans ce cycle —
+            # `_create_alert_if_new` gère la dédup inter-cycles).
+            seen_pairs = set()
             for i in range(len(user_logs)):
                 for j in range(i + 1, len(user_logs)):
                     log_a = user_logs[i]
@@ -58,6 +64,11 @@ class ImpossibleTravelRule(BaseRule):
                     time_diff = abs((log_b.event_time - log_a.event_time).total_seconds())
                     if time_diff > window_seconds:
                         continue
+
+                    pair_key = frozenset((log_a.geo_country, log_b.geo_country))
+                    if pair_key in seen_pairs:
+                        continue
+                    seen_pairs.add(pair_key)
 
                     match = RuleMatch(
                         matched_logs=[log_a, log_b],
@@ -79,10 +90,5 @@ class ImpossibleTravelRule(BaseRule):
                         log_b.geo_country,
                         time_diff,
                     )
-                    # Une seule alerte par utilisateur par cycle
-                    break
-                else:
-                    continue
-                break
 
         return matches

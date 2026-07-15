@@ -147,14 +147,18 @@ class CorrelationEngine:
         """
         Crée une alerte si aucune alerte similaire n'est déjà ouverte.
         Déduplique sur (rule, user_email) avec statut open ou in_progress.
-        Pour les règles Wazuh, la déduplication inclut le wazuh_rule_id pour éviter
-        qu'un unique alert ouvert bloque tous les événements suivants pour le même user.
+        Pour les règles Wazuh, la déduplication inclut le wazuh_rule_id, et pour
+        Impossible Travel la paire de pays, afin de permettre plusieurs alertes
+        distinctes pour le même user (évènements différents) sans qu'une seule
+        alerte ouverte ne bloque toutes les suivantes.
         """
         from apps.alerts.models import Alert
         from apps.correlation.models import RuleMatch as RuleMatchModel
 
         user_email = match.context.get("user_email", "")
         wazuh_rule_id = match.context.get("wazuh_rule_id", "")
+        country_1 = match.context.get("country_1", "")
+        country_2 = match.context.get("country_2", "")
 
         # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/user
         existing = Alert.objects.filter(
@@ -168,6 +172,13 @@ class CorrelationEngine:
         # pour permettre plusieurs alertes différentes pour le même user
         if wazuh_rule_id and existing.exists():
             existing = existing.filter(description__icontains=wazuh_rule_id)
+
+        # Pour Impossible Travel, affiner par la paire de pays concernée :
+        # FR↔US et US↔DE sont deux évènements distincts pour le même user.
+        if country_1 and country_2 and existing.exists():
+            existing = existing.filter(
+                description__icontains=country_1
+            ).filter(description__icontains=country_2)
 
         if existing.exists():
             logger.debug(
