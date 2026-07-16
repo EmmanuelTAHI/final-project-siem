@@ -92,13 +92,29 @@ class LoginView(APIView):
 
         user = authenticate(request, username=email, password=password)
         if not user:
+            failed_ip = get_client_ip(request)
+            failed_ua = request.META.get("HTTP_USER_AGENT")
             AuditTrail.log(
                 action="login_failed",
                 target_model="User",
-                ip_address=get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT"),
+                ip_address=failed_ip,
+                user_agent=failed_ua,
                 extra_data={"email": email},
             )
+            # Attaché à l'organisation du compte ciblé (si connu) pour que
+            # l'isolation multi-tenant du moteur de corrélation s'applique ;
+            # la réponse HTTP reste générique, aucune info n'est divulguée.
+            known_user = User.objects.filter(email=email).first()
+            try:
+                record_platform_login(
+                    user_email=email,
+                    success=False,
+                    organization=known_user.organization if known_user else None,
+                    ip_address=failed_ip,
+                    user_agent=failed_ua,
+                )
+            except Exception:
+                logger.exception("record_platform_login failed")
             return error_response(
                 message="Email ou mot de passe incorrect.",
                 http_status=status.HTTP_401_UNAUTHORIZED,
