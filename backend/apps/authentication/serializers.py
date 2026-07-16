@@ -87,9 +87,7 @@ class RegisterSerializer(serializers.Serializer):
     def validate_email(self, value):
         value = value.strip().lower()
         if User.objects.filter(email__iexact=value).exists():
-            # Pas de distinction de message ici — la vue renvoie un succès
-            # générique dans tous les cas pour éviter l'énumération de comptes.
-            pass
+            raise serializers.ValidationError("Un compte avec cet email existe déjà.")
         return value
 
     def validate_password(self, value):

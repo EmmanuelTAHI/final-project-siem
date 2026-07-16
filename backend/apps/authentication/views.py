@@ -397,14 +397,10 @@ class RegisterView(APIView):
             )
 
         data = serializer.validated_data
-        generic_message = (
-            "Si cette adresse n'est pas déjà utilisée, un email de "
-            "confirmation vient d'être envoyé pour activer votre organisation."
+        success_message = (
+            "Organisation créée. Un email de confirmation vient d'être "
+            "envoyé pour activer votre compte."
         )
-
-        # Pas d'énumération de compte : réponse générique même si l'email existe déjà.
-        if User.objects.filter(email__iexact=data["email"]).exists():
-            return success_response(message=generic_message)
 
         with transaction.atomic():
             organization = Organization.objects.create(
@@ -433,7 +429,7 @@ class RegisterView(APIView):
             ip_address=get_client_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT"),
         )
-        return success_response(message=generic_message, http_status=status.HTTP_201_CREATED)
+        return success_response(message=success_message, http_status=status.HTTP_201_CREATED)
 
 
 class VerifyEmailView(APIView):

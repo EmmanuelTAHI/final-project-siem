@@ -105,8 +105,8 @@ export default function RegisterPage() {
           <div style={{ fontSize: 13, color: "var(--text-2)", margin: "20px 0", lineHeight: 1.55, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <CheckCircle2 size={18} color="#06D6A0" style={{ flexShrink: 0, marginTop: 2 }} />
             <span>
-              Si cette adresse n&apos;est pas déjà utilisée, un email de confirmation vient
-              d&apos;être envoyé. Cliquez sur le lien reçu pour activer votre compte administrateur,
+              Organisation créée. Un email de confirmation vient d&apos;être envoyé à{" "}
+              {email}. Cliquez sur le lien reçu pour activer votre compte administrateur,
               puis <Link href="/login" style={{ color: "var(--primary, #3B82F6)" }}>connectez-vous</Link>.
             </span>
           </div>
