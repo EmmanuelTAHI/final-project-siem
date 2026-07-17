@@ -257,9 +257,9 @@ export default function CollectorsPage() {
     const t = toast.loading(`Test de connexion ${connector.display_name}…`);
     try {
       const result = await collectorsApi.testConnection(connector.id);
-      if (result.success) {
+      if (result.reachable) {
         const latency = result.latency_ms != null ? ` (${result.latency_ms} ms)` : "";
-        toast.success(`${connector.display_name} : connexion OK${latency}`, { id: t });
+        toast.success(result.message ? `${connector.display_name} : ${result.message}` : `${connector.display_name} : connexion OK${latency}`, { id: t });
       } else {
         toast.error(`${connector.display_name} : ${result.message ?? "connexion échouée"}`, { id: t });
       }

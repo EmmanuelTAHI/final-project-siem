@@ -485,9 +485,14 @@ export const collectorsApi = {
     return unwrap<{ job_id: string; status: string }>(data);
   },
 
-  testConnection: async (id: string): Promise<{ success: boolean; latency_ms?: number; message?: string }> => {
+  testConnection: async (id: string): Promise<{ reachable: boolean; latency_ms?: number; message?: string }> => {
     const { data } = await api.post(`/api/collectors/connectors/${id}/test/`);
-    return unwrap<{ success: boolean; latency_ms?: number; message?: string }>(data);
+    // Le backend renvoie systématiquement "reachable" (voir
+    // apps/collectors/sources/*_collector.py::test_connection, les 4 types
+    // de connecteurs), jamais "success" — c'était le nom attendu ici avant
+    // ce fix, donc le test affichait toujours un toast d'échec même quand
+    // la connexion était parfaitement fonctionnelle.
+    return unwrap<{ reachable: boolean; latency_ms?: number; message?: string }>(data);
   },
 
   updateConnector: async (id: string, updates: { is_active: boolean }): Promise<Connector> => {
