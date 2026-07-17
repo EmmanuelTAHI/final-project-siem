@@ -4,12 +4,13 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Database, Play, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff,
-  Clock, AlertTriangle, Plus, KeyRound,
+  Clock, AlertTriangle, Plus, KeyRound, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatNumber, timeAgo } from "@/lib/utils";
 import { useConnectors, useCollectorJobs } from "@/hooks/use-collectors";
 import { collectorsApi } from "@/lib/api";
@@ -233,6 +234,8 @@ export default function CollectorsPage() {
   const [collectingId, setCollectingId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCollect = async (connector: Connector) => {
     setCollectingId(connector.id);
@@ -265,6 +268,21 @@ export default function CollectorsPage() {
       toast.error(msg ?? `${connector.display_name} : connexion échouée`, { id: t });
     } finally {
       setTestingId(null);
+    }
+  };
+
+  const handleDelete = async (connector: Connector) => {
+    setDeletingId(connector.id);
+    try {
+      await collectorsApi.deleteConnector(connector.id);
+      toast.success(`${connector.display_name} : connecteur supprimé`);
+      refetch();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? `${connector.display_name} : erreur lors de la suppression`);
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -407,6 +425,17 @@ export default function CollectorsPage() {
                   <Wifi className="w-3 h-3" />
                   Tester
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmDeleteId(connector.id)}
+                  disabled={deletingId === connector.id}
+                  loading={deletingId === connector.id}
+                  className="gap-1.5 text-xs text-destructive hover:text-destructive"
+                  title="Supprimer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             </motion.div>
           );
@@ -418,6 +447,24 @@ export default function CollectorsPage() {
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onCreated={() => refetch()}
+      />
+
+      {/* Confirmation de suppression */}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          const connector = connectors.find((c) => c.id === confirmDeleteId);
+          if (connector) handleDelete(connector);
+        }}
+        title="Supprimer le connecteur"
+        description={
+          confirmDeleteId
+            ? `Êtes-vous sûr de vouloir supprimer « ${connectors.find((c) => c.id === confirmDeleteId)?.display_name ?? ""} » ? La collecte de logs pour cette source s'arrêtera immédiatement. Cette action est irréversible.`
+            : ""
+        }
+        confirmLabel="Supprimer"
+        loading={deletingId !== null}
       />
 
       {/* Jobs history */}

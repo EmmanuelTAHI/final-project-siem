@@ -494,6 +494,10 @@ export const collectorsApi = {
     const { data } = await api.patch(`/api/collectors/connectors/${id}/`, updates);
     return unwrap<Connector>(data);
   },
+
+  deleteConnector: async (id: string): Promise<void> => {
+    await api.delete(`/api/collectors/connectors/${id}/`);
+  },
 };
 
 // ─── Agents (enrôlement) API ────────────────────────────────────────────────────
