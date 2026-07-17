@@ -4,10 +4,12 @@ Vues pour les logs bruts, normalisés et les statistiques.
 import logging
 from datetime import timedelta
 
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.db.models.expressions import RawSQL
 from django.db.models.functions import TruncHour, TruncDay
 from django.utils import timezone
-from rest_framework import filters
+from django.utils.dateparse import parse_datetime
+from rest_framework import filters, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,7 +17,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from utils.pagination import LargeResultsPagination, StandardResultsPagination
 from utils.permissions import IsAnalyst
-from utils.response import success_response
+from utils.response import error_response, success_response
 from utils.tenant import OrganizationFilterBackend
 
 from .filters import NormalizedLogFilter, RawLogFilter
@@ -75,6 +77,138 @@ class NormalizedLogViewSet(ReadOnlyModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         log = self.get_object()
         return success_response(data=self.get_serializer(log).data)
+
+
+# Champs sur lesquels calculer les facettes (valeurs les plus fréquentes) —
+# équivalent des "interesting fields" de Splunk / des aggregations Elastic.
+FACET_FIELDS = ["source_type", "severity", "action", "user_email", "source_ip", "geo_country", "outcome"]
+# Champs texte pouvant être stockés en chaîne vide (à exclure des facettes en
+# plus des NULL) — source_ip (inet) ne peut pas être une chaîne vide.
+BLANK_EXCLUDABLE_FACET_FIELDS = {"source_type", "action", "user_email", "geo_country"}
+
+# Paliers de largeur de bucket (secondes), du plus fin au plus grossier.
+_INTERVAL_CANDIDATES_SECONDS = [
+    30, 60, 300, 900, 1800, 3600, 3 * 3600, 6 * 3600, 12 * 3600,
+    86400, 2 * 86400, 7 * 86400, 30 * 86400,
+]
+
+
+def _pick_interval_seconds(span_seconds: float) -> int:
+    """Choisit la largeur de bucket visant ~60-100 barres, quelle que soit
+    la plage temporelle — même principe que le timeline picker de
+    Splunk/Kibana (résolution adaptative)."""
+    if span_seconds <= 0:
+        return 60
+    for step in _INTERVAL_CANDIDATES_SECONDS:
+        if span_seconds / step <= 100:
+            return step
+    return _INTERVAL_CANDIDATES_SECONDS[-1]
+
+
+class LogHistogramView(APIView):
+    """
+    GET /api/logs/histogram/
+    Histogramme temporel (bucketing adaptatif, empilé par sévérité) +
+    facettes agrégées — filtré par les mêmes critères que
+    /api/logs/normalized/ (recherche, sévérité multi, source, action,
+    utilisateur, IP, plage de dates via event_time_from/event_time_to).
+
+    Remplace le faux histogramme généré côté frontend (Math.sin() codé en
+    dur, jamais connecté à aucune donnée réelle) par de vraies agrégations
+    SQL portant sur l'ensemble des résultats correspondant aux filtres —
+    pas seulement la page actuellement affichée.
+    """
+
+    permission_classes = [IsAnalyst]
+
+    def get(self, request):
+        user = request.user
+        if user.is_superuser and user.organization_id is None:
+            base_qs = NormalizedLog.objects.none()
+        else:
+            base_qs = NormalizedLog.objects.filter(organization_id=user.organization_id)
+
+        filterset = NormalizedLogFilter(request.query_params, queryset=base_qs)
+        if not filterset.is_valid():
+            return error_response(
+                message="Paramètres de filtre invalides.",
+                errors=filterset.errors,
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = filterset.qs
+
+        # Bornes temporelles : celles du filtre si fournies, sinon les 24
+        # dernières heures par défaut (cohérent avec le reste de l'app).
+        now = timezone.now()
+        event_from_raw = request.query_params.get("event_time_from")
+        event_to_raw = request.query_params.get("event_time_to")
+        range_from = (parse_datetime(event_from_raw) if event_from_raw else None) or (now - timedelta(hours=24))
+        range_to = (parse_datetime(event_to_raw) if event_to_raw else None) or now
+
+        span_seconds = max((range_to - range_from).total_seconds(), 1)
+        requested_interval = request.query_params.get("interval")
+        try:
+            step_seconds = int(requested_interval) if requested_interval else _pick_interval_seconds(span_seconds)
+        except ValueError:
+            step_seconds = _pick_interval_seconds(span_seconds)
+        step_seconds = max(step_seconds, 1)
+
+        # Bucketing à largeur arbitraire : Django ne propose que des Trunc
+        # fixes (Minute/Hour/Day...), donc expression SQL directe
+        # équivalente à date_trunc mais paramétrable en secondes.
+        bucket_expr = RawSQL(
+            "to_timestamp(floor(extract(epoch from event_time) / %s) * %s)",
+            [step_seconds, step_seconds],
+        )
+
+        rows = (
+            queryset
+            .annotate(bucket=bucket_expr)
+            .values("bucket")
+            .annotate(
+                count=Count("id"),
+                critical=Count("id", filter=Q(severity="critical")),
+                high=Count("id", filter=Q(severity="high")),
+                medium=Count("id", filter=Q(severity="medium")),
+                low=Count("id", filter=Q(severity="low")),
+                info=Count("id", filter=Q(severity="info")),
+            )
+            .order_by("bucket")
+        )
+
+        buckets = [
+            {
+                "t": row["bucket"].isoformat(),
+                "count": row["count"],
+                "critical": row["critical"],
+                "high": row["high"],
+                "medium": row["medium"],
+                "low": row["low"],
+                "info": row["info"],
+            }
+            for row in rows
+            if row["bucket"] is not None
+        ]
+
+        facets = {}
+        for field in FACET_FIELDS:
+            field_qs = queryset.exclude(**{f"{field}__isnull": True})
+            if field in BLANK_EXCLUDABLE_FACET_FIELDS:
+                field_qs = field_qs.exclude(**{field: ""})
+            top = field_qs.values(field).annotate(count=Count("id")).order_by("-count")[:8]
+            facets[field] = [{"value": str(row[field]), "count": row["count"]} for row in top]
+
+        return success_response(
+            data={
+                "total": queryset.count(),
+                "interval_seconds": step_seconds,
+                "range_from": range_from.isoformat(),
+                "range_to": range_to.isoformat(),
+                "buckets": buckets,
+                "facets": facets,
+            },
+            message="Histogramme calculé.",
+        )
 
 
 class LogStatsView(APIView):
