@@ -243,6 +243,39 @@ export interface LogStats {
   by_action: Array<{ action: string; count: number }>;
 }
 
+export interface LogHistogramBucket {
+  t: string;
+  count: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export type LogFacetField =
+  | "source_type"
+  | "severity"
+  | "action"
+  | "user_email"
+  | "source_ip"
+  | "geo_country"
+  | "outcome";
+
+export interface LogFacetValue {
+  value: string;
+  count: number;
+}
+
+export interface LogHistogramResponse {
+  total: number;
+  interval_seconds: number;
+  range_from: string;
+  range_to: string;
+  buckets: LogHistogramBucket[];
+  facets: Record<LogFacetField, LogFacetValue[]>;
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardSummary {

@@ -36,6 +36,7 @@ import type {
   ComplianceFramework,
   GeneratedReportEntry,
   LogStats,
+  LogHistogramResponse,
 } from "@/types";
 import type {
   LinkedAccount,
@@ -365,12 +366,40 @@ export const alertsApi = {
 
 export interface LogsQueryParams {
   action?: string;
-  severity?: string;
+  // Sévérité/outcome en multi-sélection : le backend (NormalizedLogFilter)
+  // attend des paramètres répétés (?severity=high&severity=critical), pas
+  // de notation à crochets — voir buildLogQueryString ci-dessous.
+  severity?: string[];
+  outcome?: string[];
   user_email?: string;
   search?: string;
   source_type?: string;
+  source_ip?: string;
+  event_time_from?: string;
+  event_time_to?: string;
+  interval?: number;
+  ordering?: string;
   page?: number;
   page_size?: number;
+}
+
+/**
+ * Construit une query string à partir de LogsQueryParams en sérialisant les
+ * tableaux (severity, outcome) en paramètres répétés — le comportement par
+ * défaut d'axios pour les tableaux (souvent `key[]=`) n'est pas celui que
+ * django-filter attend côté backend.
+ */
+function buildLogQueryString(params: LogsQueryParams): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    if (Array.isArray(value)) {
+      value.forEach((v) => v !== "" && search.append(key, String(v)));
+    } else {
+      search.append(key, String(value));
+    }
+  });
+  return search.toString();
 }
 
 // Le serializer backend expose event_time / extra_fields ; la UI logs lit
@@ -393,7 +422,7 @@ function mapLog(raw: Record<string, unknown>): NormalizedLog {
 
 export const logsApi = {
   getLogs: async (params: LogsQueryParams = {}): Promise<PaginatedResponse<NormalizedLog>> => {
-    const { data } = await api.get("/api/logs/normalized/", { params });
+    const { data } = await api.get(`/api/logs/normalized/?${buildLogQueryString(params)}`);
     const page = unwrapPaginated<Record<string, unknown>>(data);
     return { ...page, results: page.results.map(mapLog) };
   },
@@ -401,6 +430,11 @@ export const logsApi = {
   getStats: async (): Promise<LogStats> => {
     const { data } = await api.get("/api/logs/stats/");
     return unwrap<LogStats>(data);
+  },
+
+  getHistogram: async (params: LogsQueryParams = {}): Promise<LogHistogramResponse> => {
+    const { data } = await api.get(`/api/logs/histogram/?${buildLogQueryString(params)}`);
+    return unwrap<LogHistogramResponse>(data);
   },
 };
 
