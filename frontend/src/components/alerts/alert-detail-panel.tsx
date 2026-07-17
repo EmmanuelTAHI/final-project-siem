@@ -16,6 +16,7 @@ import {
   UserPlus,
   FileText,
   ChevronDown,
+  Ticket as TicketIcon,
 } from "lucide-react";
 import { SeverityBadge } from "./severity-badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, timeAgo, formatDate, statusColors, statusLabels } from "@/lib/utils";
 import { IpLink } from "@/components/common/ip-link";
+import { CreateTicketModal } from "@/components/tickets/create-ticket-modal";
 import type { Alert, AlertStatus } from "@/types";
 import toast from "react-hot-toast";
 import { alertsApi } from "@/lib/api";
@@ -44,6 +46,7 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   const handleStatusChange = async (status: AlertStatus) => {
     if (!alert) return;
@@ -221,6 +224,15 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
                       <XCircle className="w-3 h-3" />
                       Faux positif
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowTicketModal(true)}
+                      className="text-xs h-7 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      <TicketIcon className="w-3 h-3" />
+                      Créer un ticket
+                    </Button>
                   </div>
                 </div>
 
@@ -322,6 +334,17 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
               </div>
             </ScrollArea>
           </motion.div>
+
+          <CreateTicketModal
+            open={showTicketModal}
+            onClose={() => setShowTicketModal(false)}
+            fromAlert={{
+              id: String(alert.id),
+              title: alert.title,
+              description: alert.description,
+              severity: alert.severity,
+            }}
+          />
         </>
       )}
     </AnimatePresence>

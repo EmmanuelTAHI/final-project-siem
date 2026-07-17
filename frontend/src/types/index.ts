@@ -212,6 +212,86 @@ export interface AlertStats {
   };
 }
 
+// ─── Tickets ──────────────────────────────────────────────────────────────────
+
+export type TicketStatus = "open" | "in_progress" | "pending" | "resolved" | "closed";
+export type TicketPriority = "low" | "medium" | "high" | "critical";
+
+export interface TicketUserBrief {
+  id: string;
+  email: string;
+  full_name: string;
+}
+
+export interface TicketComment {
+  id: string;
+  ticket: string;
+  author: string | null;
+  author_email: string | null;
+  author_full_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export type TicketActivityAction =
+  | "created"
+  | "status_changed"
+  | "priority_changed"
+  | "assigned"
+  | "commented"
+  | "updated";
+
+export interface TicketActivity {
+  id: string;
+  ticket: string;
+  actor: string | null;
+  actor_email: string | null;
+  actor_full_name: string | null;
+  action: TicketActivityAction;
+  action_display: string;
+  from_value: string;
+  to_value: string;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  display_id: string;
+  number: number;
+  title: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  alert: string | null;
+  alert_title?: string | null;
+  alert_severity?: AlertSeverity | null;
+  reporter?: TicketUserBrief | null;
+  reporter_email?: string | null;
+  assignee: TicketUserBrief | null;
+  assignee_email?: string | null;
+  assignee_full_name?: string | null;
+  due_date: string | null;
+  is_overdue: boolean;
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  closed_at: string | null;
+  comments_count: number;
+  comments?: TicketComment[];
+  activities?: TicketActivity[];
+}
+
+export interface TicketStats {
+  by_status: Partial<Record<TicketStatus, number>>;
+  by_priority: Partial<Record<TicketPriority, number>>;
+  mttr_hours: number | null;
+  overdue_count: number;
+  unassigned_count: number;
+  open_count: number;
+  total: number;
+}
+
 // ─── Logs ─────────────────────────────────────────────────────────────────────
 
 // Taxonomie réelle du backend (normalizer) : high / medium / low.

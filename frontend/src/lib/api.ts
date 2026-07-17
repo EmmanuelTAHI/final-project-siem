@@ -37,6 +37,11 @@ import type {
   GeneratedReportEntry,
   LogStats,
   LogHistogramResponse,
+  Ticket,
+  TicketStats,
+  TicketUserBrief,
+  TicketPriority,
+  TicketStatus,
 } from "@/types";
 import type {
   LinkedAccount,
@@ -359,6 +364,75 @@ export const alertsApi = {
   getStats: async (): Promise<AlertStats> => {
     const { data } = await api.get("/api/alerts/stats/");
     return unwrap<AlertStats>(data);
+  },
+};
+
+// ─── Tickets API ──────────────────────────────────────────────────────────────
+
+export interface TicketsQueryParams {
+  status?: string;
+  priority?: string;
+  assignee?: string;
+  alert?: string;
+  search?: string;
+  unassigned?: boolean;
+  overdue?: boolean;
+  ordering?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface TicketCreateInput {
+  title: string;
+  description?: string;
+  priority?: TicketPriority;
+  status?: TicketStatus;
+  alert?: string;
+  assignee?: string | null;
+  due_date?: string | null;
+}
+
+export const ticketsApi = {
+  getTickets: async (params: TicketsQueryParams = {}): Promise<PaginatedResponse<Ticket>> => {
+    const { data } = await api.get("/api/tickets/", { params });
+    return unwrapPaginated<Ticket>(data);
+  },
+
+  getTicket: async (id: string): Promise<Ticket> => {
+    const { data } = await api.get(`/api/tickets/${id}/`);
+    return unwrap<Ticket>(data);
+  },
+
+  createTicket: async (input: TicketCreateInput): Promise<Ticket> => {
+    const { data } = await api.post("/api/tickets/", input);
+    return unwrap<Ticket>(data);
+  },
+
+  updateTicket: async (
+    id: string,
+    updates: Partial<Omit<Ticket, "assignee">> & { assignee?: string | null },
+  ): Promise<Ticket> => {
+    const { data } = await api.patch(`/api/tickets/${id}/`, updates);
+    return unwrap<Ticket>(data);
+  },
+
+  deleteTicket: async (id: string): Promise<void> => {
+    await api.delete(`/api/tickets/${id}/`);
+  },
+
+  addComment: async (id: string, content: string): Promise<Ticket> => {
+    const { data } = await api.post(`/api/tickets/${id}/comments/`, { content });
+    return unwrap<Ticket>(data);
+  },
+
+  getStats: async (): Promise<TicketStats> => {
+    const { data } = await api.get("/api/tickets/stats/");
+    return unwrap<TicketStats>(data);
+  },
+
+  getAssignableUsers: async (): Promise<TicketUserBrief[]> => {
+    const { data } = await api.get("/api/tickets/assignable-users/");
+    return unwrap<TicketUserBrief[]>(data);
   },
 };
 

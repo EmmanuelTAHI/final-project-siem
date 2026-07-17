@@ -21,6 +21,7 @@ import {
   Moon,
   Cpu,
   BookOpen,
+  Ticket,
 } from "lucide-react";
 import { cn, getInitials, getDocsUrl } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -62,6 +63,7 @@ const sections: NavSection[] = [
     label: "Détection",
     items: [
       { label: "Alertes", href: "/alerts", icon: ShieldAlert, badge: true },
+      { label: "Tickets", href: "/tickets", icon: Ticket },
       { label: "Logs", href: "/logs", icon: FileText },
       { label: "Corrélation", href: "/correlation", icon: GitBranch },
       { label: "Machine Learning", href: "/ml", icon: Brain },
