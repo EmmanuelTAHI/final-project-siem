@@ -191,9 +191,9 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
           // Légèrement transparente + flou de fond : discret en permanence,
           // et surtout utile en overlay (survol) où elle recouvre le
           // contenu sans le masquer complètement.
-          background: "color-mix(in srgb, var(--surface) 92%, transparent)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          background: "color-mix(in srgb, var(--surface) 72%, transparent)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
           borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
