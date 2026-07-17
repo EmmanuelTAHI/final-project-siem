@@ -67,8 +67,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar — hover-controlled, self-managed */}
-      <div className="hidden lg:flex flex-shrink-0">
+      {/* Desktop sidebar — hover-controlled, self-managed.
+          Largeur réservée fixe (64px, état replié) : la sidebar elle-même se
+          positionne en absolu par-dessus le contenu quand elle s'étend au
+          survol, pour ne jamais pousser/redimensionner la page à côté. */}
+      <div className="hidden lg:block relative flex-shrink-0" style={{ width: 64 }}>
         <Sidebar />
       </div>
 

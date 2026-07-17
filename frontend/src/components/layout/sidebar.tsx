@@ -187,15 +187,22 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
         onMouseLeave={handleMouseLeave}
         style={{
           width: collapsed ? 64 : 240,
-          transition: "width 260ms cubic-bezier(.2,.8,.2,1)",
+          transition: "width 260ms cubic-bezier(.2,.8,.2,1), box-shadow 260ms ease",
           background: "var(--surface)",
           borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
-          position: "relative",
+          // Positionnée en absolu (par-dessus le contenu) plutôt qu'en flux
+          // normal : son parent (frontend/src/app/(dashboard)/layout.tsx)
+          // réserve une largeur fixe de 64px, donc l'expansion au survol ne
+          // pousse jamais la page à côté — elle se superpose simplement.
+          position: "absolute",
+          top: 0,
+          left: 0,
           zIndex: 30,
           flexShrink: 0,
           height: "100%",
+          boxShadow: collapsed ? "none" : "6px 0 24px -8px rgba(0,0,0,0.25)",
         }}
       >
         {/* ── Logo ────────────────────────────────────────────────── */}
