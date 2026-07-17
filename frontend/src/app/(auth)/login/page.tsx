@@ -430,16 +430,16 @@ function LoginPageContent() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Email</label>
+                <label htmlFor="login-email" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "block" }}>Email</label>
                 <div style={{ position: "relative" }}>
                   <Mail size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
-                  <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ paddingLeft: 36 }} autoComplete="email" />
+                  <input id="login-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ paddingLeft: 36 }} autoComplete="email" />
                 </div>
               </div>
 
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "4px 10px", marginBottom: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Mot de passe</label>
+                  <label htmlFor="login-password" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>Mot de passe</label>
                   <a
                     href="/forgot-password"
                     style={{ fontSize: 12, color: "var(--primary, #3B82F6)", textDecoration: "none", whiteSpace: "nowrap" }}
@@ -450,6 +450,7 @@ function LoginPageContent() {
                 <div style={{ position: "relative" }}>
                   <Lock size={15} style={{ position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", color: "var(--text-2)" }} />
                   <input
+                    id="login-password"
                     className="input"
                     type={showPassword ? "text" : "password"}
                     value={password}

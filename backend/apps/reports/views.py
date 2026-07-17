@@ -181,6 +181,19 @@ class ReportExportView(APIView):
     """
     permission_classes = [IsAnalyst]
 
+    def perform_content_negotiation(self, request, force=False):
+        # Cette vue construit sa propre HttpResponse (jamais un Response DRF
+        # rendu par un renderer négocié) : le renderer choisi ici n'est donc
+        # jamais réellement utilisé. On bypass la négociation par défaut de
+        # DRF car elle lit aussi le paramètre de requête "format" (réservé,
+        # `URL_FORMAT_OVERRIDE`) et levait un Http404 dès que sa valeur ne
+        # correspondait à aucun renderer déclaré (ex: ?format=csv ou
+        # ?format=pdf, alors que seul JSONRenderer est enregistré) — avant
+        # même que le paramètre "format" propre à cette vue (csv/json/pdf)
+        # ne soit lu ci-dessous.
+        renderer = self.get_renderers()[0]
+        return renderer, renderer.media_type
+
     def get(self, request):
         from apps.logs.models import NormalizedLog
 

@@ -9,6 +9,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.viewsets import ModelViewSet
 
 from apps.users.models import AuditTrail
@@ -66,6 +67,16 @@ class AlertViewSet(ModelViewSet):
         if self.action == "partial_update":
             return AlertUpdateSerializer
         return AlertSerializer
+
+    def create(self, request, *args, **kwargs):
+        # "post" reste dans http_method_names pour l'action /comments/, mais
+        # la création directe d'une alerte n'est pas un cas d'usage voulu :
+        # les alertes proviennent exclusivement du moteur de corrélation.
+        # Sans ce garde-fou, POST /api/alerts/ était silencieusement routé
+        # vers ModelViewSet.create() (validation → 400 au lieu du 405 attendu),
+        # permettant à n'importe quel rôle analyst d'injecter une alerte
+        # arbitraire — impossible à supprimer ensuite (delete non autorisé).
+        raise MethodNotAllowed("POST")
 
     def get_queryset(self):
         queryset = super().get_queryset()

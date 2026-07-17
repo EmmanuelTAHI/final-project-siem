@@ -23,7 +23,16 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/.env.local
+frontend/.env.test
 frontend/tsconfig.tsbuildinfo
+
+# ===== Playwright (frontend/e2e) =====
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+
+# ===== Audit de tests prod (contient des tokens JWT, jamais commité) =====
+backend/tests_prod_audit/.env.test
 
 # ===== Claude Code =====
 .claude/

@@ -830,7 +830,7 @@ class ActiveSessionsView(APIView):
                 'device': f"{browser} / {os}",
                 'ip': ip,
                 'location': location,
-                'current': str(token.jti) == str(current_token.get('jti', '')) if current_token else False,
+                'current': str(token.jti) == str(current_token.get('session_id', '')) if current_token else False,
                 'created_at': token.created_at.isoformat(),
                 'expires_at': token.expires_at.isoformat(),
             })
@@ -852,7 +852,7 @@ class SessionRevokeView(APIView):
     def delete(self, request, session_id):
         token = get_object_or_404(OutstandingToken, id=session_id, user=request.user)
         current_token = request.auth
-        if current_token and str(token.jti) == str(current_token.get('jti', '')):
+        if current_token and str(token.jti) == str(current_token.get('session_id', '')):
             return error_response(
                 message="Impossible de révoquer la session en cours. Utilisez la déconnexion.",
                 http_status=status.HTTP_400_BAD_REQUEST,
@@ -1329,6 +1329,13 @@ class VerifyLoginOTPView(APIView):
         refresh["is_superuser"] = user.is_superuser
         refresh["organization_id"] = str(user.organization_id) if user.organization_id else None
         refresh["organization_name"] = user.organization.name if user.organization_id else None
+        # Claim propagée à l'access token (copiée automatiquement par
+        # RefreshToken.access_token, seuls exp/iat/jti/token_type ne le sont
+        # pas) : permet de retrouver l'OutstandingToken (refresh) d'origine
+        # depuis un access token, puisque access et refresh ont des jti
+        # distincts et non comparables entre eux. Voir ActiveSessionsView /
+        # SessionRevokeView.
+        refresh["session_id"] = str(refresh["jti"])
 
         login_ip = get_client_ip(request)
         geo = geo_lookup(login_ip)
