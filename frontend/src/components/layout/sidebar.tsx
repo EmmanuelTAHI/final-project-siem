@@ -187,8 +187,13 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
         onMouseLeave={handleMouseLeave}
         style={{
           width: collapsed ? 64 : 240,
-          transition: "width 260ms cubic-bezier(.2,.8,.2,1), box-shadow 260ms ease",
-          background: "var(--surface)",
+          transition: "width 260ms cubic-bezier(.2,.8,.2,1), box-shadow 260ms ease, background-color 260ms ease",
+          // Légèrement transparente + flou de fond : discret en permanence,
+          // et surtout utile en overlay (survol) où elle recouvre le
+          // contenu sans le masquer complètement.
+          background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
