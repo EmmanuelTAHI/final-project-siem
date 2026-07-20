@@ -19,6 +19,7 @@ pour que apps.logs.normalizer.LogNormalizer._map_syslog (registre "agent")
 s'applique sans modification.
 """
 import gzip
+import json
 import logging
 
 from django.utils import timezone
@@ -86,7 +87,7 @@ class AgentLogIngestView(APIView):
         source_ip = request.META.get("REMOTE_ADDR", "")
         raw_logs = []
         for line in lines:
-            parsed = parse_syslog_message(line, source_ip)
+            parsed = self._parse_line(line, source_ip)
             raw_logs.append(
                 RawLog(
                     source_type="agent",
@@ -109,6 +110,32 @@ class AgentLogIngestView(APIView):
             message="Logs reçus.",
             http_status=201,
         )
+
+    @staticmethod
+    def _parse_line(line: str, source_ip: str) -> dict:
+        """
+        Une ligne peut être soit un objet JSON structuré (agent Log+ natif,
+        collecteur Windows Event Log / Linux — voir agent/internal/model),
+        soit une ligne syslog brute RFC3164 (agents historiques : rsyslog,
+        NXLog `to_json()` actuellement mal formé, Fluent Bit...).
+
+        Ne tente le parsing JSON que si la ligne commence par '{' (évite de
+        payer le coût sur chaque ligne syslog, qui ne matchera jamais).
+        Toute ligne JSON invalide ou ne produisant pas un objet retombe sur
+        le parsing syslog existant, sans changement de comportement.
+        """
+        stripped = line.strip()
+        if stripped.startswith("{"):
+            try:
+                data = json.loads(stripped)
+            except (ValueError, TypeError):
+                data = None
+            if isinstance(data, dict):
+                data.setdefault("source_ip", source_ip)
+                data.setdefault("received_at", timezone.now().isoformat())
+                data["agent_format"] = "json"
+                return data
+        return parse_syslog_message(line, source_ip)
 
     @staticmethod
     def _resolve_connector(token) -> ConnectorConfig:

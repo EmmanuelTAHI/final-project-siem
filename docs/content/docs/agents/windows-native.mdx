@@ -1,0 +1,90 @@
+---
+title: Windows — agent Log+ natif (recommandé)
+description: Installer l'agent Log+ natif sur Windows, sans dépendance externe
+---
+
+L'agent Log+ natif lit directement le journal d'événements Windows (API
+`wevtapi`, temps réel) et s'installe comme un vrai service Windows — aucun
+outil tiers à télécharger séparément (pas de NXLog à configurer). C'est la
+méthode recommandée pour connecter un poste ou un serveur Windows à Log+.
+
+## 1. Générer un token
+
+Dans le tableau de bord, allez dans **Agents** → **Générer un token**. Une
+fois créé, le tableau de bord affiche directement la **commande
+d'installation PowerShell complète**, token et URL déjà intégrés.
+
+## 2. Installer
+
+Ouvrez PowerShell (droits utilisateur standard suffisent, l'élévation est
+demandée automatiquement si nécessaire) et collez la commande générée :
+
+```powershell
+$s = Invoke-WebRequest -UseBasicParsing https://votre-instance.example/agents/install-windows.ps1
+Set-Content -Path "$env:TEMP\install-windows.ps1" -Value $s.Content
+& "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+Le script :
+1. relance PowerShell **en administrateur** si besoin (une seule
+   confirmation UAC) ;
+2. télécharge le binaire **depuis votre propre instance Log+** et vérifie
+   son intégrité (**SHA-256**) avant toute exécution ;
+3. installe l'agent comme **service Windows** (démarrage automatique,
+   visible dans `services.msc` sous le nom `LogplusAgent`).
+
+<Callout type="info">
+  Testez d'abord la connexion sans rien installer :
+  `logplus-agent.exe test-connection -Url <url> -Token <token>`. L'installation
+  refuse de se terminer si ce test échoue.
+</Callout>
+
+## 3. Ce qui est collecté par défaut
+
+Sans configuration supplémentaire, l'agent surveille en temps réel (pas de
+polling, abonnement natif `EvtSubscribe`) :
+- le canal **Security** (connexions, échecs d'authentification...) ;
+- le canal **System**.
+
+Pour un poste de travail plutôt qu'un serveur, adaptez les canaux surveillés
+dans `%ProgramData%\LogplusAgent\config.json` (`windows_channels`), par
+exemple en ajoutant `Microsoft-Windows-Windows Defender/Operational`.
+
+Aucun historique n'est renvoyé au premier démarrage : seuls les événements
+survenant **à partir de l'installation** sont collectés.
+
+## 4. Vérifier
+
+```powershell
+Get-Service LogplusAgent
+```
+
+Provoquez un événement de sécurité (ex. un échec de connexion volontaire) et
+vérifiez son apparition dans **Logs** sur le tableau de bord.
+
+## 5. Désinstaller
+
+```powershell
+& "$env:ProgramData\LogplusAgent\logplus-agent.exe" uninstall
+```
+
+(à exécuter en administrateur) — arrête et supprime le service, le binaire,
+la configuration et le spool local.
+
+## Sécurité
+
+- Le token est **chiffré au repos via DPAPI** (`CryptProtectData`,
+  `crypt32.dll`) : le fichier de config stocke un blob illisible hors de
+  cette machine, jamais le token en clair.
+- L'installation nécessite des droits administrateur — une tentative sans
+  élévation échoue explicitement, jamais de contournement silencieux.
+- L'agent refuse de démarrer contre une URL non-HTTPS (sauf `-Insecure`,
+  développement local uniquement).
+- Rien n'est perdu en cas de coupure réseau ou de redémarrage : chaque
+  événement est mis en file d'attente persistante sur disque avant envoi.
+- Logs de diagnostic de l'agent : `%ProgramData%\LogplusAgent\agent.log`.
+
+## Aller plus loin
+
+Pour une intégration via un outil déjà présent sur votre parc, voir la
+méthode alternative NXLog ci-dessous.

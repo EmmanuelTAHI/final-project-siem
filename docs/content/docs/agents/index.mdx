@@ -1,24 +1,35 @@
 ---
 title: Concepts
-description: Tokens d'enrôlement, connecteurs, endpoint d'ingestion
+description: Agent natif, tokens d'enrôlement, connecteurs, endpoint d'ingestion
 ---
 
 Pour envoyer les logs de vos machines (serveurs, postes de travail,
-équipements réseau) vers Log+, vous déployez un **agent** — un outil open
-source léger (rsyslog, NXLog, Fluent Bit…) déjà installé ou facile à
-installer sur la plupart des systèmes. Log+ ne réinvente pas d'agent
-propriétaire : il fournit un point d'entrée HTTP authentifié que ces outils
-savent déjà utiliser nativement.
+équipements réseau) vers Log+, vous déployez un **agent** sur chaque
+machine à surveiller.
+
+## Agent Log+ natif (recommandé)
+
+Log+ fournit son propre agent — un binaire unique, sans dépendance externe,
+pour Linux et Windows. Une PME peut déployer l'ensemble de la chaîne
+(plateforme + agents) avec uniquement ce que Log+ fournit lui-même : aucun
+logiciel tiers à installer séparément, aucune documentation externe à
+suivre.
+
+<Cards>
+  <Card title="Linux — agent natif" href="/docs/agents/linux-native" />
+  <Card title="Windows — agent natif" href="/docs/agents/windows-native" />
+</Cards>
 
 ## 1. Générer un token d'enrôlement
 
 Dans le tableau de bord, allez dans **Agents** → **Générer un token**,
 donnez-lui un nom (ex. "Serveurs web prod"). Le token est affiché **une
-seule fois** — copiez-le immédiatement dans un gestionnaire de secrets ou
-une variable d'environnement, il ne sera plus jamais récupérable.
+seule fois** — la commande d'installation complète (Linux ou Windows,
+token et URL déjà intégrés) est générée automatiquement à cet instant,
+copiez-la immédiatement.
 
 ```text
-logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 <Callout type="warn">
@@ -27,9 +38,31 @@ logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   passe. En cas de doute, révoquez-le immédiatement depuis la page Agents.
 </Callout>
 
-## 2. Configurer votre agent
+## 2. Installer l'agent
 
-Chaque outil (rsyslog, NXLog, Fluent Bit) doit envoyer une requête :
+Copiez la commande générée par le tableau de bord et exécutez-la sur la
+machine à surveiller — voir les guides détaillés :
+
+<Cards>
+  <Card title="Linux — agent natif" href="/docs/agents/linux-native" />
+  <Card title="Windows — agent natif" href="/docs/agents/windows-native" />
+</Cards>
+
+## Méthodes alternatives
+
+Si votre parc utilise déjà un outil de collecte de logs (rsyslog, NXLog,
+Fluent Bit), Log+ reste compatible : le point d'entrée HTTP authentifié
+ci-dessous fonctionne avec n'importe quel outil qui sait envoyer des
+requêtes HTTP.
+
+<Cards>
+  <Card title="Linux — rsyslog" href="/docs/agents/linux-rsyslog" />
+  <Card title="Windows — NXLog" href="/docs/agents/windows-nxlog" />
+  <Card title="Fluent Bit (générique / conteneurs)" href="/docs/agents/fluent-bit" />
+  <Card title="Équipements réseau (syslog UDP)" href="/docs/agents/network-devices-syslog" />
+</Cards>
+
+Chaque outil doit envoyer une requête :
 
 ```
 POST https://votre-instance.example/api/ingest/agent/logs/
@@ -41,18 +74,11 @@ Content-Type: text/plain
 ...
 ```
 
-Une ligne = un événement. Chaque ligne peut être une ligne syslog brute
-(format RFC 3164, `<PRI>message`) ou du texte libre. Les batchs volumineux
-peuvent être compressés avec `Content-Encoding: gzip`.
-
-Voir les guides détaillés par plateforme :
-
-<Cards>
-  <Card title="Linux — rsyslog" href="/docs/agents/linux-rsyslog" />
-  <Card title="Windows — NXLog" href="/docs/agents/windows-nxlog" />
-  <Card title="Fluent Bit (générique / conteneurs)" href="/docs/agents/fluent-bit" />
-  <Card title="Équipements réseau (syslog UDP)" href="/docs/agents/network-devices-syslog" />
-</Cards>
+Une ligne peut être soit un objet JSON structuré (format utilisé par
+l'agent natif — champs `message`, `event_id`, `provider`, `raw_fields`...),
+soit une ligne syslog brute (format RFC 3164, `<PRI>message`), soit du texte
+libre. Les batchs volumineux peuvent être compressés avec
+`Content-Encoding: gzip`.
 
 ## 3. Ce qui se passe côté serveur
 

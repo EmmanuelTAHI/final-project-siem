@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Cpu, Plus, KeyRound, Copy, Check, Trash2, RefreshCw, AlertTriangle, ShieldCheck,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,11 +21,24 @@ interface GenerateTokenModalProps {
   onCreated: () => void;
 }
 
+type AgentPlatform = "linux" | "windows";
+
+function installCommand(platform: AgentPlatform, origin: string, token: string): string {
+  if (platform === "linux") {
+    return `curl -fsSL ${origin}/agents/install-linux.sh | sudo bash -s -- --url ${origin} --token ${token}`;
+  }
+  return `$s = Invoke-WebRequest -UseBasicParsing ${origin}/agents/install-windows.ps1; Set-Content -Path "$env:TEMP\\install-windows.ps1" -Value $s.Content; & "$env:TEMP\\install-windows.ps1" -Url "${origin}" -Token "${token}"`;
+}
+
 function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProps) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [rawToken, setRawToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState(false);
+  const [platform, setPlatform] = useState<AgentPlatform>("linux");
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const handleGenerate = async () => {
     if (!name.trim()) { toast.error("Le nom est requis"); return; }
@@ -48,10 +62,19 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyCmd = async () => {
+    if (!rawToken) return;
+    await navigator.clipboard.writeText(installCommand(platform, origin, rawToken));
+    setCopiedCmd(true);
+    setTimeout(() => setCopiedCmd(false), 2000);
+  };
+
   const handleClose = () => {
     setName("");
     setRawToken(null);
     setCopied(false);
+    setCopiedCmd(false);
+    setPlatform("linux");
     onClose();
   };
 
@@ -72,17 +95,65 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
         </DialogHeader>
 
         {rawToken ? (
-          <div className="space-y-4 px-6 py-5">
+          <div className="space-y-5 px-6 py-5">
             <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-xs text-amber-200">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>
-                Ce token ne sera plus jamais affiché. Copiez-le et stockez-le en lieu sûr
-                (variable d&apos;environnement, secret manager) avant de fermer cette fenêtre.
+                Ce token ne sera plus jamais affiché. La commande ci-dessous l&apos;intègre déjà —
+                copiez-la et exécutez-la sur le poste à surveiller avant de fermer cette fenêtre.
               </span>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Token</Label>
-              <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium text-foreground">
+                Installer l&apos;agent Log+ natif
+              </Label>
+              <div className="flex gap-1.5">
+                {(["linux", "windows"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPlatform(p)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg border text-xs font-medium capitalize transition-all",
+                      platform === p
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary/20 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {p === "linux" ? "Linux" : "Windows"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-start gap-2">
+                <code className="flex-1 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-[11px] font-mono break-all leading-relaxed">
+                  {installCommand(platform, origin, rawToken)}
+                </code>
+                <Button size="sm" variant="outline" onClick={handleCopyCmd} className="gap-1.5 flex-shrink-0">
+                  {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedCmd ? "Copié" : "Copier"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {platform === "linux"
+                  ? "À exécuter dans un terminal root (sudo). Installe et démarre le service systemd."
+                  : "À exécuter dans PowerShell (élévation administrateur demandée automatiquement). Installe et démarre le service Windows."}
+                {" "}Le script vérifie l&apos;intégrité du binaire (SHA-256) avant de l&apos;exécuter.
+              </p>
+              <a
+                href={`${origin}/agents/logplus-agent-${platform === "linux" ? "linux-amd64" : "windows-amd64.exe"}`}
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Télécharger le binaire seul ({platform === "linux" ? "linux/amd64" : "windows/amd64"})
+              </a>
+            </div>
+
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                Token brut (usage avancé : rsyslog, NXLog, Fluent Bit…)
+              </summary>
+              <div className="flex items-center gap-2 mt-2">
                 <code className="flex-1 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-xs break-all">
                   {rawToken}
                 </code>
@@ -91,9 +162,10 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
                   {copied ? "Copié" : "Copier"}
                 </Button>
               </div>
-            </div>
+            </details>
+
             <div className="flex justify-end pt-2 border-t border-border">
-              <Button onClick={handleClose} className="text-sm">J&apos;ai copié le token</Button>
+              <Button onClick={handleClose} className="text-sm">J&apos;ai copié la commande</Button>
             </div>
           </div>
         ) : (
@@ -175,11 +247,13 @@ export default function AgentsPage() {
         <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-muted-foreground leading-relaxed">
           Chaque token identifie de façon unique votre organisation : les logs envoyés avec ce
-          token ne sont jamais visibles par une autre organisation. Consultez la{" "}
+          token ne sont jamais visibles par une autre organisation. L&apos;agent Log+ natif
+          (Linux &amp; Windows, aucune dépendance externe) s&apos;installe en une commande générée
+          automatiquement après création d&apos;un token — voir la{" "}
           <a href={getDocsUrl("agents")} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-            documentation d&apos;installation des agents
+            documentation
           </a>{" "}
-          (Linux/rsyslog, Windows/NXLog, Fluent Bit) pour configurer vos machines.
+          pour le détail et les méthodes alternatives (rsyslog, NXLog, Fluent Bit).
         </div>
       </motion.div>
 

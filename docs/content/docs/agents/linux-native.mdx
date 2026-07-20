@@ -1,0 +1,97 @@
+---
+title: Linux — agent Log+ natif (recommandé)
+description: Installer l'agent Log+ natif sur Linux, sans dépendance externe
+---
+
+L'agent Log+ natif est un binaire unique, compilé statiquement (aucune
+dépendance externe à installer — pas de rsyslog à reconfigurer, pas de
+paquet supplémentaire). C'est la méthode recommandée pour connecter un
+serveur ou un poste Linux à Log+.
+
+## 1. Générer un token
+
+Dans le tableau de bord, allez dans **Agents** → **Générer un token**,
+donnez-lui un nom (ex. "Serveurs web prod"). Une fois le token créé, le
+tableau de bord affiche directement la **commande d'installation complète**
+pour Linux, token et URL déjà intégrés — il suffit de la copier.
+
+## 2. Installer
+
+Collez la commande générée dans un terminal root (ou avec `sudo`) :
+
+```bash
+curl -fsSL https://votre-instance.example/agents/install-linux.sh | sudo bash -s -- \
+  --url https://votre-instance.example --token logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Le script :
+1. détecte l'architecture (amd64/arm64) et télécharge le binaire correspondant
+   **depuis votre propre instance Log+** (`/agents/...`, servi par nginx) ;
+2. vérifie son intégrité (**SHA-256**) avant toute exécution — installation
+   annulée si la somme de contrôle ne correspond pas ;
+3. installe l'agent comme **service systemd** (`logplus-agent`), démarré
+   automatiquement et redémarré en cas de crash (`Restart=always`).
+
+<Callout type="info">
+  Testez d'abord la connexion sans rien installer :
+  `logplus-agent test-connection --url <url> --token <token>`.
+  L'installation elle-même refuse de se terminer si ce test échoue — jamais
+  de service cassé silencieusement installé.
+</Callout>
+
+## 3. Ce qui est collecté par défaut
+
+Sans configuration supplémentaire, l'agent surveille :
+- **`/var/log/auth.log`** (Debian/Ubuntu) ou **`/var/log/secure`**
+  (RHEL/CentOS) — détecté automatiquement selon la distribution ;
+- **le journal systemd (`journald`)** en temps réel, via le binaire
+  `journalctl` déjà présent nativement sur toute distribution systemd (ce
+  n'est pas une dépendance ajoutée par l'agent).
+
+Un relais syslog local optionnel peut aussi être activé (`--linux-syslog-addr
+0.0.0.0:1514` à l'installation) pour recevoir les logs d'équipements réseau
+du même LAN qui pointeraient vers ce poste.
+
+Aucun historique n'est renvoyé au premier démarrage : seuls les événements
+survenant **à partir de l'installation** sont collectés (comme `tail -f`).
+
+## 4. Vérifier
+
+```bash
+systemctl status logplus-agent
+```
+
+Provoquez un événement (ex. une tentative de connexion SSH échouée depuis
+une autre machine) et vérifiez son apparition dans **Logs** sur le tableau
+de bord, généralement en quelques secondes.
+
+## 5. Désinstaller
+
+```bash
+sudo logplus-agent uninstall
+```
+
+Arrête et supprime le service, le binaire, la configuration et le spool
+local (`/opt/logplus-agent/`).
+
+## Sécurité
+
+- Le token est stocké dans `/opt/logplus-agent/config.json`, **permissions
+  0600, propriétaire root uniquement** — un utilisateur non-root ne peut ni
+  le lire ni modifier la configuration.
+- L'agent refuse de démarrer contre une URL non-HTTPS (sauf option explicite
+  `--insecure`, réservée au développement local).
+- Rien n'est perdu en cas de coupure réseau ou de redémarrage : chaque
+  événement est écrit dans une file d'attente persistante sur disque avant
+  tentative d'envoi, et n'en est retiré qu'une fois la confirmation du
+  serveur reçue.
+- Logs de diagnostic de l'agent lui-même (pas les logs collectés, mais son
+  propre fonctionnement) : `/opt/logplus-agent/agent.log`.
+
+## Aller plus loin
+
+Pour un contrôle plus fin des fichiers surveillés, consultez le format de
+config JSON (`/opt/logplus-agent/config.json`, éditable puis
+`sudo systemctl restart logplus-agent`). Pour une intégration via un outil
+déjà présent sur votre parc (rsyslog, Fluent Bit), voir les méthodes
+alternatives ci-dessous.

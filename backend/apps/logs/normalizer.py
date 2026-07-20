@@ -256,6 +256,9 @@ class LogNormalizer:
 
     def _map_syslog(self, data: dict) -> dict:
         """Mappe un log syslog parsé (par receive_syslog) vers les champs NormalizedLog."""
+        if data.get("agent_format") == "json":
+            return self._map_agent_json(data)
+
         severity = data.get("severity", "info")
         facility = data.get("facility", "unknown")
         message = data.get("message") or ""
@@ -321,6 +324,73 @@ class LogNormalizer:
                 "severity_code": data.get("severity_code"),
                 "message": message[:500],
                 "raw_message": data.get("raw_message", "")[:500],
+            },
+        }
+
+    # ─── Agent Log+ natif (JSON structuré) ───────────────────────────────────
+
+    # Windows Security : 4624 = ouverture de session réussie, 4625 = échouée.
+    _WINDOWS_LOGON_EVENT_IDS = {4624: ("login_success", "success"), 4625: ("login_failure", "failure")}
+
+    def _map_agent_json(self, data: dict) -> dict:
+        """
+        Mappe un évènement JSON structuré envoyé par l'agent Log+ natif
+        (collecteur Windows Event Log ou Linux) — voir agent/internal/model.
+        Contrairement à _map_syslog, les champs structurés (event_id,
+        provider, raw_fields...) sont directement disponibles sans regex.
+        """
+        message = data.get("message") or ""
+        severity = data.get("severity") or "info"
+        hostname = data.get("hostname") or data.get("computer")
+        source_ip = data.get("source_ip") or None
+        event_id = data.get("event_id")
+        provider = data.get("provider")
+        raw_fields = data.get("raw_fields") or {}
+
+        action = data.get("source") or "agent_event"
+        outcome = "unknown"
+        user_email = None
+
+        if provider == "Microsoft-Windows-Security-Auditing" and event_id in self._WINDOWS_LOGON_EVENT_IDS:
+            action, outcome = self._WINDOWS_LOGON_EVENT_IDS[event_id]
+            user_email = raw_fields.get("TargetUserName") or None
+            if action == "login_failure":
+                severity = "high"
+        else:
+            # Sources Linux natives (tail de fichier, journald, relais
+            # syslog local) : même détection brute-force SSH que le chemin
+            # syslog historique — sinon le collecteur Linux natif ne
+            # déclenche jamais la règle de corrélation brute force.
+            ssh = _parse_ssh_auth(message)
+            if ssh:
+                action, outcome = ssh["action"], ssh["outcome"]
+                user_email = ssh.get("user") or None
+                source_ip = ssh.get("ip") or source_ip
+                if action == "login_failure":
+                    severity = "high"
+
+        return {
+            "event_time": self._parse_datetime(data.get("time_created") or data.get("received_at")),
+            "user_email": user_email,
+            "user_id": None,
+            "source_ip": source_ip,
+            "destination_ip": None,
+            "action": action,
+            "outcome": outcome,
+            "resource": hostname,
+            "geo_country": None,
+            "geo_city": None,
+            "geo_latitude": None,
+            "geo_longitude": None,
+            "user_agent": None,
+            "severity": severity,
+            "extra_fields": {
+                "event_id": event_id,
+                "provider": provider,
+                "channel": data.get("channel"),
+                "computer": data.get("computer"),
+                "message": message[:500],
+                "raw_fields": raw_fields,
             },
         }
 
