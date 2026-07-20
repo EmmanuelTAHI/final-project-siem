@@ -38,6 +38,21 @@ logger = logging.getLogger(__name__)
 MAX_BATCH_LINES = 5000
 
 
+def _get_client_ip(request) -> str:
+    """
+    Extrait la véritable IP cliente derrière le reverse proxy nginx (même
+    logique que apps.users.views.get_client_ip). nginx pose toujours
+    X-Forwarded-For sur /api/ et /api/ingest/ — lire REMOTE_ADDR directement
+    renvoie l'IP interne du conteneur nginx sur le réseau Docker, pas celle
+    de la machine qui envoie réellement les logs (bug constaté en prod : IP
+    172.18.0.x affichée au lieu de l'IP réelle de l'agent).
+    """
+    x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
 class AgentLogIngestView(APIView):
     """
     POST /api/ingest/agent/logs/
@@ -84,7 +99,7 @@ class AgentLogIngestView(APIView):
                 http_status=400,
             )
 
-        source_ip = request.META.get("REMOTE_ADDR", "")
+        source_ip = _get_client_ip(request)
         raw_logs = []
         for line in lines:
             parsed = self._parse_line(line, source_ip)

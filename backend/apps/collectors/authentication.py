@@ -60,8 +60,11 @@ class AgentTokenAuthentication(BaseAuthentication):
         if token.expires_at and token.expires_at < timezone.now():
             raise AuthenticationFailed("Token d'agent expiré.")
 
+        x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+        client_ip = x_forwarded.split(",")[0].strip() if x_forwarded else request.META.get("REMOTE_ADDR")
+
         token.last_used_at = timezone.now()
-        token.last_used_ip = request.META.get("REMOTE_ADDR")
+        token.last_used_ip = client_ip
         token.save(update_fields=["last_used_at", "last_used_ip"])
 
         return (AgentTokenPrincipal(token), token)

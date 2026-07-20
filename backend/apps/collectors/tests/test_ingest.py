@@ -91,6 +91,45 @@ class TestAgentLogIngestView:
         assert raw_log.raw_data["agent_format"] == "json"
         assert raw_log.raw_data["event_id"] == 4624
 
+    def test_source_ip_uses_x_forwarded_for_not_docker_internal_ip(self, db, agent_token):
+        """Derrière nginx, REMOTE_ADDR est l'IP interne du conteneur nginx
+        sur le réseau Docker (ex: 172.18.0.x), jamais celle de l'agent qui
+        envoie réellement les logs — nginx pose toujours X-Forwarded-For,
+        qui doit être préféré (bug réel constaté en prod : 172.18.0.10
+        affiché comme "source_ip" de l'agent au lieu de l'IP réelle)."""
+        token, full_token = agent_token
+        client = APIClient()
+        response = client.post(
+            "/api/ingest/agent/logs/",
+            data='{"message": "test"}\n',
+            content_type="text/plain",
+            HTTP_AUTHORIZATION=f"Bearer {full_token}",
+            REMOTE_ADDR="172.18.0.10",
+            HTTP_X_FORWARDED_FOR="203.0.113.42",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        raw_log = RawLog.objects.get(organization=token.organization)
+        assert raw_log.raw_data["source_ip"] == "203.0.113.42"
+
+        token.refresh_from_db()
+        assert token.last_used_ip == "203.0.113.42"
+
+    def test_source_ip_falls_back_to_remote_addr_without_proxy(self, db, agent_token):
+        """Sans X-Forwarded-For (ex: accès direct, tests), REMOTE_ADDR reste
+        utilisé — pas de régression pour les environnements sans reverse proxy."""
+        token, full_token = agent_token
+        client = APIClient()
+        response = client.post(
+            "/api/ingest/agent/logs/",
+            data='{"message": "test"}\n',
+            content_type="text/plain",
+            HTTP_AUTHORIZATION=f"Bearer {full_token}",
+            REMOTE_ADDR="127.0.0.1",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        raw_log = RawLog.objects.get(organization=token.organization)
+        assert raw_log.raw_data["source_ip"] == "127.0.0.1"
+
     def test_invalid_token_rejected(self, db, org):
         """Token bien formé mais inconnu : AuthenticationFailed levée par
         l'authenticator -> 403 (pas de authenticate_header défini, DRF ne
