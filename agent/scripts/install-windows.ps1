@@ -3,12 +3,17 @@
 .SYNOPSIS
   Installe l'agent Log+ natif sur Windows (service natif via SCM).
 .DESCRIPTION
-  Télécharge le binaire depuis l'instance Log+ elle-même (aucune dépendance
-  externe, pas de NXLog), vérifie son intégrité (SHA-256) avant exécution,
-  s'élève en administrateur si nécessaire, puis installe le service.
+  Telecharge le binaire depuis l'instance Log+ elle-meme (aucune dependance
+  externe, pas de NXLog), verifie son integrite (SHA-256) avant execution,
+  s'eleve en administrateur si necessaire, puis installe le service.
 .EXAMPLE
-  # Téléchargé et exécuté depuis le tableau de bord Agents :
+  # Telecharge et execute depuis le tableau de bord Agents :
   .\install-windows.ps1 -Url "https://logplus.duckdns.org" -Token "logplus_agt_xxxxx"
+.NOTES
+  Ce fichier est volontairement en ASCII pur (pas d'accents, pas de
+  caracteres speciaux) : Windows PowerShell 5.1 lit un script .ps1 sans BOM
+  avec l'encodage ANSI du systeme (pas UTF-8), ce qui corrompt tout
+  caractere non-ASCII et peut casser la syntaxe (chaine mal terminee).
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Url,
@@ -25,18 +30,18 @@ function Test-Admin {
 }
 
 if (-not (Test-Admin)) {
-    Write-Host "Droits administrateur requis — relance avec élévation..."
+    Write-Host "Droits administrateur requis - relance avec elevation..."
     $argList = @("-Url", $Url, "-Token", $Token)
     if ($Insecure) { $argList += "-Insecure" }
     $scriptPath = $MyInvocation.MyCommand.Path
     if (-not $scriptPath) {
-        throw "Ce script doit être enregistré dans un fichier local avant exécution élevée (pas de relance possible depuis un pipeline 'iex' direct)."
+        throw "Ce script doit etre enregistre dans un fichier local avant execution elevee (pas de relance possible depuis un pipeline 'iex' direct)."
     }
     Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList (@("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath) + $argList)
     exit 0
 }
 
-$arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { throw "Architecture 32 bits non supportée." }
+$arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { throw "Architecture 32 bits non supportee." }
 $binName = "logplus-agent-windows-$arch.exe"
 $baseUrl = $Url.TrimEnd("/")
 $downloadUrl = "$baseUrl/agents/$binName"
@@ -48,29 +53,29 @@ $binPath = Join-Path $tmpDir $binName
 $checksumPath = "$binPath.sha256"
 
 try {
-    Write-Host "Téléchargement de $binName..."
+    Write-Host "Telechargement de $binName..."
     Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $binPath
     Invoke-WebRequest -UseBasicParsing -Uri $checksumUrl -OutFile $checksumPath
 
-    Write-Host "Vérification de l'intégrité (SHA-256)..."
+    Write-Host "Verification de l'integrite (SHA-256)..."
     $expected = (Get-Content $checksumPath).Split(" ")[0].Trim().ToLower()
     $actual = (Get-FileHash -Path $binPath -Algorithm SHA256).Hash.ToLower()
     if ($expected -ne $actual) {
-        throw "Somme de contrôle invalide : binaire potentiellement corrompu ou altéré. Installation annulée.`nAttendu: $expected`nObtenu : $actual"
+        throw "Somme de controle invalide : binaire potentiellement corrompu ou altere. Installation annulee.`nAttendu: $expected`nObtenu : $actual"
     }
-    Write-Host "Intégrité vérifiée."
+    Write-Host "Integrite verifiee."
 
     $installArgs = @("install", "--url", $Url)
     if ($Insecure) { $installArgs += "--insecure" }
 
     # Le token passe par variable d'environnement, pas en argument : un
     # argument de ligne de commande reste visible dans la colonne "Ligne de
-    # commande" du Gestionnaire des tâches tant que le processus tourne.
+    # commande" du Gestionnaire des taches tant que le processus tourne.
     $env:LOGPLUS_AGENT_TOKEN = $Token
     try {
         & $binPath @installArgs
         if ($LASTEXITCODE -ne 0) {
-            throw "L'installation de l'agent a échoué (code $LASTEXITCODE)."
+            throw "L'installation de l'agent a echoue (code $LASTEXITCODE)."
         }
     }
     finally {
@@ -81,4 +86,4 @@ finally {
     Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "Terminé — l'agent Log+ tourne comme service Windows (démarrage automatique)."
+Write-Host "Termine - l'agent Log+ tourne comme service Windows (demarrage automatique)."
