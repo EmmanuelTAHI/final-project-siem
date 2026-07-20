@@ -153,7 +153,10 @@ func parseEventXML(raw, channel string) (model.Event, bool) {
 		}
 	}
 
-	timeCreated, _ := time.Parse(time.RFC3339Nano, xe.System.TimeCreated.SystemTime)
+	var timeCreated *time.Time
+	if parsed, err := time.Parse(time.RFC3339Nano, xe.System.TimeCreated.SystemTime); err == nil {
+		timeCreated = &parsed
+	}
 
 	e := model.Event{
 		Message:     fmt.Sprintf("%s: EventID=%d Channel=%s", xe.System.Provider.Name, xe.System.EventID, channel),
