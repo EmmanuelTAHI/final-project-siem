@@ -79,8 +79,12 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={(next) => { if (!next && rawToken) return; handleClose(); }}>
+      <DialogContent
+        className="max-w-lg"
+        onInteractOutside={(e) => { if (rawToken) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (rawToken) e.preventDefault(); }}
+      >
         <DialogHeader className="pb-1">
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <Plus className="w-4 h-4 text-primary" />

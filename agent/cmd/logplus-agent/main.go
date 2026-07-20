@@ -36,6 +36,13 @@ Usage:
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprint(os.Stderr, usage)
+		// Sur Windows, double-cliquer l'exe dans l'Explorateur ouvre une
+		// nouvelle console dédiée à ce processus — qui se referme
+		// instantanément à la sortie, donnant l'impression d'un crash. On
+		// attend une touche avant de fermer pour que le message ci-dessus
+		// reste lisible (no-op sur Linux, où le terminal appelant reste
+		// ouvert de toute façon).
+		pauseBeforeExitOnWindows()
 		os.Exit(1)
 	}
 
