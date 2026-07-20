@@ -28,15 +28,7 @@ func Install(cfg config.Config) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("création %s: %w", dir, err)
 	}
-
 	binDest := filepath.Join(dir, "logplus-agent.exe")
-	if err := copySelfTo(binDest); err != nil {
-		return fmt.Errorf("copie du binaire: %w", err)
-	}
-
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("écriture config: %w", err)
-	}
 
 	m, err := mgr.Connect()
 	if err != nil {
@@ -44,12 +36,24 @@ func Install(cfg config.Config) error {
 	}
 	defer m.Disconnect()
 
-	// Réinstallation : on repart propre si le service existe déjà.
+	// Réinstallation : on arrête et supprime le service existant AVANT de
+	// toucher au binaire — sinon la copie/le remplacement de
+	// logplus-agent.exe échoue avec "Access is denied" tant que l'ancien
+	// service (ou ce process-ci, si on le relance depuis son propre chemin
+	// d'installation) le verrouille encore.
 	if existing, err := m.OpenService(ServiceName); err == nil {
 		existing.Control(svc.Stop)
+		waitForStopped(existing, 10*time.Second)
 		existing.Delete()
 		existing.Close()
-		time.Sleep(1 * time.Second)
+	}
+
+	if err := copySelfTo(binDest); err != nil {
+		return fmt.Errorf("copie du binaire: %w", err)
+	}
+
+	if err := config.Save(cfg); err != nil {
+		return fmt.Errorf("écriture config: %w", err)
 	}
 
 	s, err := m.CreateService(ServiceName, binDest, mgr.Config{
