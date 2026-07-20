@@ -304,91 +304,111 @@ export default function SOARPage() {
             </p>
           </DialogHeader>
 
-          <div className="space-y-5 py-3">
-            {/* Nom */}
-            <div className="space-y-2">
-              <Label>
-                Nom du playbook <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="Ex: Blocage brute force critique"
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input
-                value={formDesc}
-                onChange={(e) => setFormDesc(e.target.value)}
-                placeholder="Décrivez l'objectif de ce playbook…"
-              />
-            </div>
-
-            {/* Déclencheur */}
-            <div className="space-y-2">
-              <Label>Type de déclencheur</Label>
-              <Select value={formTrigger} onValueChange={(v) => setFormTrigger(v as TriggerType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Conditions JSON */}
-            <div className="space-y-2">
-              <Label>Conditions de déclenchement</Label>
-              <p className="text-xs text-muted-foreground">
-                Exemple pour sévérité :{" "}
-                <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">
-                  {"{"}&quot;severities&quot;: [&quot;critical&quot;, &quot;high&quot;]{"}"}
-                </code>
-              </p>
-              <Textarea
-                value={formConditions}
-                onChange={(e) => setFormConditions(e.target.value)}
-                rows={4}
-                className="font-mono leading-relaxed"
-              />
-            </div>
-
-            {/* Actions JSON */}
-            <div className="space-y-2">
-              <Label>Actions à exécuter</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Cliquez sur un modèle pour le charger, puis personnalisez les paramètres.
-              </p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {ACTION_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.type}
-                    type="button"
-                    onClick={() =>
-                      setFormActions(JSON.stringify([{ type: tpl.type, params: tpl.params }], null, 2))
-                    }
-                    className="px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary/70 hover:border-primary/40 text-xs font-medium text-foreground transition-all"
-                  >
-                    {tpl.label}
-                  </button>
-                ))}
+          <div className="space-y-6 px-6 py-5">
+            {/* Section : Informations générales */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-primary" />
+                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Informations générales</span>
               </div>
-              <Textarea
-                value={formActions}
-                onChange={(e) => setFormActions(e.target.value)}
-                rows={7}
-                className="font-mono leading-relaxed"
-              />
+
+              <div className="space-y-2">
+                <Label>
+                  Nom du playbook <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Ex: Blocage brute force critique"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="Décrivez l'objectif de ce playbook…"
+                />
+                <p className="text-xs text-muted-foreground">Aide les autres analystes à comprendre à quoi sert ce playbook.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Type de déclencheur</Label>
+                <Select value={formTrigger} onValueChange={(v) => setFormTrigger(v as TriggerType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">L&apos;événement qui déclenche automatiquement ce playbook.</p>
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            {/* Section : Conditions & actions */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-amber-400" />
+                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Conditions &amp; actions</span>
+              </div>
+
+              <div className="rounded-xl border border-border bg-secondary/20 p-4 space-y-5">
+                {/* Conditions JSON */}
+                <div className="space-y-2">
+                  <Label className="text-xs">Conditions de déclenchement</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Exemple pour sévérité :{" "}
+                    <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">
+                      {"{"}&quot;severities&quot;: [&quot;critical&quot;, &quot;high&quot;]{"}"}
+                    </code>
+                  </p>
+                  <Textarea
+                    value={formConditions}
+                    onChange={(e) => setFormConditions(e.target.value)}
+                    rows={4}
+                    className="font-mono leading-relaxed"
+                  />
+                </div>
+
+                {/* Actions JSON */}
+                <div className="space-y-2">
+                  <Label className="text-xs">Actions à exécuter</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Cliquez sur un modèle pour le charger, puis personnalisez les paramètres.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {ACTION_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.type}
+                        type="button"
+                        onClick={() =>
+                          setFormActions(JSON.stringify([{ type: tpl.type, params: tpl.params }], null, 2))
+                        }
+                        className="px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary/70 hover:border-primary/40 text-xs font-medium text-foreground transition-all"
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
+                  </div>
+                  <Textarea
+                    value={formActions}
+                    onChange={(e) => setFormActions(e.target.value)}
+                    rows={7}
+                    className="font-mono leading-relaxed"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex justify-end gap-3 px-6 pb-6 pt-4 border-t border-border">
             <Button variant="outline" onClick={() => setShowForm(false)}>
               Annuler
             </Button>

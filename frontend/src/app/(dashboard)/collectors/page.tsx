@@ -111,7 +111,7 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
           </p>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 px-6 py-5">
           {/* Nom */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
@@ -121,13 +121,15 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
               placeholder="Ex: Microsoft 365 — Production"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-10 text-sm"
+              autoFocus
             />
+            <p className="text-xs text-muted-foreground">Un nom explicite pour retrouver facilement cette source dans vos listes.</p>
           </div>
 
           {/* Type de source */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Type de source</Label>
+            <p className="text-xs text-muted-foreground mb-1">D&apos;où proviennent les logs à collecter ?</p>
             <div className="grid grid-cols-2 gap-2.5">
               {SOURCE_OPTIONS.map((opt) => (
                 <button
@@ -171,7 +173,6 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
                     onChange={(e) =>
                       setCredentials((prev) => ({ ...prev, [field]: e.target.value }))
                     }
-                    className="h-10 text-sm"
                   />
                 </div>
               );
@@ -189,7 +190,6 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
               max={86400}
               value={interval}
               onChange={(e) => setIntervalSecs(e.target.value)}
-              className="h-10 text-sm"
             />
             <p className="text-xs text-muted-foreground">
               Minimum 60 s · Recommandé : 300 s (5 min) · Maximum : 86 400 s (24 h)
@@ -197,7 +197,7 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <div className="flex justify-end gap-3 px-6 pb-6 pt-4 border-t border-border">
           <Button variant="outline" onClick={onClose} className="text-sm">
             Annuler
           </Button>

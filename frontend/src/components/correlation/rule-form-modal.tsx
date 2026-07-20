@@ -274,12 +274,12 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Action à surveiller</Label>
-                    <Input placeholder="ex: FailedLogin" value={formData.threshold_action} onChange={(e) => update("threshold_action", e.target.value)} className="h-9 text-sm" />
+                    <Input placeholder="ex: FailedLogin" value={formData.threshold_action} onChange={(e) => update("threshold_action", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Grouper par</Label>
                     <Select value={formData.threshold_group_by} onValueChange={(v) => update("threshold_group_by", v)}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="source_ip">IP Source</SelectItem>
                         <SelectItem value="user_email">Utilisateur</SelectItem>
@@ -289,11 +289,11 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Seuil (nombre d&apos;occurrences)</Label>
-                    <Input type="number" value={formData.threshold_count} onChange={(e) => update("threshold_count", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.threshold_count} onChange={(e) => update("threshold_count", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Fenêtre temporelle (minutes)</Label>
-                    <Input type="number" value={formData.threshold_window} onChange={(e) => update("threshold_window", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.threshold_window} onChange={(e) => update("threshold_window", e.target.value)} />
                   </div>
                 </div>
               )}
@@ -302,11 +302,11 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Distance minimum (km)</Label>
-                    <Input type="number" value={formData.it_min_distance} onChange={(e) => update("it_min_distance", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.it_min_distance} onChange={(e) => update("it_min_distance", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Délai maximum (minutes)</Label>
-                    <Input type="number" value={formData.it_max_time} onChange={(e) => update("it_max_time", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.it_max_time} onChange={(e) => update("it_max_time", e.target.value)} />
                   </div>
                 </div>
               )}
@@ -315,15 +315,15 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Action à surveiller</Label>
-                    <Input placeholder="ex: AdminAction" value={formData.tb_action} onChange={(e) => update("tb_action", e.target.value)} className="h-9 text-sm" />
+                    <Input placeholder="ex: AdminAction" value={formData.tb_action} onChange={(e) => update("tb_action", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Début de plage</Label>
-                    <Input type="time" value={formData.tb_start_time} onChange={(e) => update("tb_start_time", e.target.value)} className="h-9 text-sm" />
+                    <Input type="time" value={formData.tb_start_time} onChange={(e) => update("tb_start_time", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Fin de plage</Label>
-                    <Input type="time" value={formData.tb_end_time} onChange={(e) => update("tb_end_time", e.target.value)} className="h-9 text-sm" />
+                    <Input type="time" value={formData.tb_end_time} onChange={(e) => update("tb_end_time", e.target.value)} />
                   </div>
                 </div>
               )}
@@ -332,18 +332,18 @@ export function RuleFormModal({ open, onClose, rule, onSave }: RuleFormModalProp
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Cibles minimum</Label>
-                    <Input type="number" value={formData.seq_min_targets} onChange={(e) => update("seq_min_targets", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.seq_min_targets} onChange={(e) => update("seq_min_targets", e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Fenêtre (minutes)</Label>
-                    <Input type="number" value={formData.seq_window} onChange={(e) => update("seq_window", e.target.value)} className="h-9 text-sm" />
+                    <Input type="number" value={formData.seq_window} onChange={(e) => update("seq_window", e.target.value)} />
                   </div>
                 </div>
               )}
 
               <div className="space-y-2 pt-1">
                 <Label className="text-xs text-muted-foreground">Aperçu JSON de la condition</Label>
-                <pre className="text-[11px] font-mono bg-background/60 border border-border/60 rounded-lg px-4 py-3 text-muted-foreground overflow-x-auto leading-relaxed">
+                <pre className="text-xs font-mono bg-background/60 border border-border/60 rounded-lg px-4 py-3 text-muted-foreground overflow-x-auto leading-relaxed">
                   {conditionPreview}
                 </pre>
               </div>

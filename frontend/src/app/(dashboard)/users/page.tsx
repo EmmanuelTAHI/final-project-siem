@@ -257,7 +257,7 @@ export default function UsersPage() {
 
       {/* User form modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {editingUser ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
@@ -269,7 +269,7 @@ export default function UsersPage() {
             </p>
           </DialogHeader>
 
-          <div className="space-y-5 px-6 py-4">
+          <div className="space-y-5 px-6 py-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>
@@ -304,6 +304,7 @@ export default function UsersPage() {
                 placeholder="jean.dupont@example.com"
                 autoComplete="email"
               />
+              <p className="text-xs text-muted-foreground">Sert d&apos;identifiant de connexion pour ce compte.</p>
             </div>
 
             <div className="space-y-2">
@@ -316,19 +317,19 @@ export default function UsersPage() {
                   <SelectItem value="admin">
                     <div className="flex flex-col gap-0.5">
                       <span>Administrateur</span>
-                      <span className="text-[11px] text-muted-foreground font-normal">Accès complet à toutes les fonctionnalités</span>
+                      <span className="text-xs text-muted-foreground font-normal">Accès complet à toutes les fonctionnalités</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="analyst">
                     <div className="flex flex-col gap-0.5">
                       <span>Analyste</span>
-                      <span className="text-[11px] text-muted-foreground font-normal">Gestion des alertes et des règles</span>
+                      <span className="text-xs text-muted-foreground font-normal">Gestion des alertes et des règles</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="viewer">
                     <div className="flex flex-col gap-0.5">
                       <span>Lecteur</span>
-                      <span className="text-[11px] text-muted-foreground font-normal">Consultation uniquement</span>
+                      <span className="text-xs text-muted-foreground font-normal">Consultation uniquement</span>
                     </div>
                   </SelectItem>
                 </SelectContent>

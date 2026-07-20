@@ -88,14 +88,14 @@ export function CreateTicketModal({ open, onClose, onCreated, fromAlert }: Creat
             <TicketIcon className="w-4 h-4 text-primary" />
             {fromAlert ? "Créer un ticket depuis cette alerte" : "Créer un ticket"}
           </DialogTitle>
-          {fromAlert && (
-            <p className="text-sm text-muted-foreground pt-1">
-              Le ticket sera lié à l&apos;alerte et hérite de sa sévérité comme priorité — modifiable ci-dessous.
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground pt-1">
+            {fromAlert
+              ? "Le ticket sera lié à l'alerte et hérite de sa sévérité comme priorité — modifiable ci-dessous."
+              : "Suivez une investigation ou une tâche jusqu'à sa résolution en l'assignant à un analyste."}
+          </p>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-5 px-6 py-5">
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
               Titre <span className="text-destructive">*</span>
@@ -104,7 +104,6 @@ export function CreateTicketModal({ open, onClose, onCreated, fromAlert }: Creat
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Investiguer connexion suspecte depuis 10.0.0.5"
-              className="h-10 text-sm"
               autoFocus
             />
           </div>
@@ -123,7 +122,7 @@ export function CreateTicketModal({ open, onClose, onCreated, fromAlert }: Creat
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">Priorité</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-                <SelectTrigger className="h-10 text-sm">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -137,7 +136,7 @@ export function CreateTicketModal({ open, onClose, onCreated, fromAlert }: Creat
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">Assigné à</Label>
               <Select value={assignee} onValueChange={setAssignee}>
-                <SelectTrigger className="h-10 text-sm">
+                <SelectTrigger>
                   <SelectValue placeholder="Non assigné" />
                 </SelectTrigger>
                 <SelectContent>
@@ -153,11 +152,12 @@ export function CreateTicketModal({ open, onClose, onCreated, fromAlert }: Creat
 
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">Échéance (optionnel)</Label>
-            <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10 text-sm" />
+            <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <p className="text-xs text-muted-foreground">Définissez une date limite si ce ticket doit être traité avant un délai précis.</p>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <div className="flex justify-end gap-3 px-6 pb-6 pt-4 border-t border-border">
           <Button variant="outline" onClick={onClose} className="text-sm">
             Annuler
           </Button>

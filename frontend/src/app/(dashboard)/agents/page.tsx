@@ -72,7 +72,7 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
         </DialogHeader>
 
         {rawToken ? (
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 px-6 py-5">
             <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-xs text-amber-200">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>
@@ -97,7 +97,7 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
             </div>
           </div>
         ) : (
-          <div className="space-y-6 py-4">
+          <div className="space-y-6 px-6 py-5">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">
                 Nom <span className="text-destructive">*</span>
@@ -106,9 +106,9 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
                 placeholder="Ex: Serveurs web prod, Parc Windows siège"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="h-10 text-sm"
                 autoFocus
               />
+              <p className="text-xs text-muted-foreground">Identifie le parc de machines qui utilisera ce token — vous pourrez le révoquer à tout moment.</p>
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button variant="outline" onClick={handleClose} className="text-sm">
