@@ -19,10 +19,14 @@ pour Linux, token et URL déjà intégrés — il suffit de la copier.
 
 Collez la commande générée dans un terminal root (ou avec `sudo`) :
 
+<Terminal title="bash — root">
+
 ```bash
 curl -fsSL https://votre-instance.example/agents/install-linux.sh | sudo bash -s -- \
   --url https://votre-instance.example --token logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+</Terminal>
 
 Le script :
 1. détecte l'architecture (amd64/arm64) et télécharge le binaire correspondant
@@ -57,9 +61,13 @@ survenant **à partir de l'installation** sont collectés (comme `tail -f`).
 
 ## 4. Vérifier
 
+<Terminal title="bash">
+
 ```bash
 systemctl status logplus-agent
 ```
+
+</Terminal>
 
 Provoquez un événement (ex. une tentative de connexion SSH échouée depuis
 une autre machine) et vérifiez son apparition dans **Logs** sur le tableau

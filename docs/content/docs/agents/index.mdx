@@ -41,12 +41,34 @@ logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ## 2. Installer l'agent
 
 Copiez la commande générée par le tableau de bord et exécutez-la sur la
-machine à surveiller — voir les guides détaillés :
+machine à surveiller :
 
-<Cards>
-  <Card title="Linux — agent natif" href="/docs/agents/linux-native" />
-  <Card title="Windows — agent natif" href="/docs/agents/windows-native" />
-</Cards>
+<Tabs items={['Linux', 'Windows']}>
+  <Tab value="Linux">
+    <Terminal title="bash — root">
+
+    ```bash
+    curl -fsSL https://votre-instance.example/agents/install-linux.sh | sudo bash -s -- \
+      --url https://votre-instance.example --token logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
+
+    </Terminal>
+
+    Installe l'agent comme service **systemd**. [Guide détaillé →](/docs/agents/linux-native)
+  </Tab>
+  <Tab value="Windows">
+    <Terminal title="PowerShell">
+
+    ```powershell
+    Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/install-windows.ps1" -OutFile "$env:TEMP\install-windows.ps1"
+    & "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+    </Terminal>
+
+    Installe l'agent comme **service Windows** (élévation demandée automatiquement). [Guide détaillé →](/docs/agents/windows-native)
+  </Tab>
+</Tabs>
 
 ## Méthodes alternatives
 

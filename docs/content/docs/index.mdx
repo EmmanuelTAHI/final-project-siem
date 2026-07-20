@@ -3,6 +3,8 @@ title: Introduction
 description: Log+ est un SIEM open source, self-service, pour PME et particuliers
 ---
 
+import { UserPlus, Cpu, Building2, ShieldCheck } from 'lucide-react';
+
 Log+ est un SIEM (Security Information and Event Management) open source qui
 centralise, corrèle et analyse les logs de sécurité de votre organisation —
 serveurs, postes de travail, équipements réseau, comptes cloud (Microsoft
@@ -26,8 +28,8 @@ organisation jusqu'à l'installation d'agents de collecte sur vos machines.
 1. Vous [créez votre organisation](/docs/getting-started) sur la plateforme
    Log+ (ou sur votre propre instance auto-hébergée).
 2. Vous générez un **token d'agent** depuis le tableau de bord et
-   [déployez un agent de collecte](/docs/agents) (rsyslog, NXLog, Fluent
-   Bit…) sur vos machines.
+   [déployez l'agent Log+ natif](/docs/agents) (Linux/Windows, aucune
+   dépendance externe) sur vos machines.
 3. Les logs remontent, sont normalisés, corrélés, et génèrent des alertes
    visibles dans votre tableau de bord — **jamais visibles par une autre
    organisation** (voir [Architecture & isolation](/docs/architecture)).
@@ -35,8 +37,24 @@ organisation jusqu'à l'installation d'agents de collecte sur vos machines.
 ## Points de départ recommandés
 
 <Cards>
-  <Card title="Créer un compte et une organisation" href="/docs/getting-started" />
-  <Card title="Déployer un agent de collecte" href="/docs/agents" />
-  <Card title="Comprendre l'isolation multi-tenant" href="/docs/architecture" />
-  <Card title="Modèle de sécurité" href="/docs/security" />
+  <Card
+    icon={<UserPlus />}
+    title="Créer un compte et une organisation"
+    href="/docs/getting-started"
+  />
+  <Card
+    icon={<Cpu />}
+    title="Déployer l'agent Log+ natif"
+    href="/docs/agents"
+  />
+  <Card
+    icon={<Building2 />}
+    title="Comprendre l'isolation multi-tenant"
+    href="/docs/architecture"
+  />
+  <Card
+    icon={<ShieldCheck />}
+    title="Modèle de sécurité"
+    href="/docs/security"
+  />
 </Cards>

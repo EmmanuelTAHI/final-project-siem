@@ -13,9 +13,11 @@ import {
   RefreshCw,
   ArrowLeft,
   KeyRound,
+  BookOpen,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { authApi } from "@/lib/api";
+import { getDocsUrl } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 // ─── Session OTP persistée (survit aux rechargements) ─────────────────────────
@@ -404,14 +406,25 @@ function LoginPageContent() {
           </div>
         </div>
 
-        <div className="font-mono" style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#8B9EC7", position: "relative", zIndex: 2 }}>
+        <div className="font-mono" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "#8B9EC7", position: "relative", zIndex: 2 }}>
           <span>cluster-01 · region eu-west-3</span>
+          <a
+            href={getDocsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#8B9EC7", textDecoration: "none", transition: "color 0.15s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#8B9EC7")}
+          >
+            <BookOpen size={12} />
+            Documentation
+          </a>
           <span>© 2026 Log+ · TAHI Ezan Franck Emmanuel</span>
         </div>
       </div>
 
       {/* Panneau droit */}
-      <div className="login-right" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40, background: "var(--bg)" }}>
+      <div className="login-right" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 40, background: "var(--bg)" }}>
 
         {step === "credentials" ? (
           /* ── Formulaire credentials ─────────────────────────────────────── */
@@ -578,6 +591,18 @@ function LoginPageContent() {
             </div>
           </form>
         )}
+
+        {/* Toujours visible (y compris mobile, où le panneau gauche décoratif
+            est masqué) — la doc reste accessible sans être connecté. */}
+        <a
+          href={getDocsUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-2)", textDecoration: "none" }}
+        >
+          <BookOpen size={13} />
+          Consulter la documentation
+        </a>
       </div>
 
     </div>

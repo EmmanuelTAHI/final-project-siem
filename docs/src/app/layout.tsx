@@ -20,7 +20,15 @@ export default function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="fr" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
-        <RootProvider>{children}</RootProvider>
+        {/*
+          Fix recherche : le client fumadocs-core calcule l'URL de l'API via
+          import.meta.env.BASE_URL (convention Vite) — toujours vide sous
+          Next.js, donc il appelait "/api/search" à la racine du domaine, que
+          nginx route vers le frontend SIEM (pas ce conteneur). Cette app est
+          montée avec basePath "/docs" (next.config.mjs) : sa vraie route est
+          "/docs/api/search". On force l'URL exacte ici.
+        */}
+        <RootProvider search={{ options: { api: '/docs/api/search' } }}>{children}</RootProvider>
       </body>
     </html>
   );

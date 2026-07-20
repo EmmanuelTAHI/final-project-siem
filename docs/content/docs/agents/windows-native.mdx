@@ -19,10 +19,14 @@ d'installation PowerShell complète**, token et URL déjà intégrés.
 Ouvrez PowerShell (droits utilisateur standard suffisent, l'élévation est
 demandée automatiquement si nécessaire) et collez la commande générée :
 
+<Terminal title="PowerShell">
+
 ```powershell
 Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/install-windows.ps1" -OutFile "$env:TEMP\install-windows.ps1"
 & "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
+
+</Terminal>
 
 Le script :
 1. relance PowerShell **en administrateur** si besoin (une seule
@@ -54,9 +58,13 @@ survenant **à partir de l'installation** sont collectés.
 
 ## 4. Vérifier
 
+<Terminal title="PowerShell">
+
 ```powershell
 Get-Service LogplusAgent
 ```
+
+</Terminal>
 
 Provoquez un événement de sécurité (ex. un échec de connexion volontaire) et
 vérifiez son apparition dans **Logs** sur le tableau de bord.
