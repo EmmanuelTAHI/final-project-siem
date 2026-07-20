@@ -27,7 +27,12 @@ function installCommand(platform: AgentPlatform, origin: string, token: string):
   if (platform === "linux") {
     return `curl -fsSL ${origin}/agents/install-linux.sh | sudo bash -s -- --url ${origin} --token ${token}`;
   }
-  return `$s = Invoke-WebRequest -UseBasicParsing ${origin}/agents/install-windows.ps1; Set-Content -Path "$env:TEMP\\install-windows.ps1" -Value $s.Content; & "$env:TEMP\\install-windows.ps1" -Url "${origin}" -Token "${token}"`;
+  // -OutFile (pas .Content + Set-Content) : Invoke-WebRequest écrit alors
+  // les octets bruts sur disque sans jamais passer par une conversion en
+  // chaîne — évite un piège de Windows PowerShell 5.1 où .Content peut être
+  // un byte[] (pas une string) selon le Content-Type renvoyé par le
+  // serveur, ce qui corrompait le script écrit par Set-Content.
+  return `Invoke-WebRequest -UseBasicParsing -Uri "${origin}/agents/install-windows.ps1" -OutFile "$env:TEMP\\install-windows.ps1"; & "$env:TEMP\\install-windows.ps1" -Url "${origin}" -Token "${token}"`;
 }
 
 function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProps) {

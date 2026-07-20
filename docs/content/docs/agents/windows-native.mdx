@@ -20,8 +20,7 @@ Ouvrez PowerShell (droits utilisateur standard suffisent, l'élévation est
 demandée automatiquement si nécessaire) et collez la commande générée :
 
 ```powershell
-$s = Invoke-WebRequest -UseBasicParsing https://votre-instance.example/agents/install-windows.ps1
-Set-Content -Path "$env:TEMP\install-windows.ps1" -Value $s.Content
+Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/install-windows.ps1" -OutFile "$env:TEMP\install-windows.ps1"
 & "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
