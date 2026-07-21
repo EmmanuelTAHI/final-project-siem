@@ -373,7 +373,7 @@ function LoginPageContent() {
             <Shield size={20} />
           </div>
           <div className="font-display" style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>
-            Log<span style={{ color: "#3B82F6" }}>+</span>
+            Argus
           </div>
         </div>
 

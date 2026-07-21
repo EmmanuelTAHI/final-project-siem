@@ -254,7 +254,7 @@ export function Sidebar({ forceExpanded = false, onClose }: SidebarProps) {
               className="font-display"
               style={{ fontWeight: 800, fontSize: 15.5, letterSpacing: "-0.03em", lineHeight: 1 }}
             >
-              Log<span style={{ color: "var(--primary)" }}>+</span>
+              Argus
             </div>
             <div
               className="font-mono"
