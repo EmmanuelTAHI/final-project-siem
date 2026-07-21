@@ -122,7 +122,7 @@ export interface SidebarProps {
   onClose?: () => void;
 }
 
-export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarProps) {
+export function Sidebar({ forceExpanded = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const router = useRouter();
@@ -317,6 +317,7 @@ export function Sidebar({ forceExpanded = false, onClose: _onClose }: SidebarPro
                     <NavTooltip key={item.href} label={item.label} show={collapsed}>
                       <Link
                         href={item.href}
+                        onClick={() => onClose?.()}
                         className={cn("nav-item", active && "nav-item-active")}
                         style={{
                           display: "flex",
