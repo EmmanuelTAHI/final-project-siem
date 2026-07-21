@@ -26,6 +26,15 @@ class Organization(models.Model):
         default=False,
         help_text="Organisation technique interne (bootstrap/legacy), masquée aux utilisateurs normaux.",
     )
+    is_demo = models.BooleanField(
+        default=False,
+        help_text=(
+            "Tenant de démonstration public (lien magique / QR code) : "
+            "isolé comme n'importe quel tenant, mais ses actions à effet de "
+            "bord réel (emails, webhooks, blocages IP) sont simulées et ses "
+            "données sont réinitialisables via `reset_demo_tenant`."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -15,6 +15,13 @@ def execute(params: dict, alert) -> dict:
     if not recipients:
         return {"status": "skipped", "reason": "no_recipients"}
 
+    if getattr(alert.organization, "is_demo", False):
+        # Tenant de démonstration publique : simule l'envoi plutôt que de
+        # spammer de vraies boîtes mail avec des exécutions déclenchées par
+        # des spectateurs anonymes.
+        logger.info("[DEMO] Email simulé pour %s (alerte %s)", recipients, alert.id)
+        return {"status": "simulated", "recipients": recipients}
+
     subject = params.get("subject_template", "Alerte Log+ : {title}").format(
         title=alert.title, severity=alert.severity.upper()
     )

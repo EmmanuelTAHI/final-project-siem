@@ -43,6 +43,7 @@ from .services.login_email_service import (
     send_login_confirmation,
     verify_login_otp,
 )
+from .services.demo_access_service import read_demo_token
 from .services.notification_service import notify, read_confirmation_token
 from .services.oauth_service import oauth_service
 from .services.password_reset_service import read_reset_token, send_password_reset_email
@@ -66,6 +67,38 @@ def get_client_ip(request) -> str:
     if x_forwarded:
         return x_forwarded.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR", "")
+
+
+def _issue_jwt_for_user(user) -> dict:
+    """Émet une paire de tokens JWT + le payload `user` renvoyé au frontend.
+    Factorisé entre VerifyLoginOTPView (login normal) et DemoAccessView
+    (lien magique démo) pour que les deux flux embarquent exactement les
+    mêmes claims (organization_id notamment, dont dépend l'isolation
+    multi-tenant du WebSocket — voir apps.notifications.consumers)."""
+    refresh = RefreshToken.for_user(user)
+    refresh["email"] = user.email
+    refresh["role"] = user.role
+    refresh["full_name"] = user.full_name
+    refresh["is_superuser"] = user.is_superuser
+    refresh["organization_id"] = str(user.organization_id) if user.organization_id else None
+    refresh["organization_name"] = user.organization.name if user.organization_id else None
+    refresh["session_id"] = str(refresh["jti"])
+
+    return {
+        "access_token": str(refresh.access_token),
+        "refresh_token": str(refresh),
+        "token_type": "Bearer",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_superuser": user.is_superuser,
+            "organization_id": str(user.organization_id) if user.organization_id else None,
+            "organization_name": user.organization.name if user.organization_id else None,
+            "is_demo": bool(user.organization_id and user.organization.is_demo),
+        },
+    }
 
 
 class LoginView(APIView):
@@ -1322,20 +1355,7 @@ class VerifyLoginOTPView(APIView):
         # OTP correct → nettoyer les clés de session et émettre les tokens JWT
         cache.delete(attempts_key)
         cache.delete(f"otp_cooldown:{user.id}")
-        refresh = RefreshToken.for_user(user)
-        refresh["email"] = user.email
-        refresh["role"] = user.role
-        refresh["full_name"] = user.full_name
-        refresh["is_superuser"] = user.is_superuser
-        refresh["organization_id"] = str(user.organization_id) if user.organization_id else None
-        refresh["organization_name"] = user.organization.name if user.organization_id else None
-        # Claim propagée à l'access token (copiée automatiquement par
-        # RefreshToken.access_token, seuls exp/iat/jti/token_type ne le sont
-        # pas) : permet de retrouver l'OutstandingToken (refresh) d'origine
-        # depuis un access token, puisque access et refresh ont des jti
-        # distincts et non comparables entre eux. Voir ActiveSessionsView /
-        # SessionRevokeView.
-        refresh["session_id"] = str(refresh["jti"])
+        auth_payload = _issue_jwt_for_user(user)
 
         login_ip = get_client_ip(request)
         geo = geo_lookup(login_ip)
@@ -1372,20 +1392,7 @@ class VerifyLoginOTPView(APIView):
             logger.exception("record_platform_login failed")
 
         return success_response(
-            data={
-                "access_token": str(refresh.access_token),
-                "refresh_token": str(refresh),
-                "token_type": "Bearer",
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role,
-                    "is_superuser": user.is_superuser,
-                    "organization_id": str(user.organization_id) if user.organization_id else None,
-                    "organization_name": user.organization.name if user.organization_id else None,
-                },
-            },
+            data=auth_payload,
             message="Connexion réussie.",
         )
 
@@ -1471,6 +1478,72 @@ class ResendOTPView(APIView):
                 )
 
         return success_response(message="Nouveau code envoyé par email.")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ACCÈS DÉMO PUBLIC (lien magique / QR code)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class DemoAccessView(APIView):
+    """
+    GET /api/auth/demo-access/<token>/
+    Contourne mot de passe + OTP pour connecter directement le compte
+    spectateur du tenant de démonstration (voir `setup_demo_tenant`).
+
+    Garde-fous : le token ne peut désigner qu'un utilisateur dont
+    l'organisation est explicitement marquée `is_demo=True` — toute
+    incohérence (org supprimée, is_demo repassé à False, token forgé pour un
+    autre user) est traitée comme un échec, jamais comme un bypass générique.
+    Redirige vers le frontend avec les tokens dans le FRAGMENT d'URL (#...),
+    jamais en query string, pour qu'ils n'atterrissent pas dans les logs
+    d'accès nginx ni dans l'historique du navigateur d'un tiers qui
+    partagerait l'écran.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp"
+
+    def get(self, request, token: str):
+        try:
+            user_id = read_demo_token(token)
+        except signing.SignatureExpired:
+            return _frontend_redirect("/demo-access", error="expired")
+        except Exception:
+            return _frontend_redirect("/demo-access", error="invalid")
+
+        try:
+            user = User.objects.select_related("organization").get(
+                pk=user_id, is_active=True,
+            )
+        except User.DoesNotExist:
+            return _frontend_redirect("/demo-access", error="invalid")
+
+        if not user.organization_id or not user.organization.is_demo:
+            logger.warning("DemoAccessView: token pour user=%s hors tenant démo", user_id)
+            return _frontend_redirect("/demo-access", error="invalid")
+
+        auth_payload = _issue_jwt_for_user(user)
+
+        AuditTrail.log(
+            action="demo_access_login",
+            user=user,
+            organization=user.organization,
+            target_model="User",
+            target_id=user.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+        )
+
+        import base64
+        import json as json_lib
+
+        payload_b64 = base64.urlsafe_b64encode(
+            json_lib.dumps(auth_payload).encode()
+        ).decode()
+        base = getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
+        return HttpResponseRedirect(f"{base}/demo-access#payload={payload_b64}")
 
 
 class NotificationListView(APIView):

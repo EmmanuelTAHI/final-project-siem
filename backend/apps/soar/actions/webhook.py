@@ -14,6 +14,13 @@ def execute(params: dict, alert) -> dict:
     if not url:
         return {"status": "skipped", "reason": "no_url"}
 
+    if getattr(alert.organization, "is_demo", False):
+        # Tenant de démonstration publique : simule l'appel plutôt que
+        # d'atteindre un vrai service externe (Slack/Teams/PagerDuty...)
+        # déclenché par un spectateur anonyme.
+        logger.info("[DEMO] Webhook simulé vers %s (alerte %s)", url, alert.id)
+        return {"status": "simulated", "url": url}
+
     method = params.get("method", "POST").upper()
     headers = params.get("headers", {"Content-Type": "application/json"})
 

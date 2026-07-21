@@ -13,7 +13,7 @@ const SCROLL_KEY = "logplus_scroll";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
-  const { isAuthenticated, _hasHydrated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated, user } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement>(null);
@@ -66,7 +66,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div
+      className="flex h-screen overflow-hidden bg-background"
+      style={user?.is_demo ? { paddingTop: 28 } : undefined}
+    >
+      {user?.is_demo && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 60,
+            textAlign: "center",
+            padding: "6px 12px",
+            fontSize: 12.5,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: "#111",
+            background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
+          }}
+        >
+          Mode démonstration — vous êtes connecté au tenant public de présentation. Aucune action réelle
+          (email, webhook, blocage IP) n&apos;est effectuée et ces données sont réinitialisées régulièrement.
+        </div>
+      )}
       {/* Desktop sidebar — hover-controlled, self-managed.
           Largeur réservée fixe (64px, état replié) : la sidebar elle-même se
           positionne en absolu par-dessus le contenu quand elle s'étend au

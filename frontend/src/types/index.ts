@@ -24,6 +24,7 @@ export interface AuthUser {
   is_superuser?: boolean;
   organization_id?: string | null;
   organization_name?: string | null;
+  is_demo?: boolean;
   email_notifications?: boolean;
   critical_alert_emails?: boolean;
   weekly_report_email?: boolean;

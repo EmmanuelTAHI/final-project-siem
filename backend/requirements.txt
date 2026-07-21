@@ -41,6 +41,9 @@ geoip2>=4.8
 reportlab>=4.2
 Pillow>=10.3
 
+# QR code (lien magique de démonstration)
+qrcode>=7.4
+
 # Tests
 pytest>=8.0
 pytest-django>=4.8

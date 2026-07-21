@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ActiveSessionsView,
     ConfirmLoginView,
+    DemoAccessView,
     GoogleOAuthCallbackView,
     GoogleOAuthInitiateView,
     LinkedAccountCallbackView,
@@ -64,4 +65,7 @@ urlpatterns = [
 
     # Confirmation de connexion (lien email)
     path("confirm-login/<str:token>/", ConfirmLoginView.as_view(), name="confirm-login"),
+
+    # Accès démo public (lien magique / QR code de présentation)
+    path("demo-access/<str:token>/", DemoAccessView.as_view(), name="auth-demo-access"),
 ]

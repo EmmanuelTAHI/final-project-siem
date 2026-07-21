@@ -33,6 +33,13 @@ def execute(params: dict, alert) -> dict:
     if not target_ips:
         return {"status": "skipped", "reason": "no_ips_found"}
 
+    if getattr(alert.organization, "is_demo", False):
+        # Tenant de démonstration publique : simule le blocage plutôt que
+        # d'appeler un vrai firewall/NGFW pour une action déclenchée par un
+        # spectateur anonyme.
+        logger.info("[DEMO] Blocage IP simulé pour %s (alerte %s)", target_ips, alert.id)
+        return {"status": "simulated", "blocked_ips": target_ips}
+
     blocked = []
     failed = []
 

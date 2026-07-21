@@ -80,6 +80,7 @@ class SendEmailActionTest(TestCase):
         mock_alert.severity = "high"
         mock_alert.status = "open"
         mock_alert.created_at.strftime.return_value = "2026-04-26 10:00 UTC"
+        mock_alert.organization.is_demo = False
 
         result = send_email.execute(
             {"recipients": ["soc@test.ci"]}, mock_alert
@@ -107,6 +108,7 @@ class SendEmailActionTest(TestCase):
         mock_alert.status = "open"
         mock_alert.created_at.isoformat.return_value = "2026-04-26T10:00:00Z"
         mock_alert.description = "desc"
+        mock_alert.organization.is_demo = False
 
         result = webhook.execute({"url": "https://hooks.example.com/test"}, mock_alert)
         self.assertEqual(result["status"], "success")
