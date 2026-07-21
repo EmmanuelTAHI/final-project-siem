@@ -48,7 +48,13 @@ class Command(BaseCommand):
                 "username": DEMO_USER_EMAIL,
                 "first_name": "Spectateur",
                 "last_name": "Démo",
-                "role": "viewer",
+                # role="admin" pour avoir un accès en LECTURE complet (les
+                # vues qui exigent IsAnalyst/IsAdmin bloqueraient sinon des
+                # pages entières, ex. collecteurs, règles de corrélation).
+                # Sans risque : DemoSpectatorReadOnlyMiddleware bloque TOUTE
+                # écriture pour ce compte quel que soit son rôle — voir
+                # utils/demo_readonly_middleware.py.
+                "role": "admin",
                 "organization": organization,
                 "is_active": True,
                 "is_demo_spectator": True,
@@ -67,8 +73,8 @@ class Command(BaseCommand):
             if not user.is_demo_spectator:
                 user.is_demo_spectator = True
                 changed.append("is_demo_spectator")
-            if user.role != "viewer":
-                user.role = "viewer"
+            if user.role != "admin":
+                user.role = "admin"
                 changed.append("role")
             if changed:
                 user.save(update_fields=changed)

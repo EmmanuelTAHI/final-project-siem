@@ -66,84 +66,79 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!isAuthenticated) return null;
 
   return (
-    <div
-      className="flex h-screen overflow-hidden bg-background"
-      style={user?.is_demo ? { paddingTop: 28 } : undefined}
-    >
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
       {user?.is_demo && (
         <div
           style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 60,
+            flexShrink: 0,
             textAlign: "center",
-            padding: "6px 12px",
-            fontSize: 12.5,
+            padding: "6px 16px",
+            fontSize: 12,
             fontWeight: 600,
             letterSpacing: "0.02em",
             color: "#111",
             background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
           }}
         >
-          Mode démonstration — vous êtes connecté au tenant public de présentation. Aucune action réelle
-          (email, webhook, blocage IP) n&apos;est effectuée et ces données sont réinitialisées régulièrement.
+          Mode démonstration — lecture seule des vraies données. Aucune action (créer, modifier, supprimer, email, webhook) n&apos;est possible.
         </div>
       )}
-      {/* Desktop sidebar — hover-controlled, self-managed.
-          Largeur réservée fixe (64px, état replié) : la sidebar elle-même se
-          positionne en absolu par-dessus le contenu quand elle s'étend au
-          survol, pour ne jamais pousser/redimensionner la page à côté. */}
-      <div className="hidden lg:block relative flex-shrink-0" style={{ width: 64 }}>
-        <Sidebar />
-      </div>
 
-      {/* Mobile sidebar overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Desktop sidebar — hover-controlled, self-managed.
+            Largeur réservée fixe (64px, état replié) : la sidebar elle-même se
+            positionne en absolu par-dessus le contenu quand elle s'étend au
+            survol, pour ne jamais pousser/redimensionner la page à côté. */}
+        <div className="hidden lg:block relative flex-shrink-0" style={{ width: 64 }}>
+          <Sidebar />
+        </div>
+
+        {/* Mobile sidebar overlay */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+                onClick={() => setMobileOpen(false)}
+              />
+              <motion.div
+                initial={{ x: -240 }}
+                animate={{ x: 0 }}
+                exit={{ x: -240 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="fixed left-0 top-0 bottom-0 z-50 lg:hidden"
+              >
+                <Sidebar forceExpanded={true} onClose={() => setMobileOpen(false)} />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Topbar
+            onMobileMenuToggle={() => setMobileOpen(true)}
+            onCommandPaletteOpen={() => setCommandOpen(true)}
+          />
+
+          <main ref={mainRef} className="flex-1 overflow-y-auto">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/60 lg:hidden"
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.div
-              initial={{ x: -240 }}
-              animate={{ x: 0 }}
-              exit={{ x: -240 }}
+              key={pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed left-0 top-0 bottom-0 z-50 lg:hidden"
+              className="h-full"
             >
-              <Sidebar forceExpanded={true} onClose={() => setMobileOpen(false)} />
+              {children}
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          </main>
+        </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar
-          onMobileMenuToggle={() => setMobileOpen(true)}
-          onCommandPaletteOpen={() => setCommandOpen(true)}
-        />
-
-        <main ref={mainRef} className="flex-1 overflow-y-auto">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="h-full"
-          >
-            {children}
-          </motion.div>
-        </main>
+        <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
-
-      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
 }
