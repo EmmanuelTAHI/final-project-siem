@@ -272,7 +272,7 @@ function LoginPageContent() {
       const data = await authApi.verifyOtp(otp, preAuthToken);
       clearOtpSession();
       setAuth(data.user, data.access, data.refresh);
-      toast.success(`Bienvenue, ${data.user.first_name} !`);
+      toast.success(`Bienvenue, ${data.user.full_name} !`);
       router.replace(redirect);
     } catch (err: unknown) {
       const ax = err as {
