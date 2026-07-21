@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Lock, ShieldCheck, XCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -14,7 +14,7 @@ interface DemoAuthPayload {
   user: AuthUser;
 }
 
-export default function DemoAccessPage() {
+function DemoAccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
@@ -116,5 +116,13 @@ export default function DemoAccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DemoAccessPage() {
+  return (
+    <Suspense fallback={null}>
+      <DemoAccessContent />
+    </Suspense>
   );
 }
