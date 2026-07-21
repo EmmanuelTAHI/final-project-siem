@@ -6,7 +6,7 @@ from django.utils.text import slugify
 
 class Organization(models.Model):
     """
-    Un tenant de la plateforme SaaS Log+ : une PME ou un particulier.
+    Un tenant de la plateforme SaaS Argus : une PME ou un particulier.
     Toutes les données métier (logs, connecteurs, alertes...) sont rattachées
     à une organisation et ne doivent jamais être visibles en dehors de celle-ci
     (voir utils.tenant.OrganizationFilterBackend).

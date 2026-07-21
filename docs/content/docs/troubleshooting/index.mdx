@@ -25,7 +25,7 @@ Depuis la machine qui héberge l'agent :
 
 ```bash
 curl -i -X POST https://votre-instance.example/api/ingest/agent/logs/ \
-  -H "Authorization: Bearer logplus_agt_VOTRE_TOKEN" \
+  -H "Authorization: Bearer argus_agt_VOTRE_TOKEN" \
   -H "Content-Type: text/plain" \
   --data-binary "<34>test message depannage"
 ```
@@ -40,7 +40,7 @@ curl -i -X POST https://votre-instance.example/api/ingest/agent/logs/ \
 ## 3. Vérifier le token
 
 - Le token n'a-t-il pas été révoqué (page **Agents** du tableau de bord) ?
-- Avez-vous bien copié le token en entier, avec le préfixe `logplus_agt_` ?
+- Avez-vous bien copié le token en entier, avec le préfixe `argus_agt_` ?
 - Le token n'a-t-il pas de date d'expiration dépassée ?
 
 ## 4. Vérifier côté tableau de bord

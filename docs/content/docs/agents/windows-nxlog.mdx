@@ -1,11 +1,11 @@
 ---
 title: Windows — NXLog (alternative)
-description: Envoyer les journaux d'événements Windows vers Log+ via NXLog Community Edition
+description: Envoyer les journaux d'événements Windows vers Argus via NXLog Community Edition
 ---
 
 <Callout type="info">
   Méthode alternative. Si vous n'avez pas déjà NXLog en place, préférez
-  l'[agent Log+ natif](/docs/agents/windows-native) — aucun outil tiers à
+  l'[agent Argus natif](/docs/agents/windows-native) — aucun outil tiers à
   installer, service Windows en une commande PowerShell.
 </Callout>
 
@@ -46,19 +46,19 @@ LogFile    %ROOT%\data\nxlog.log
               </QueryList>
 </Input>
 
-<Output logplus>
+<Output argus>
     Module      om_http
     URL         https://votre-instance.example/api/ingest/agent/logs/
     HTTPSAllowUntrusted FALSE
     <Headers>
-        Authorization Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        Authorization Bearer argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         Content-Type  text/plain
     </Headers>
     Exec        to_json();
 </Output>
 
-<Route windows_to_logplus>
-    Path windows_events => logplus
+<Route windows_to_argus>
+    Path windows_events => argus
 </Route>
 ```
 
@@ -71,7 +71,7 @@ Restart-Service nxlog
 ## 4. Vérifier
 
 Provoquez un événement de sécurité (ex. échec de connexion RDP) et
-vérifiez son apparition dans **Logs** sur le tableau de bord Log+.
+vérifiez son apparition dans **Logs** sur le tableau de bord Argus.
 
 <Callout type="info">
   Remplacez le token dans `Authorization` par le vôtre (page Agents du

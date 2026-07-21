@@ -44,8 +44,8 @@ const config: Config = {
         border: "hsl(var(--border-hsl))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        // Direct Log+ tokens (use via e.g. text-logplus-text, bg-logplus-surface)
-        logplus: {
+        // Direct Argus tokens (use via e.g. text-argus-text, bg-argus-surface)
+        argus: {
           bg: "var(--bg)",
           surface: "var(--surface)",
           "surface-2": "var(--surface-2)",

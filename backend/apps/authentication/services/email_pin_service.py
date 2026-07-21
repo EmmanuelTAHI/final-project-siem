@@ -38,7 +38,7 @@ def send_pin_email(
     to_email: str,
     provider: str,
     provider_display_name: str,
-    logplus_user_email: str,
+    argus_user_email: str,
     pin: str,
 ) -> bool:
     provider_name   = PROVIDER_NAMES.get(provider, provider.capitalize())
@@ -46,17 +46,17 @@ def send_pin_email(
     provider_letter = PROVIDER_LOGOS.get(provider, provider[0].upper())
     expiry_minutes  = 5
 
-    subject = f"[Log+] Code de vérification — {provider_name}"
+    subject = f"[Argus] Code de vérification — {provider_name}"
 
     text_body = (
-        f"Code de vérification Log+\n\n"
+        f"Code de vérification Argus\n\n"
         f"Vous avez demandé de lier votre compte {provider_name} "
-        f"({to_email}) à votre compte Log+ ({logplus_user_email}).\n\n"
+        f"({to_email}) à votre compte Argus ({argus_user_email}).\n\n"
         f"Votre code : {pin}\n\n"
         f"Ce code est valable {expiry_minutes} minutes.\n\n"
         f"Si vous n'avez pas effectué cette action, ignorez cet email — "
         f"aucune liaison ne sera créée.\n\n"
-        f"— Log+"
+        f"— Argus"
     )
 
     html_body = _build_html(
@@ -65,13 +65,13 @@ def send_pin_email(
         provider_letter=provider_letter,
         provider_display_name=provider_display_name,
         provider_email=to_email,
-        logplus_user_email=logplus_user_email,
+        argus_user_email=argus_user_email,
         pin=pin,
         expiry_minutes=expiry_minutes,
     )
 
     from_email = getattr(
-        settings, "DEFAULT_FROM_EMAIL", "Log+ <noreply@logplus.ci>"
+        settings, "DEFAULT_FROM_EMAIL", "Argus <noreply@argussiem.com>"
     )
 
     try:
@@ -92,7 +92,7 @@ def _build_html(
     provider_letter: str,
     provider_display_name: str,
     provider_email: str,
-    logplus_user_email: str,
+    argus_user_email: str,
     pin: str,
     expiry_minutes: int,
 ) -> str:
@@ -133,7 +133,7 @@ def _build_html(
                   </p>
                   <p style="margin:0;font-size:12px;color:{t.MUTED};line-height:1.6;">
                     Ce code confirme que vous poss&#233;dez bien ce compte {provider_name}.
-                    Une fois li&#233;, Log+ surveillera les connexions inhabituelles
+                    Une fois li&#233;, Argus surveillera les connexions inhabituelles
                     (nouvelle localisation, nouvel appareil, brute-force) et vous alertera.
                   </p>
                 </td>
@@ -142,7 +142,7 @@ def _build_html(
     """
 
     return t.render_email(
-        preheader=f"Code de vérification {provider_name} : {pin} — valable {expiry_minutes} minutes. Log+.",
+        preheader=f"Code de vérification {provider_name} : {pin} — valable {expiry_minutes} minutes. Argus.",
         badge_label=provider_name,
         badge_letter=provider_letter,
         accent=provider_color,
@@ -150,8 +150,8 @@ def _build_html(
         subtitle_html=(
             f"Une demande de liaison du compte "
             f"<strong style=\"color:{t.TEXT};\">&nbsp;{provider_email}&nbsp;</strong>"
-            f"à votre espace Log+ "
-            f"(<span style=\"font-family:'Courier New',Courier,monospace;font-size:12px;color:{t.MUTED};\">{logplus_user_email}</span>) "
+            f"à votre espace Argus "
+            f"(<span style=\"font-family:'Courier New',Courier,monospace;font-size:12px;color:{t.MUTED};\">{argus_user_email}</span>) "
             "a été initialisée."
         ),
         body_html=body,

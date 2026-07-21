@@ -53,6 +53,6 @@ red_team_report*.json
 # ne doit jamais atterrir sur le serveur de production)
 docker-compose.override.yml
 
-# Binaires compilés de l'agent Log+ natif — reconstruits à chaque déploiement
+# Binaires compilés de l'agent Argus natif — reconstruits à chaque déploiement
 # (voir agent/build.sh), jamais commités (gros fichiers binaires, un par OS/arch).
 agent/dist/

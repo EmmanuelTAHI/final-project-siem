@@ -8,7 +8,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { CommandPalette } from "@/components/common/command-palette";
 import { useAuthStore } from "@/stores/auth-store";
 
-const SCROLL_KEY = "logplus_scroll";
+const SCROLL_KEY = "argus_scroll";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);

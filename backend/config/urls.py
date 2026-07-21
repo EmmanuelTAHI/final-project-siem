@@ -1,6 +1,6 @@
 ﻿"""
-Routage principal du projet Log+.
-PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026
+Routage principal du projet Argus.
+PFE Argus — TAHI Ezan Franck Emmanuel — 2025-2026
 """
 from django.contrib import admin
 from django.http import JsonResponse

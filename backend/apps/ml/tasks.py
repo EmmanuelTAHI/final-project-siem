@@ -71,7 +71,7 @@ def _train_isolation_forest_for_org(org, days_of_data: int, contamination: float
     version = f"1.{MLModel.objects.filter(organization=org).count()}.0"
     ml_model = MLModel.objects.create(
         organization=org,
-        name="Log+ Isolation Forest",
+        name="Argus Isolation Forest",
         version=version,
         algorithm="isolation_forest",
         trained_at=timezone.now(),

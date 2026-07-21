@@ -18,7 +18,7 @@ import { PinEntryInline, PIN_TTL } from "./pin-verification-modal";
 import type { LinkedAccount, OAuthProvider, ProviderLoginEvent } from "@/types";
 
 // ─── sessionStorage key for PIN persistence across reloads ───────────────────
-const PIN_SESSION_KEY = "logplus_pin_pending";
+const PIN_SESSION_KEY = "argus_pin_pending";
 
 const PROVIDER_META: Record<
   OAuthProvider,
@@ -428,7 +428,7 @@ export function LinkedAccountsPanel() {
   const handleUnlink = async (a: LinkedAccount) => {
     const ok = window.confirm(
       `Délier ${PROVIDER_META[a.provider].label} (${a.provider_email}) ?\n` +
-        `Log+ cessera de surveiller ce compte.`
+        `Argus cessera de surveiller ce compte.`
     );
     if (!ok) return;
     try {
@@ -491,7 +491,7 @@ export function LinkedAccountsPanel() {
                 lineHeight: 1.5,
               }}
             >
-              Liez vos comptes Google, Microsoft et GitHub. Log+ surveille les
+              Liez vos comptes Google, Microsoft et GitHub. Argus surveille les
               connexions pour détecter les tentatives de brute-force, les nouveaux
               appareils et les géolocalisations inhabituelles.
             </div>

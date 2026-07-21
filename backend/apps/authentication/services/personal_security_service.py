@@ -317,7 +317,7 @@ def _run_detections(account: LinkedAccount, event: ProviderLoginEvent) -> None:
 
 def check_own_login_impossible_travel(user, ip_address: str, geo_country: str, geo_city: str) -> None:
     """
-    Impossible travel sur le compte Log+ lui-même (pas un compte lié).
+    Impossible travel sur le compte Argus lui-même (pas un compte lié).
     Compare le login courant aux logins réussis précédents du même utilisateur
     dans AuditTrail : si un pays différent apparaît dans la fenêtre, le compte
     SOC est probablement compromis (session volée, credentials + boîte mail
@@ -346,9 +346,9 @@ def check_own_login_impossible_travel(user, ip_address: str, geo_country: str, g
     time_diff = (timezone.now() - prior.timestamp).total_seconds()
     notify(
         user, kind="impossible_travel", level="critical",
-        title="Déplacement impossible détecté sur votre compte Log+",
+        title="Déplacement impossible détecté sur votre compte Argus",
         body=(
-            f"Votre compte Log+ vient de se connecter depuis {geo_city or ''} "
+            f"Votre compte Argus vient de se connecter depuis {geo_city or ''} "
             f"({geo_country}), à seulement {round(time_diff / 60)} min d'une connexion "
             f"depuis {prior.geo_city or ''} ({prior.geo_country}). "
             f"Ce déplacement est géographiquement impossible : session probablement "

@@ -4,8 +4,8 @@ import "flag-icons/css/flag-icons.min.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Log+",
-  description: "Log+ — Security Information and Event Management Platform",
+  title: "Argus",
+  description: "Argus — Security Information and Event Management Platform",
 };
 
 export default function RootLayout({

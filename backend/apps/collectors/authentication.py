@@ -12,7 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 
 from .models import AgentEnrollmentToken
 
-TOKEN_PREFIX = "logplus_agt_"
+TOKEN_PREFIX = "argus_agt_"
 
 
 class AgentTokenPrincipal:

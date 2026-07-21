@@ -302,7 +302,7 @@ class LinkOAuthService:
             to_email=profile.email,
             provider=provider,
             provider_display_name=profile.display_name,
-            logplus_user_email=user.email,
+            argus_user_email=user.email,
             pin=pin,
         )
 

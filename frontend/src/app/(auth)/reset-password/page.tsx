@@ -99,7 +99,7 @@ function ResetPasswordContent() {
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 26, lineHeight: 1.55 }}>
-              Choisissez un nouveau mot de passe pour votre compte Log+.
+              Choisissez un nouveau mot de passe pour votre compte Argus.
             </div>
 
             {error && <ErrorBanner message={error} />}

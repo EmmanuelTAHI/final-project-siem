@@ -179,12 +179,12 @@ class LoginView(APIView):
         if not otp_already_live:
             otp_sent = send_login_confirmation(
                 user,
-                method="Mot de passe (compte Log+)",
+                method="Mot de passe (compte Argus)",
                 ip=ip,
                 user_agent=ua,
                 extra_intro=(
                     "Pour finaliser votre connexion, entrez le code ci-dessous "
-                    "sur la plateforme Log+. Ce code est valide 10 minutes. "
+                    "sur la plateforme Argus. Ce code est valide 10 minutes. "
                     "Sans ce code, la connexion ne peut pas aboutir."
                 ),
             )
@@ -212,7 +212,7 @@ class LoginView(APIView):
         # Token de pré-authentification (signé Django, max_age=600s côté verify)
         pre_auth_token = signing.dumps(
             {"user_id": str(user.id)},
-            salt="logplus_pre_auth",
+            salt="argus_pre_auth",
         )
 
         return success_response(
@@ -1059,7 +1059,7 @@ class VerifyLinkPinView(APIView):
                 request.user,
                 kind="info", level="info",
                 title=f"Compte {account.provider} lié avec succès",
-                body=f"Le compte {account.provider_email} est maintenant surveillé par Log+.",
+                body=f"Le compte {account.provider_email} est maintenant surveillé par Argus.",
                 linked_account=account,
                 send_email=False,
                 create_confirmation=False,
@@ -1076,7 +1076,7 @@ class VerifyLinkPinView(APIView):
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
                 extra_intro=(
                     f"Votre compte {account.provider} ({account.provider_email}) "
-                    f"vient d'être lié et activé sur Log+. Log+ va désormais "
+                    f"vient d'être lié et activé sur Argus. Argus va désormais "
                     f"surveiller en continu les évènements de connexion de ce compte."
                 ),
             )
@@ -1298,7 +1298,7 @@ class VerifyLoginOTPView(APIView):
         try:
             payload = signing.loads(
                 pre_auth_token,
-                salt="logplus_pre_auth",
+                salt="argus_pre_auth",
                 max_age=600,
             )
             user_id = payload["user_id"]
@@ -1420,7 +1420,7 @@ class ResendOTPView(APIView):
         try:
             payload = signing.loads(
                 pre_auth_token,
-                salt="logplus_pre_auth",
+                salt="argus_pre_auth",
                 max_age=600,
             )
             user_id = payload["user_id"]
@@ -1461,7 +1461,7 @@ class ResendOTPView(APIView):
             ip=ip,
             user_agent=ua,
             extra_intro=(
-                "Voici votre nouveau code de connexion Log+. "
+                "Voici votre nouveau code de connexion Argus. "
                 "Entrez-le sur la plateforme pour finaliser votre connexion. "
                 "Ce code est valide 10 minutes."
             ),

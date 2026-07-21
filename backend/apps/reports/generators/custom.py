@@ -12,7 +12,7 @@ SOURCE_LABELS = {
     "google_workspace": "Google Workspace",
     "wazuh": "Wazuh",
     "syslog": "Syslog",
-    "agent": "Agent Log+",
+    "agent": "Agent Argus",
 }
 
 

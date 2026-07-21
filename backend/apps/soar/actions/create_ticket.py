@@ -25,10 +25,10 @@ def execute(params: dict, alert) -> dict:
     })
 
     payload = {
-        "title": f"[Log+] {alert.title}",
+        "title": f"[Argus] {alert.title}",
         "description": alert.description,
         "priority": priority_map.get(alert.severity, "Medium"),
-        "labels": ["logplus", alert.severity, "auto-generated"],
+        "labels": ["argus", alert.severity, "auto-generated"],
         "alert_id": str(alert.id),
     }
 

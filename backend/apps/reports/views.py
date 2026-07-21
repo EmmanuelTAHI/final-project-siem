@@ -106,7 +106,7 @@ class ComplianceReportView(APIView):
 
         _save_history(request, framework, FRAMEWORK_LABELS[framework], "pdf", period, pdf_bytes, "pdf")
 
-        filename = f"LogPlus_{framework.upper()}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
+        filename = f"Argus_{framework.upper()}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response["Content-Length"] = len(pdf_bytes)
@@ -166,7 +166,7 @@ class ReportGenerateView(APIView):
         label = REPORT_LABELS[report_type]
         _save_history(request, report_type, label, "pdf", period, pdf_bytes, "pdf")
 
-        filename = f"LogPlus_{report_type}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
+        filename = f"Argus_{report_type}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response["Content-Length"] = len(pdf_bytes)
@@ -255,7 +255,7 @@ class ReportExportView(APIView):
 
         _save_history(request, "custom", "Rapport personnalisé", fmt, period, content, ext)
 
-        filename = f"LogPlus_custom_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.{ext}"
+        filename = f"Argus_custom_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.{ext}"
         response = HttpResponse(content, content_type=content_type)
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response["Content-Length"] = len(content)

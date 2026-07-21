@@ -1,9 +1,9 @@
 ---
 title: Architecture & isolation multi-tenant
-description: Comment Log+ garantit qu'aucune organisation ne voit les données d'une autre
+description: Comment Argus garantit qu'aucune organisation ne voit les données d'une autre
 ---
 
-Log+ est une plateforme **multi-tenant** : plusieurs organisations
+Argus est une plateforme **multi-tenant** : plusieurs organisations
 partagent la même instance, mais chacune est strictement isolée des autres.
 Cette page explique le fonctionnement interne — la transparence sur le
 modèle d'isolation est volontaire, c'est un projet de sécurité open source.
@@ -74,6 +74,6 @@ l'instance, jamais accessible à un administrateur d'organisation normal.
 
 Le point le plus sensible d'un système multi-tenant est l'ingestion : un
 agent qui pousse des logs doit être rattaché à la bonne organisation, sans
-ambiguïté possible. Log+ résout cela par un **token bearer unique par
+ambiguïté possible. Argus résout cela par un **token bearer unique par
 organisation** (voir [Agents de collecte](/docs/agents)) — jamais par une
 IP source seule ou par un choix "premier connecteur disponible".

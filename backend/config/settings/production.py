@@ -44,7 +44,7 @@ LOGGING = {
         },
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": f"{LOG_DIR}/logplus.log",
+            "filename": f"{LOG_DIR}/argus.log",
             "maxBytes": 10 * 1024 * 1024,
             "backupCount": 5,
             "formatter": "json",

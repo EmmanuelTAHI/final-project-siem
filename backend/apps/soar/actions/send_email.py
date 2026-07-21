@@ -22,7 +22,7 @@ def execute(params: dict, alert) -> dict:
         logger.info("[DEMO] Email simulé pour %s (alerte %s)", recipients, alert.id)
         return {"status": "simulated", "recipients": recipients}
 
-    subject = params.get("subject_template", "Alerte Log+ : {title}").format(
+    subject = params.get("subject_template", "Alerte Argus : {title}").format(
         title=alert.title, severity=alert.severity.upper()
     )
     body = params.get(
@@ -39,7 +39,7 @@ def execute(params: dict, alert) -> dict:
         send_mail(
             subject=subject,
             message=body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
             recipient_list=recipients,
             fail_silently=False,
         )

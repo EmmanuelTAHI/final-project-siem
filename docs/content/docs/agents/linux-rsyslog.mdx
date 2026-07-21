@@ -1,11 +1,11 @@
 ---
 title: Linux — rsyslog (alternative)
-description: Envoyer les logs d'un serveur Linux vers Log+ via rsyslog
+description: Envoyer les logs d'un serveur Linux vers Argus via rsyslog
 ---
 
 <Callout type="info">
   Méthode alternative. Si vous n'avez pas déjà rsyslog en place et configuré,
-  préférez l'[agent Log+ natif](/docs/agents/linux-native) — un seul binaire,
+  préférez l'[agent Argus natif](/docs/agents/linux-native) — un seul binaire,
   aucune dépendance, installation en une commande.
 </Callout>
 
@@ -23,16 +23,16 @@ sudo apt-get install rsyslog-omhttp
 sudo dnf install rsyslog-omhttp
 ```
 
-## 2. Configurer l'envoi vers Log+
+## 2. Configurer l'envoi vers Argus
 
-Créez `/etc/rsyslog.d/60-logplus.conf` :
+Créez `/etc/rsyslog.d/60-argus.conf` :
 
 ```text
 module(load="omhttp")
 
 # Remplacez par votre token d'agent (voir page Agents du tableau de bord)
-# et l'URL de votre instance Log+.
-template(name="logplus_fmt" type="string" string="%msg%\n")
+# et l'URL de votre instance Argus.
+template(name="argus_fmt" type="string" string="%msg%\n")
 
 action(
   type="omhttp"
@@ -41,9 +41,9 @@ action(
   usehttps="on"
   restpath="api/ingest/agent/logs/"
   httpheaderkey1="Authorization"
-  httpheadervalue1="Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  httpheadervalue1="Bearer argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   contenttype="text/plain"
-  template="logplus_fmt"
+  template="argus_fmt"
   batch="on"
   batch.maxsize="500"
 )
@@ -58,7 +58,7 @@ sudo systemctl restart rsyslog
 ## 4. Vérifier
 
 Générez un événement de test (ex. une tentative de connexion SSH échouée)
-et vérifiez qu'il apparaît dans **Logs** sur le tableau de bord Log+ dans la
+et vérifiez qu'il apparaît dans **Logs** sur le tableau de bord Argus dans la
 minute qui suit. Si rien n'apparaît, voir [Dépannage](/docs/troubleshooting).
 
 ## Ne remonter que certains logs

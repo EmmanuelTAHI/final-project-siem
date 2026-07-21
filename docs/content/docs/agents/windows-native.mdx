@@ -1,12 +1,12 @@
 ---
-title: Windows — agent Log+ natif (recommandé)
-description: Installer l'agent Log+ natif sur Windows, sans dépendance externe
+title: Windows — agent Argus natif (recommandé)
+description: Installer l'agent Argus natif sur Windows, sans dépendance externe
 ---
 
-L'agent Log+ natif lit directement le journal d'événements Windows (API
+L'agent Argus natif lit directement le journal d'événements Windows (API
 `wevtapi`, temps réel) et s'installe comme un vrai service Windows — aucun
 outil tiers à télécharger séparément (pas de NXLog à configurer). C'est la
-méthode recommandée pour connecter un poste ou un serveur Windows à Log+.
+méthode recommandée pour connecter un poste ou un serveur Windows à Argus.
 
 ## 1. Générer un token
 
@@ -23,7 +23,7 @@ demandée automatiquement si nécessaire) et collez la commande générée :
 
 ```powershell
 Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/install-windows.ps1" -OutFile "$env:TEMP\install-windows.ps1"
-& "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+& "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 </Terminal>
@@ -31,14 +31,14 @@ Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/i
 Le script :
 1. relance PowerShell **en administrateur** si besoin (une seule
    confirmation UAC) ;
-2. télécharge le binaire **depuis votre propre instance Log+** et vérifie
+2. télécharge le binaire **depuis votre propre instance Argus** et vérifie
    son intégrité (**SHA-256**) avant toute exécution ;
 3. installe l'agent comme **service Windows** (démarrage automatique,
    visible dans `services.msc` sous le nom `LogplusAgent`).
 
 <Callout type="info">
   Testez d'abord la connexion sans rien installer :
-  `logplus-agent.exe test-connection -Url <url> -Token <token>`. L'installation
+  `argus-agent.exe test-connection -Url <url> -Token <token>`. L'installation
   refuse de se terminer si ce test échoue.
 </Callout>
 
@@ -72,7 +72,7 @@ vérifiez son apparition dans **Logs** sur le tableau de bord.
 ## 5. Désinstaller
 
 ```powershell
-& "$env:ProgramData\LogplusAgent\logplus-agent.exe" uninstall
+& "$env:ProgramData\LogplusAgent\argus-agent.exe" uninstall
 ```
 
 (à exécuter en administrateur) — arrête et supprime le service, le binaire,

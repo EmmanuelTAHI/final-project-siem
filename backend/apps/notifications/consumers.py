@@ -47,7 +47,7 @@ class AlertNotificationConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data=json.dumps({
             "type": "connection_established",
-            "message": "Connecté aux notifications Log+ en temps réel",
+            "message": "Connecté aux notifications Argus en temps réel",
         }))
 
     async def disconnect(self, close_code):

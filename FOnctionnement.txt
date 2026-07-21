@@ -1,4 +1,4 @@
-Comment ton SIEM (Log+) va fonctionner en PME
+Comment ton SIEM (Argus) va fonctionner en PME
 
   Architecture globale
 

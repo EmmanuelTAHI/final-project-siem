@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AlterModelManagers(
             name="user",
             managers=[
-                ("objects", apps.users.models.LogPlusUserManager()),
+                ("objects", apps.users.models.ArgusUserManager()),
             ],
         ),
         migrations.RenameIndex(

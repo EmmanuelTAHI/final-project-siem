@@ -4,14 +4,14 @@ description: Agent natif, tokens d'enrôlement, connecteurs, endpoint d'ingestio
 ---
 
 Pour envoyer les logs de vos machines (serveurs, postes de travail,
-équipements réseau) vers Log+, vous déployez un **agent** sur chaque
+équipements réseau) vers Argus, vous déployez un **agent** sur chaque
 machine à surveiller.
 
-## Agent Log+ natif (recommandé)
+## Agent Argus natif (recommandé)
 
-Log+ fournit son propre agent — un binaire unique, sans dépendance externe,
+Argus fournit son propre agent — un binaire unique, sans dépendance externe,
 pour Linux et Windows. Une PME peut déployer l'ensemble de la chaîne
-(plateforme + agents) avec uniquement ce que Log+ fournit lui-même : aucun
+(plateforme + agents) avec uniquement ce que Argus fournit lui-même : aucun
 logiciel tiers à installer séparément, aucune documentation externe à
 suivre.
 
@@ -29,7 +29,7 @@ token et URL déjà intégrés) est générée automatiquement à cet instant,
 copiez-la immédiatement.
 
 ```text
-logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 <Callout type="warn">
@@ -49,7 +49,7 @@ machine à surveiller :
 
     ```bash
     curl -fsSL https://votre-instance.example/agents/install-linux.sh | sudo bash -s -- \
-      --url https://votre-instance.example --token logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      --url https://votre-instance.example --token argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```
 
     </Terminal>
@@ -61,7 +61,7 @@ machine à surveiller :
 
     ```powershell
     Invoke-WebRequest -UseBasicParsing -Uri "https://votre-instance.example/agents/install-windows.ps1" -OutFile "$env:TEMP\install-windows.ps1"
-    & "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    & "$env:TEMP\install-windows.ps1" -Url "https://votre-instance.example" -Token "argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     ```
 
     </Terminal>
@@ -73,7 +73,7 @@ machine à surveiller :
 ## Méthodes alternatives
 
 Si votre parc utilise déjà un outil de collecte de logs (rsyslog, NXLog,
-Fluent Bit), Log+ reste compatible : le point d'entrée HTTP authentifié
+Fluent Bit), Argus reste compatible : le point d'entrée HTTP authentifié
 ci-dessous fonctionne avec n'importe quel outil qui sait envoyer des
 requêtes HTTP.
 
@@ -88,7 +88,7 @@ Chaque outil doit envoyer une requête :
 
 ```
 POST https://votre-instance.example/api/ingest/agent/logs/
-Authorization: Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxx
+Authorization: Bearer argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxx
 Content-Type: text/plain
 
 <ligne de log 1>
@@ -104,7 +104,7 @@ libre. Les batchs volumineux peuvent être compressés avec
 
 ## 3. Ce qui se passe côté serveur
 
-Au premier envoi, Log+ crée automatiquement un **connecteur** dédié à ce
+Au premier envoi, Argus crée automatiquement un **connecteur** dédié à ce
 token, et rattache tous les logs suivants à ce connecteur — jamais à un
 connecteur choisi arbitrairement. Vos logs sont ensuite normalisés,
 corrélés avec vos propres règles, et analysés par votre propre modèle de

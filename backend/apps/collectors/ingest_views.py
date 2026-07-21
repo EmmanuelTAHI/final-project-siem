@@ -56,7 +56,7 @@ def _get_client_ip(request) -> str:
 class AgentLogIngestView(APIView):
     """
     POST /api/ingest/agent/logs/
-    Authentification : Authorization: Bearer logplus_agt_<token>
+    Authentification : Authorization: Bearer argus_agt_<token>
     Corps : NDJSON (une ligne syslog ou un objet JSON par ligne).
     """
 
@@ -129,7 +129,7 @@ class AgentLogIngestView(APIView):
     @staticmethod
     def _parse_line(line: str, source_ip: str) -> dict:
         """
-        Une ligne peut être soit un objet JSON structuré (agent Log+ natif,
+        Une ligne peut être soit un objet JSON structuré (agent Argus natif,
         collecteur Windows Event Log / Linux — voir agent/internal/model),
         soit une ligne syslog brute RFC3164 (agents historiques : rsyslog,
         NXLog `to_json()` actuellement mal formé, Fluent Bit...).

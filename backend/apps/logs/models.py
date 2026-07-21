@@ -21,9 +21,9 @@ class RawLog(models.Model):
         ("google_workspace", "Google Workspace"),
         ("wazuh", "Wazuh"),
         ("syslog", "Syslog"),
-        ("agent", "Agent Log+ (HTTP authentifié)"),
+        ("agent", "Agent Argus (HTTP authentifié)"),
         ("manual", "Manuel"),
-        ("logplus", "Log+ (plateforme)"),
+        ("argus", "Argus (plateforme)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

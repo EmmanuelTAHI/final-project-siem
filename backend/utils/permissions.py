@@ -1,5 +1,5 @@
 ﻿"""
-Permissions par rôle pour Log+.
+Permissions par rôle pour Argus.
 Rôles : admin, analyst, viewer
 """
 from rest_framework.permissions import BasePermission

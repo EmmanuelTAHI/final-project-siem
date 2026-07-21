@@ -265,7 +265,7 @@ export default function UsersPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {editingUser
                 ? "Modifiez les informations du compte utilisateur."
-                : "Créez un nouveau compte avec accès au dashboard Log+."}
+                : "Créez un nouveau compte avec accès au dashboard Argus."}
             </p>
           </DialogHeader>
 

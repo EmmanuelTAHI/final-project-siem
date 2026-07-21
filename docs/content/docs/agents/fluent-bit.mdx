@@ -1,6 +1,6 @@
 ---
 title: Fluent Bit (générique / conteneurs)
-description: Envoyer des logs de conteneurs ou de fichiers arbitraires vers Log+
+description: Envoyer des logs de conteneurs ou de fichiers arbitraires vers Argus
 ---
 
 [Fluent Bit](https://fluentbit.io/) est un collecteur de logs open source
@@ -27,23 +27,23 @@ conteneurs.
 [INPUT]
     Name         tail
     Path         /var/log/*.log
-    Tag          logplus.*
+    Tag          argus.*
 
 [OUTPUT]
     Name         http
-    Match        logplus.*
+    Match        argus.*
     Host         votre-instance.example
     Port         443
     URI          /api/ingest/agent/logs/
     tls          on
     Format       msgpack
-    Header       Authorization Bearer logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Header       Authorization Bearer argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     Header       Content-Type text/plain
     Body_Key     message
 ```
 
 <Callout type="info">
-  Log+ attend une ligne de texte par événement (`text/plain`). Si votre
+  Argus attend une ligne de texte par événement (`text/plain`). Si votre
   source produit du JSON structuré, utilisez un filtre `lua` ou `record_modifier`
   en amont pour sérialiser chaque enregistrement en une seule ligne avant l'output.
 </Callout>
@@ -63,4 +63,4 @@ sudo journalctl -u fluent-bit -f
 ```
 
 Vérifiez ensuite l'apparition des logs dans **Logs** sur le tableau de bord
-Log+.
+Argus.

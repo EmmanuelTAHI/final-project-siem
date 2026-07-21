@@ -1,5 +1,5 @@
 # ============================================================
-# Log+ Frontend — build multi-étapes Next.js (sortie standalone)
+# Argus Frontend — build multi-étapes Next.js (sortie standalone)
 # ============================================================
 
 FROM node:20-alpine AS deps

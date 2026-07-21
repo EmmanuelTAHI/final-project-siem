@@ -1,5 +1,5 @@
 """
-Charte email partagée pour tous les messages sortants de Log+.
+Charte email partagée pour tous les messages sortants de Argus.
 Structure HTML "table-based" compatible Outlook/Gmail (MSO conditionals,
 preheader caché, boîtes de code en table cells) — même qualité de rendu
 partout, un seul endroit à maintenir pour la charte visuelle.
@@ -44,7 +44,7 @@ def _brand_header() -> str:
             </td>
             <td valign="middle" style="padding-left:10px;">
               <span style="font-size:14px;font-weight:700;color:#e2e8f0;letter-spacing:-0.3px;">
-                Log+
+                Argus
               </span>
               <div style="font-size:10.5px;color:{TEXT_FAINT};letter-spacing:0.06em;text-transform:uppercase;margin-top:1px;">
                 Security Operations Center
@@ -133,7 +133,7 @@ def render_email(
     footer_extra: str = "",
 ) -> str:
     """
-    Enveloppe HTML complète (Outlook-safe, dark theme Log+).
+    Enveloppe HTML complète (Outlook-safe, dark theme Argus).
     `body_html` est injecté tel quel entre le sous-titre et le bandeau d'avertissement.
     """
     year = timezone.now().year
@@ -159,7 +159,7 @@ def render_email(
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="color-scheme" content="dark light" />
   <meta name="supported-color-schemes" content="dark light" />
-  <title>{title} — Log+</title>
+  <title>{title} — Argus</title>
   <!--[if mso]>
   <noscript>
     <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
@@ -224,7 +224,7 @@ def render_email(
           <td style="background:{BG};border-top:1px solid {BORDER};padding:20px 32px;text-align:center;">
             {footer_extra}
             <p style="margin:0;font-size:11px;color:{BORDER};line-height:1.7;">
-              Log+ &middot; Security Information &amp; Event Management<br/>
+              Argus &middot; Security Information &amp; Event Management<br/>
               Institut des Ing&#233;nieurs Technologiques &middot; {year}
             </p>
           </td>

@@ -1,4 +1,4 @@
-# Log+ — SIEM SaaS multi-tenant, self-service
+# Argus — SIEM SaaS multi-tenant, self-service
 
 Plateforme SIEM (collecte de logs, corrélation MITRE ATT&CK, détection
 d'anomalies par Machine Learning, threat intelligence, réponse SOAR,
@@ -6,7 +6,7 @@ ticketing) pensée pour être **déployée et prise en main par une PME sans
 support externe** — jusqu'à l'agent de collecte, qui est natif au projet
 (aucun logiciel tiers requis).
 
-📖 **Documentation complète** : [logplus.duckdns.org/docs](https://logplus.duckdns.org/docs)
+📖 **Documentation complète** : [argussiem.com/docs](https://argussiem.com/docs)
 (ou `/docs` sur votre propre instance auto-hébergée) — création
 d'organisation, déploiement d'agents, architecture, modèle de sécurité,
 référence API.
@@ -97,7 +97,7 @@ docker compose exec backend python manage.py createsuperuser
 | `docs` | Site de documentation (Next.js/Fumadocs), servi sous `/docs` |
 | `db` | PostgreSQL |
 | `redis` | Cache, broker Celery, WebSocket |
-| `agent/` | Agent de collecte natif (Go, Linux/Windows) — voir [la doc agents](https://logplus.duckdns.org/docs/agents) |
+| `agent/` | Agent de collecte natif (Go, Linux/Windows) — voir [la doc agents](https://argussiem.com/docs/agents) |
 
 Toutes les commandes `docker compose ...` se lancent depuis la racine du projet,
 qui contient le `docker-compose.yml` unique pour l'ensemble de la stack.
@@ -142,17 +142,17 @@ docker compose down -v          # arrêter + supprimer les données (reset compl
 
 ## Agent de collecte natif
 
-Le dossier [`agent/`](agent/) contient le code source de l'agent Log+ (Go,
+Le dossier [`agent/`](agent/) contient le code source de l'agent Argus (Go,
 compilation statique, sans dépendance externe). Pour builder les binaires :
 
 ```bash
-cd agent && ./build.sh   # génère dist/logplus-agent-{linux-amd64,linux-arm64,windows-amd64.exe} + sommes SHA-256
+cd agent && ./build.sh   # génère dist/argus-agent-{linux-amd64,linux-arm64,windows-amd64.exe} + sommes SHA-256
 ```
 
 Les binaires sont servis par nginx sous `/agents/` et téléchargés
 automatiquement par la commande d'installation générée depuis le tableau de
 bord (page **Agents** → **Générer un token**). Détails complets : voir la
-[documentation agents](https://logplus.duckdns.org/docs/agents).
+[documentation agents](https://argussiem.com/docs/agents).
 
 ## Configuration avancée
 
@@ -163,4 +163,4 @@ n'empêchent pas le démarrage de la plateforme.
 
 Pour plus de détails sur le backend (modèles, API, tests), voir
 [`backend/README.md`](backend/README.md). Pour tout le reste (architecture,
-sécurité, agents, API), voir le [site de documentation](https://logplus.duckdns.org/docs).
+sécurité, agents, API), voir le [site de documentation](https://argussiem.com/docs).

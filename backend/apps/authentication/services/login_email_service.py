@@ -82,18 +82,18 @@ def _render_html(user, title: str, intro: str, otp: str, method: str,
                 ("Adresse IP", f"<code>{ip_display}</code>"),
                 ("Navigateur", ua_display),
             ])}
-            {t.cta_button("Ouvrir Log+", f"{_frontend_url()}/dashboard", accent)}
+            {t.cta_button("Ouvrir Argus", f"{_frontend_url()}/dashboard", accent)}
     """
 
     return t.render_email(
-        preheader=f"Code de vérification Log+ : {otp} — valable 10 minutes.",
+        preheader=f"Code de vérification Argus : {otp} — valable 10 minutes.",
         badge_label="Connexion au SOC",
         badge_letter="L+",
         accent=accent,
         title=title,
         subtitle_html=f"Bonjour <strong style=\"color:{t.TEXT};\">{name}</strong>, {intro}",
         body_html=body,
-        warning_html="Si ce n'est pas vous, changez votre mot de passe immédiatement et révoquez vos sessions actives depuis Log+.",
+        warning_html="Si ce n'est pas vous, changez votre mot de passe immédiatement et révoquez vos sessions actives depuis Argus.",
     )
 
 
@@ -123,10 +123,10 @@ def send_login_confirmation(
         otp = generate_login_otp(user.id)
         when = timezone.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         intro = extra_intro or (
-            "Une connexion vient d'être effectuée sur votre compte Log+. "
+            "Une connexion vient d'être effectuée sur votre compte Argus. "
             "Si c'est bien vous, aucune action n'est requise."
         )
-        title = "Connexion à Log+ confirmée"
+        title = "Connexion à Argus confirmée"
 
         text_body = (
             f"Bonjour {user.first_name or user.email},\n\n"
@@ -136,7 +136,7 @@ def send_login_confirmation(
             f"Survenu : {when}\n"
             f"IP : {ip or '-'}\n"
             f"Navigateur : {user_agent[:80] or '-'}\n\n"
-            f"-- Log+"
+            f"-- Argus"
         )
         html_body = _render_html(
             user=user, title=title, intro=intro, otp=otp,
@@ -144,9 +144,9 @@ def send_login_confirmation(
         )
 
         msg = EmailMultiAlternatives(
-            subject=f"[Log+] {title}",
+            subject=f"[Argus] {title}",
             body=text_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
             to=[user.email],
         )
         msg.attach_alternative(html_body, "text/html")

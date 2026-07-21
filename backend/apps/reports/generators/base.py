@@ -98,7 +98,7 @@ class BaseReportGenerator:
             leftMargin=2 * cm,
             rightMargin=2 * cm,
             title=f"{self.FRAMEWORK} Compliance Report",
-            author="Log+",
+            author="Argus",
         )
 
         data = self.collect_data()
@@ -110,7 +110,7 @@ class BaseReportGenerator:
     def _build_header(self) -> list:
         s = self.styles
         return [
-            Paragraph("Log+", s["Title"]),
+            Paragraph("Argus", s["Title"]),
             Paragraph(self.TITLE, s["Subtitle"]),
             Paragraph(
                 f"Période : {self.period_days} derniers jours | Généré le : "
@@ -125,7 +125,7 @@ class BaseReportGenerator:
             Spacer(1, 20),
             HRFlowable(width="100%", thickness=0.5, color=GRAY),
             Paragraph(
-                f"Ce rapport a été généré automatiquement par Log+ — "
+                f"Ce rapport a été généré automatiquement par Argus — "
                 f"TAHI Ezan Franck Emmanuel — {self.generated_at.year}",
                 self.styles["Meta"],
             ),

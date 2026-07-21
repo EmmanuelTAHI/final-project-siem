@@ -23,7 +23,7 @@ from .serializers import (
     ConnectorConfigSerializer,
 )
 
-TOKEN_PREFIX = "logplus_agt_"
+TOKEN_PREFIX = "argus_agt_"
 
 logger = logging.getLogger(__name__)
 

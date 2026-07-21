@@ -13,8 +13,8 @@ from apps.organizations.models import Organization
 from apps.users.models import User
 
 DEMO_ORG_SLUG = "demo-spectateurs"
-DEMO_ORG_NAME = "Log+ — Démo publique"
-DEMO_USER_EMAIL = "spectateur@demo.logplus.local"
+DEMO_ORG_NAME = "Argus — Démo publique"
+DEMO_USER_EMAIL = "spectateur@demo.argus.local"
 
 
 class Command(BaseCommand):

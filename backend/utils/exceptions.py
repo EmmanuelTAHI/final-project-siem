@@ -78,7 +78,7 @@ def custom_exception_handler(exc, context) -> Response:
         )
 
     # Erreur inattendue — log en production
-    logger.exception("Erreur non gérée dans l'API Log+", exc_info=exc)
+    logger.exception("Erreur non gérée dans l'API Argus", exc_info=exc)
     return Response(
         {
             "status": "error",

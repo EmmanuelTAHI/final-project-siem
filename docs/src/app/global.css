@@ -3,14 +3,14 @@
 @import 'fumadocs-ui/css/preset.css';
 
 /* ============================================================
-   Identité Log+ — même vocabulaire visuel que l'app principale
+   Identité Argus — même vocabulaire visuel que l'app principale
    (login/dashboard) : gradient bleu → teal, cartes "glass",
    animations d'entrée douces. Remplace uniquement les tokens de
    couleur fumadocs-ui (--color-fd-*), la structure du thème
    "neutral" reste inchangée.
    ============================================================ */
 @theme {
-  --color-fd-primary: hsl(220, 100%, 50%);       /* #0057FF-ish, proche du bleu Log+ */
+  --color-fd-primary: hsl(220, 100%, 50%);       /* #0057FF-ish, proche du bleu Argus */
   --color-fd-primary-foreground: hsl(0, 0%, 100%);
   --color-fd-ring: hsl(220, 100%, 60%);
   --color-fd-accent: hsl(220, 100%, 96%);

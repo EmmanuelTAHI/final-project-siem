@@ -98,7 +98,7 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
           {!rawToken && (
             <p className="text-sm text-muted-foreground pt-1">
               Ce token permet à un agent (rsyslog, NXLog, Fluent Bit…) déployé sur vos machines
-              d&apos;envoyer des logs vers Log+, rattachés uniquement à votre organisation.
+              d&apos;envoyer des logs vers Argus, rattachés uniquement à votre organisation.
             </p>
           )}
         </DialogHeader>
@@ -115,7 +115,7 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
 
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">
-                Installer l&apos;agent Log+ natif
+                Installer l&apos;agent Argus natif
               </Label>
               <div className="flex gap-1.5">
                 {(["linux", "windows"] as const).map((p) => (
@@ -150,7 +150,7 @@ function GenerateTokenModal({ open, onClose, onCreated }: GenerateTokenModalProp
                 {" "}Le script vérifie l&apos;intégrité du binaire (SHA-256) avant de l&apos;exécuter.
               </p>
               <a
-                href={`${origin}/agents/logplus-agent-${platform === "linux" ? "linux-amd64" : "windows-amd64.exe"}`}
+                href={`${origin}/agents/argus-agent-${platform === "linux" ? "linux-amd64" : "windows-amd64.exe"}`}
                 className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -256,7 +256,7 @@ export default function AgentsPage() {
         <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-muted-foreground leading-relaxed">
           Chaque token identifie de façon unique votre organisation : les logs envoyés avec ce
-          token ne sont jamais visibles par une autre organisation. L&apos;agent Log+ natif
+          token ne sont jamais visibles par une autre organisation. L&apos;agent Argus natif
           (Linux &amp; Windows, aucune dépendance externe) s&apos;installe en une commande générée
           automatiquement après création d&apos;un token — voir la{" "}
           <a href={getDocsUrl("agents")} target="_blank" rel="noopener noreferrer" className="text-primary underline">

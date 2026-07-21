@@ -1,5 +1,5 @@
 ﻿"""
-Modèles utilisateurs de Log+.
+Modèles utilisateurs de Argus.
 User étendu (AbstractUser), AuditTrail.
 """
 import uuid
@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
-class LogPlusUserManager(UserManager):
+class ArgusUserManager(UserManager):
     """Manager personnalisé utilisant l'email comme identifiant principal."""
 
     def _create_user(self, email, password, **extra_fields):
@@ -35,7 +35,7 @@ class LogPlusUserManager(UserManager):
 
 class User(AbstractUser):
     """
-    Modèle utilisateur Log+ étendu.
+    Modèle utilisateur Argus étendu.
     L'email remplace le username comme identifiant principal.
     """
 
@@ -83,7 +83,7 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    objects = LogPlusUserManager()
+    objects = ArgusUserManager()
 
     class Meta:
         verbose_name = "Utilisateur"
@@ -112,7 +112,7 @@ class User(AbstractUser):
 
 class AuditTrail(models.Model):
     """
-    Journal d'audit des actions critiques dans Log+.
+    Journal d'audit des actions critiques dans Argus.
     Enregistre qui a fait quoi, quand et depuis quelle IP.
     """
 

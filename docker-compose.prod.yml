@@ -1,5 +1,5 @@
 # ============================================================
-# Log+ — surcharge production (VPS)
+# Argus — surcharge production (VPS)
 #
 # Usage :
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Log+ — installation complète sur VPS Ubuntu 22.04
+# Argus — installation complète sur VPS Ubuntu 22.04
 #
 # Usage (en tant que root sur le VPS) :
 #   curl -fsSL https://raw.githubusercontent.com/VOTRE_REPO/main/setup-vps.sh | bash
@@ -156,7 +156,7 @@ VPS_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || echo "VOTRE_IP")
 
 echo ""
 echo "  =============================================="
-echo "   Log+ déployé avec succès !"
+echo "   Argus déployé avec succès !"
 echo "  =============================================="
 echo ""
 echo "  Interface web    : http://${VPS_IP}"

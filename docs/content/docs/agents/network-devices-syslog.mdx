@@ -7,13 +7,13 @@ description: Pare-feu, routeurs, switches — mode self-host uniquement
   Ce mode (syslog UDP brut) est **réservé à un déploiement self-host
   mono-organisation sur réseau privé**. Il est en clair, non chiffré, et
   authentifié seulement par une liste d'IP autorisées — jamais recommandé
-  sur une instance Log+ mutualisée (SaaS). Sur une instance partagée,
+  sur une instance Argus mutualisée (SaaS). Sur une instance partagée,
   utilisez plutôt un agent HTTP (voir les autres pages de cette section).
 </Callout>
 
 La plupart des pare-feu, routeurs et switches savent nativement envoyer du
 syslog UDP, mais ne savent pas parler HTTP avec un token bearer. Si vous
-auto-hébergez votre propre instance Log+ sur un réseau privé, vous pouvez
+auto-hébergez votre propre instance Argus sur un réseau privé, vous pouvez
 utiliser le récepteur syslog UDP intégré.
 
 ## 1. Configurer l'allowlist IP du connecteur
@@ -27,7 +27,7 @@ arbitrairement à un connecteur.
 ## 2. Pointer votre équipement vers le récepteur
 
 Configurez votre équipement pour envoyer son syslog vers l'IP de votre
-serveur Log+, port UDP 514 (redirigé vers 5140 dans le conteneur Docker).
+serveur Argus, port UDP 514 (redirigé vers 5140 dans le conteneur Docker).
 
 Exemple générique (syntaxe Cisco-like) :
 

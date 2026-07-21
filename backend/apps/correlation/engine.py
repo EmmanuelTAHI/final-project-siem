@@ -1,5 +1,5 @@
 ﻿"""
-Moteur de corrélation multi-couches de Log+.
+Moteur de corrélation multi-couches de Argus.
 Exécute toutes les règles actives sur les nouveaux logs normalisés.
 Réf. : Sheeraz et al., 2024 — Multi-layer SIEM Correlation Engine.
 """

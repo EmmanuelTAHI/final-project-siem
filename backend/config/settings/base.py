@@ -1,6 +1,6 @@
 ﻿"""
 Base settings partagés par tous les environnements.
-PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026
+PFE Argus — TAHI Ezan Franck Emmanuel — 2025-2026
 """
 import os
 from datetime import timedelta
@@ -305,7 +305,7 @@ EMAIL_PORT = int(env("EMAIL_PORT", default=587))
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Log+ <noreply@logplus.ci>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Argus <noreply@argussiem.com>")
 
 # ─── Syslog Receiver ─────────────────────────────────────────────────────────
 # UDP, non chiffré, authentifié seulement par allowlist IP par connecteur —

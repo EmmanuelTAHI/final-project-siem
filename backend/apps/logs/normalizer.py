@@ -327,14 +327,14 @@ class LogNormalizer:
             },
         }
 
-    # ─── Agent Log+ natif (JSON structuré) ───────────────────────────────────
+    # ─── Agent Argus natif (JSON structuré) ───────────────────────────────────
 
     # Windows Security : 4624 = ouverture de session réussie, 4625 = échouée.
     _WINDOWS_LOGON_EVENT_IDS = {4624: ("login_success", "success"), 4625: ("login_failure", "failure")}
 
     def _map_agent_json(self, data: dict) -> dict:
         """
-        Mappe un évènement JSON structuré envoyé par l'agent Log+ natif
+        Mappe un évènement JSON structuré envoyé par l'agent Argus natif
         (collecteur Windows Event Log ou Linux) — voir agent/internal/model.
         Contrairement à _map_syslog, les champs structurés (event_id,
         provider, raw_fields...) sont directement disponibles sans regex.

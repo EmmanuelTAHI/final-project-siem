@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Log+ — installation en une commande
+# Argus — installation en une commande
 #
 # Usage : ./install.sh
 #
@@ -20,7 +20,7 @@ cd "$ROOT_DIR"
 bold() { printf "\033[1m%s\033[0m\n" "$1"; }
 info() { printf "  -> %s\n" "$1"; }
 
-bold "Log+ — installation"
+bold "Argus — installation"
 
 # 1. Vérification des prérequis
 if ! command -v docker >/dev/null 2>&1; then
@@ -78,7 +78,7 @@ ADMIN_EMAIL=$(grep -E '^DJANGO_SUPERUSER_EMAIL=' .env | cut -d= -f2-)
 ADMIN_PASSWORD=$(grep -E '^DJANGO_SUPERUSER_PASSWORD=' .env | cut -d= -f2-)
 
 echo ""
-bold "Log+ est démarré !"
+bold "Argus est démarré !"
 echo "  Interface web      : http://localhost:3000"
 echo "  API backend        : http://localhost:8000"
 echo "  Compte administrateur :"

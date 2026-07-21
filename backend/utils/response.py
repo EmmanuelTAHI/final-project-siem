@@ -1,5 +1,5 @@
 ﻿"""
-Format de réponse standardisé pour toutes les vues de l'API Log+.
+Format de réponse standardisé pour toutes les vues de l'API Argus.
 Format uniforme : {"status", "data", "message", "pagination"}
 """
 from rest_framework import status

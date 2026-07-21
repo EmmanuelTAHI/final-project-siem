@@ -12,7 +12,7 @@ Environnement cible simulé :
   Assets       : DC Windows 2022, 10 postes Windows 11, 2 serveurs Linux
   Services     : Microsoft 365 tenant, Exchange Online, SharePoint
   Sécurité     : Wazuh 4.7 sur tous les endpoints, Fortinet FortiGate FW
-  Monitoring   : Log+ SIEM (ce projet)
+  Monitoring   : Argus SIEM (ce projet)
 """
 
 import json
@@ -1473,7 +1473,7 @@ class AttackSimulator:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class Command(BaseCommand):
-    help = "Simule une campagne d'attaque red team contre le SIEM Log+"
+    help = "Simule une campagne d'attaque red team contre le SIEM Argus"
 
     def add_arguments(self, parser):
         parser.add_argument(

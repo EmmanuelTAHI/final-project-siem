@@ -91,7 +91,7 @@ const sources = [
   { label: "Google Workspace", code: "google_workspace" },
   { label: "Wazuh", code: "wazuh" },
   { label: "Syslog", code: "syslog" },
-  { label: "Agent Log+", code: "agent" },
+  { label: "Agent Argus", code: "agent" },
 ];
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -134,7 +134,7 @@ export default function ReportsPage() {
     try {
       const days = periodToDays(period);
       const blob = await reportsApi.generateReport(reportType, days);
-      triggerDownload(blob, `LogPlus_${reportType}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      triggerDownload(blob, `Argus_${reportType}_${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success(`Rapport « ${label} » généré et téléchargé`);
       qc.invalidateQueries({ queryKey: ["report-history"] });
     } catch {
@@ -149,7 +149,7 @@ export default function ReportsPage() {
     try {
       const days = periodToDays(period);
       const blob = await reportsApi.exportCustom(checkedSources, days, format);
-      triggerDownload(blob, `LogPlus_custom_${new Date().toISOString().slice(0, 10)}.${format}`);
+      triggerDownload(blob, `Argus_custom_${new Date().toISOString().slice(0, 10)}.${format}`);
       toast.success("Rapport personnalisé généré et téléchargé");
       qc.invalidateQueries({ queryKey: ["report-history"] });
     } catch {

@@ -107,7 +107,7 @@ function AddConnectorModal({ open, onClose, onCreated }: AddConnectorModalProps)
             Ajouter un connecteur
           </DialogTitle>
           <p className="text-sm text-muted-foreground pt-1">
-            Configurez une nouvelle source de logs à ingérer dans Log+.
+            Configurez une nouvelle source de logs à ingérer dans Argus.
           </p>
         </DialogHeader>
 

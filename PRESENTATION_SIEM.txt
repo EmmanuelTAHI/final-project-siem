@@ -1,18 +1,18 @@
 ﻿================================================================
-DOCUMENTATION DE PRÉSENTATION — Log+
+DOCUMENTATION DE PRÉSENTATION — Argus
 TAHI Ezan Franck Emmanuel — 2025-2026
 ================================================================
 
 
 ================================================================
-PARTIE 1 — COMMENT FONCTIONNE LA Log+
+PARTIE 1 — COMMENT FONCTIONNE LA Argus
 ================================================================
 
 ------------------------------------------------------------------------
 1.1 — VUE D'ENSEMBLE DU SYSTÈME
 ------------------------------------------------------------------------
 
-Le projet est une Log+ (Security Information and Event
+Le projet est une Argus (Security Information and Event
 Management) complète, conçue pour centraliser, analyser et corréler
 les événements de sécurité provenant de différentes sources afin de
 détecter des menaces en temps quasi-réel.
@@ -202,13 +202,13 @@ PARTIE 2 — SCÉNARIOS DE TEST ET DÉMONSTRATION EN LIVE
 
 CONFIGURATION RECOMMANDÉE :
   - VM Attaquante  : Kali Linux (ou Ubuntu avec outils installés)
-  - VM Cible/Log+  : Machine hébergeant votre backend Django + Wazuh
+  - VM Cible/Argus  : Machine hébergeant votre backend Django + Wazuh
   - Réseau         : même réseau virtuel (host-only ou LAN)
 
-CONNEXION à Log+ :
+CONNEXION à Argus :
   - Wazuh est installé sur la machine cible
   - Son collecteur (wazuh_collector.py) remonte les alertes Wazuh
-    vers Log+ toutes les 2 minutes
+    vers Argus toutes les 2 minutes
   - Les attaques de la VM Kali génèrent des logs Wazuh
     → normalisés → corrélés → alertes dans le dashboard
 
@@ -217,7 +217,7 @@ CONNEXION à Log+ :
 2.2 — TEST 1 : SCAN RÉSEAU (Nmap) → DÉTECTION WAZUH
 ------------------------------------------------------------------------
 
-OBJECTIF : Montrer que Log+ remonte les scans réseau
+OBJECTIF : Montrer que Argus remonte les scans réseau
 
 SUR LA VM KALI (attaquante) :
   # Scan simple (SYN scan)
@@ -258,7 +258,7 @@ SUR LA VM KALI :
          -M ssh
 
   # Alternative : script Python simple simulant 10 échecs de connexion
-  # (injecter directement via l'API Log+ pour démo rapide)
+  # (injecter directement via l'API Argus pour démo rapide)
 
 SIMULATION DIRECTE VIA L'API (plus rapide pour la démo) :
   curl -X POST http://localhost:8000/api/logs/simulate/ \
@@ -303,7 +303,7 @@ SUR LA VM CIBLE (à faire devant le jury) :
   sudo passwd root
   # ou dans un contexte AD/Azure : attribution d'un rôle Global Admin
 
-SIMULATION DIRECTE VIA L'API Log+ :
+SIMULATION DIRECTE VIA L'API Argus :
   curl -X POST http://localhost:8000/api/logs/normalized/ \
     -H "Authorization: Bearer <votre_jwt>" \
     -H "Content-Type: application/json" \
@@ -538,7 +538,7 @@ SCÉNARIO NARRATIF POUR LE JURY :
   7. Montrer l'Audit Trail : chaque action est tracée avec timestamp
 
 CE QUE VOUS MONTREZ :
-  → Log+ n'est pas seulement un détecteur, c'est un outil de travail
+  → Argus n'est pas seulement un détecteur, c'est un outil de travail
     collaboratif pour les équipes de sécurité
   → Notion de MTTR (Mean Time To Resolve) visible dans les stats
 
@@ -553,7 +553,7 @@ EXEMPLES DE REQUÊTES À MONTRER :
 
   # Login et récupération du JWT
   curl -X POST http://localhost:8000/api/auth/login/ \
-    -d '{"email": "admin@logplus.ci", "password": "Admin@2025!"}'
+    -d '{"email": "admin@argussiem.com", "password": "Admin@2025!"}'
 
   # Voir les alertes critiques ouvertes
   curl http://localhost:8000/api/alerts/?severity=critical&status=open \
@@ -602,9 +602,9 @@ PARTIE 3 — CHECKLIST DE PRÉPARATION DE LA PRÉSENTATION
 3.2 — ORDRE RECOMMANDÉ DE LA PRÉSENTATION
 ------------------------------------------------------------------------
 
-  1. Introduction (2 min) : "qu'est-ce que Log+ et pourquoi c'est utile"
+  1. Introduction (2 min) : "qu'est-ce que Argus et pourquoi c'est utile"
   2. Architecture (3 min) : montrer le schéma, expliquer les composants
-  3. Demo Scan Réseau (2 min) : Nmap → Wazuh → Log+
+  3. Demo Scan Réseau (2 min) : Nmap → Wazuh → Argus
   4. Demo Brute Force (3 min) : injecter logs → alerte automatique
   5. Demo Privilege Escalation (3 min) : injection → alerte MITRE
   6. Demo Impossible Travel (2 min) : Paris + Moscou en 45 min
@@ -625,7 +625,7 @@ R : Python est l'écosystème naturel de la cybersécurité et du ML.
     pour le traitement asynchrone de logs en temps réel est bien établi.
     Next.js est conçu pour le SSR/BFF, pas pour des pipelines de sécurité.
 
-Q : "Comment vous assurez-vous que Log+ lui-même est sécurisé ?"
+Q : "Comment vous assurez-vous que Argus lui-même est sécurisé ?"
 R : Chiffrement AES-256 de tous les tokens, JWT avec blacklist,
     OAuth2 PKCE (le standard le plus sécurisé pour les flux OAuth),
     rate limiting, audit trail complet, headers de sécurité HTTP,
@@ -637,7 +637,7 @@ R : Non supervisé. Il n'a pas besoin de données labellisées (attaque/normal).
     les points qui s'en écartent le plus. C'est son avantage : il peut
     détecter des attaques jamais vues auparavant (zero-day behavior).
 
-Q : "Et si Log+ génère trop de faux positifs ?"
+Q : "Et si Argus génère trop de faux positifs ?"
 R : C'est un problème réel en SOC. Nos mécanismes de mitigation :
     1. Déduplication dans le moteur de corrélation
     2. Seuils configurables dans chaque règle
@@ -692,12 +692,12 @@ PARTIE 4 — COMMANDES DE DÉMARRAGE RAPIDE
 
   # Accéder à l'admin Django
   http://localhost:8000/admin/
-  (admin@logplus.ci / Admin@2025!)
+  (admin@argussiem.com / Admin@2025!)
 
   # URL de base de l'API
   http://localhost:8000/api/
 
 
 ================================================================
-FIN DU DOCUMENT — TAHI Ezan Franck Emmanuel — PFE Log+ 2025-2026
+FIN DU DOCUMENT — TAHI Ezan Franck Emmanuel — PFE Argus 2025-2026
 ================================================================

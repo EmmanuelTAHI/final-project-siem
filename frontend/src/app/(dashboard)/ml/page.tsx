@@ -38,7 +38,7 @@ export default function MLPage() {
   const trainMutation = useTrainModel();
 
   const model = models?.[0] ?? {
-    name: "IsolationForest Log+",
+    name: "IsolationForest Argus",
     version: "—",
     algorithm: "Isolation Forest",
     accuracy: 0,

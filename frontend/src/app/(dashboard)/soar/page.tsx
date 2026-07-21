@@ -34,7 +34,7 @@ const TRIGGER_LABELS: Record<TriggerType, string> = {
 };
 
 const ACTION_TEMPLATES = [
-  { type: "send_email", label: "Envoyer un email", params: { recipients: [], subject_template: "Alerte Log+: {title}" } },
+  { type: "send_email", label: "Envoyer un email", params: { recipients: [], subject_template: "Alerte Argus: {title}" } },
   { type: "webhook", label: "Appel webhook (Slack/Teams)", params: { url: "", method: "POST" } },
   { type: "block_ip", label: "Bloquer l'IP source", params: { block_duration_hours: 24 } },
   { type: "create_ticket", label: "Créer un ticket ITSM", params: { system: "jira", api_url: "" } },

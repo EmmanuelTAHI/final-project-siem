@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 /* ============================================================
-   Log+ design system — tokens adapted from Sentinel handoff
+   Argus design system — tokens adapted from Sentinel handoff
    ============================================================ */
 @layer base {
   :root {
-    /* Raw Log+ tokens */
+    /* Raw Argus tokens */
     --bg: #F4F6FA;
     --surface: #FFFFFF;
     --surface-2: #FFFFFF;

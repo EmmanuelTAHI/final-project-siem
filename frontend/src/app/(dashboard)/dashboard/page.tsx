@@ -28,7 +28,7 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `LogPlus_soc_weekly_${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.download = `Argus_soc_weekly_${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
         # FRONTEND_URL sert de base : en prod, nginx sert le frontend et
         # proxy-passe /api/ vers le backend sur le même domaine
-        # (https://logplus.duckdns.org) — voir nginx/.
+        # (https://argussiem.com) — voir nginx/.
         base = getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
         url = f"{base}/api/auth/demo-access/{token}/"
 

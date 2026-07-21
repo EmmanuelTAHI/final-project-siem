@@ -1,6 +1,6 @@
 ﻿"""
-Configuration Celery + Celery Beat pour Log+.
-PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026
+Configuration Celery + Celery Beat pour Argus.
+PFE Argus — TAHI Ezan Franck Emmanuel — 2025-2026
 """
 import os
 from datetime import timedelta
@@ -10,7 +10,7 @@ from celery.schedules import crontab
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
 
-app = Celery("logplus")
+app = Celery("argus")
 
 app.config_from_object("django.conf:settings", namespace="CELERY")
 

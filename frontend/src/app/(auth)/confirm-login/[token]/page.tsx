@@ -93,7 +93,7 @@ export default function ConfirmLoginPage() {
             textTransform: "uppercase",
           }}
         >
-          <Lock size={12} /> Log+ — confirmation de connexion
+          <Lock size={12} /> Argus — confirmation de connexion
         </div>
 
         {stage === "loading" && (
@@ -197,7 +197,7 @@ function ConfirmationCard({
       <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 22, lineHeight: 1.55 }}>
         Une nouvelle connexion vient d’être détectée sur votre compte{" "}
         <strong style={{ color: "var(--text)" }}>{details.provider || "lié"}</strong>{" "}
-        ({details.provider_email}). Confirmez-la pour rassurer Log+, ou signalez-la pour
+        ({details.provider_email}). Confirmez-la pour rassurer Argus, ou signalez-la pour
         verrouiller le compte immédiatement.
       </div>
 

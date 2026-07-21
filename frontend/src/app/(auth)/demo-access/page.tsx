@@ -86,7 +86,7 @@ function DemoAccessContent() {
             textTransform: "uppercase",
           }}
         >
-          <Lock size={12} /> Log+ — accès démonstration
+          <Lock size={12} /> Argus — accès démonstration
         </div>
 
         {stage === "loading" && (

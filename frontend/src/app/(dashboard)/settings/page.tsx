@@ -232,7 +232,7 @@ function SettingsPageContent() {
           Paramètres
         </div>
         <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-          Configuration de votre consoLog+
+          Configuration de votre consoArgus
         </div>
       </div>
 
@@ -647,7 +647,7 @@ function SettingsPageContent() {
                 <SettingRow label="Alertes critiques" desc="Notification immédiate pour les alertes critiques">
                   <Toggle on={prefs.criticalAlerts} onChange={(v) => handleTogglePref("criticalAlerts", "critical_alert_emails", v)} />
                 </SettingRow>
-                <SettingRow label="Rapport hebdomadaire" desc="Résumé hebdomadaire de l'activité Log+">
+                <SettingRow label="Rapport hebdomadaire" desc="Résumé hebdomadaire de l'activité Argus">
                   <Toggle on={prefs.weeklyReport} onChange={(v) => handleTogglePref("weeklyReport", "weekly_report_email", v)} />
                 </SettingRow>
               </Card>
@@ -681,7 +681,7 @@ function SettingsPageContent() {
                   <Shield size={28} />
                 </div>
                 <div className="font-display" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                  Log+
+                  Argus
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-2)" }}>
                   Security Information &amp; Event Management

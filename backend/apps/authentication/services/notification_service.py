@@ -24,7 +24,7 @@ from ..models import LinkedAccount, LoginConfirmation, ProviderLoginEvent, Secur
 
 logger = logging.getLogger(__name__)
 
-CONFIRM_TOKEN_SALT = "logplus.login_confirmation"
+CONFIRM_TOKEN_SALT = "argus.login_confirmation"
 CONFIRM_TOKEN_MAX_AGE = 60 * 60 * 24  # 24h
 
 
@@ -97,15 +97,15 @@ def _send_email(notif: SecurityNotification, confirmation: Optional[LoginConfirm
             "Si ce n'est pas vous, nous révoquerons immédiatement la session côté provider.\n"
         )
 
-    text_body += "\n— Log+"
+    text_body += "\n— Argus"
 
     html_body = _render_html_email(user, notif, md, device_line, geo_line, confirm_url, deny_url)
 
-    subject = f"[Log+] {notif.title}"
+    subject = f"[Argus] {notif.title}"
     msg = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
         to=[user.email],
     )
     msg.attach_alternative(html_body, "text/html")
@@ -165,7 +165,7 @@ def _render_html_email(user, notif, md, device_line, geo_line, confirm_url, deny
         footer_extra = (
             f'<p style="margin:0 0 12px;font-size:11.5px;color:{t.MUTED};line-height:1.6;">'
             f'Cet email vous est envoyé car vous avez lié votre compte <strong style="color:{t.TEXT_DIM};">{md.get("provider")}</strong> '
-            "à votre compte Log+. Vous pouvez gérer ces alertes dans Paramètres → Comptes liés.</p>"
+            "à votre compte Argus. Vous pouvez gérer ces alertes dans Paramètres → Comptes liés.</p>"
         )
 
     body = f"""

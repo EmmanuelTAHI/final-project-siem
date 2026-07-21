@@ -49,14 +49,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   );
 
   const allItems: CommandItem[] = [
-    { id: "dash", label: "Dashboard", description: "Vue d'ensemble de Log+", icon: LayoutDashboard, action: () => navigate("/dashboard"), category: "navigation" },
+    { id: "dash", label: "Dashboard", description: "Vue d'ensemble de Argus", icon: LayoutDashboard, action: () => navigate("/dashboard"), category: "navigation" },
     { id: "alerts", label: "Alertes", description: "Gérer les alertes de sécurité", icon: Bell, action: () => navigate("/alerts"), category: "navigation" },
     { id: "logs", label: "Logs", description: "Explorer les logs normalisés", icon: FileText, action: () => navigate("/logs"), category: "navigation" },
     { id: "correlation", label: "Corrélation", description: "Règles de corrélation", icon: GitBranch, action: () => navigate("/correlation"), category: "navigation" },
     { id: "ml", label: "Machine Learning", description: "Modèles et anomalies ML", icon: Brain, action: () => navigate("/ml"), category: "navigation" },
     { id: "collectors", label: "Collecteurs", description: "Gérer les connecteurs", icon: Database, action: () => navigate("/collectors"), category: "navigation" },
     { id: "users", label: "Utilisateurs", description: "Gestion des utilisateurs", icon: Users, action: () => navigate("/users"), category: "navigation" },
-    { id: "settings", label: "Paramètres", description: "Configuration de Log+", icon: Settings, action: () => navigate("/settings"), category: "navigation" },
+    { id: "settings", label: "Paramètres", description: "Configuration de Argus", icon: Settings, action: () => navigate("/settings"), category: "navigation" },
     // Recent alerts
     ...recentAlerts.map((alert) => ({
       id: `alert-${alert.id}`,

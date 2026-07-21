@@ -1,5 +1,5 @@
 # ============================================================
-# Log+ — stack complète (backend + frontend + workers)
+# Argus — stack complète (backend + frontend + workers)
 #
 # Démarrage :
 #   1. copier .env.example -> .env (ou lancer install.sh / install.ps1)
@@ -146,7 +146,7 @@ services:
       # Le navigateur appelle /api/* sur le frontend (relatif) ; le frontend
       # relaie ensuite vers le backend via le réseau Docker interne.
       API_INTERNAL_URL: http://backend:8000
-      NEXT_PUBLIC_APP_NAME: ${APP_NAME:-Log+}
+      NEXT_PUBLIC_APP_NAME: ${APP_NAME:-Argus}
     depends_on:
       - backend
 

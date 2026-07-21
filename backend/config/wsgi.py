@@ -1,5 +1,5 @@
 ﻿"""
-WSGI config for Log+ project.
+WSGI config for Argus project.
 """
 import os
 

@@ -105,7 +105,7 @@ export function GeoMapLeaflet({ data, height = "400px" }: GeoMapLeafletProps) {
             </div>
             ${isThreat ? `<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid #334155"><span style="color:#ef4444">⚠ Menaces</span><b style="color:#ef4444">${point.threat_count}</b></div>` : ""}
           </div>
-        `, { className: "logplus-popup" });
+        `, { className: "argus-popup" });
       });
 
       mapInstanceRef.current = map;
@@ -157,8 +157,8 @@ export function GeoMapLeaflet({ data, height = "400px" }: GeoMapLeafletProps) {
       />
       <style>{`
         .leaflet-container { background: #0f172a !important; border-radius: 0.5rem; }
-        .logplus-popup .leaflet-popup-content-wrapper { background: #1e293b; color: #f1f5f9; border: 1px solid #334155; }
-        .logplus-popup .leaflet-popup-tip { background: #1e293b; }
+        .argus-popup .leaflet-popup-content-wrapper { background: #1e293b; color: #f1f5f9; border: 1px solid #334155; }
+        .argus-popup .leaflet-popup-tip { background: #1e293b; }
       `}</style>
       <div ref={mapRef} style={{ height, width: "100%", borderRadius: "0.5rem" }} />
     </>

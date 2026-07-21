@@ -1,9 +1,9 @@
-﻿# Log+ Backend — PFE 2025-2026
+﻿# Argus Backend — PFE 2025-2026
 
 **Auteur** : TAHI Ezan Franck Emmanuel  
-**Projet** : Log+  
+**Projet** : Argus  
 **Niveau** : Licence 3, 2025-2026  
-**Sujet** : Conception et Implémentation d'une Log+
+**Sujet** : Conception et Implémentation d'une Argus
 
 ---
 
@@ -99,18 +99,18 @@ Après `loaddata initial_users` :
 ```bash
 docker compose exec backend python manage.py shell -c "
 from apps.users.models import User
-User.objects.create_user(email='admin@logplus.ci', password='Admin@2025!', first_name='Admin', last_name='Log+', role='admin', is_staff=True, is_superuser=True)
-User.objects.create_user(email='analyst@logplus.ci', password='Analyst@2025!', first_name='Analyste', last_name='SOC', role='analyst')
-User.objects.create_user(email='viewer@logplus.ci', password='Viewer@2025!', first_name='Observateur', last_name='Log+', role='viewer')
+User.objects.create_user(email='admin@argussiem.com', password='Admin@2025!', first_name='Admin', last_name='Argus', role='admin', is_staff=True, is_superuser=True)
+User.objects.create_user(email='analyst@argussiem.com', password='Analyst@2025!', first_name='Analyste', last_name='SOC', role='analyst')
+User.objects.create_user(email='viewer@argussiem.com', password='Viewer@2025!', first_name='Observateur', last_name='Argus', role='viewer')
 print('Utilisateurs créés.')
 "
 ```
 
 | Email | Mot de passe | Rôle |
 |-------|-------------|------|
-| admin@logplus.ci | Admin@2025! | Administrateur |
-| analyst@logplus.ci | Analyst@2025! | Analyste SOC |
-| viewer@logplus.ci | Viewer@2025! | Observateur |
+| admin@argussiem.com | Admin@2025! | Administrateur |
+| analyst@argussiem.com | Analyst@2025! | Analyste SOC |
+| viewer@argussiem.com | Viewer@2025! | Observateur |
 
 ---
 
@@ -345,4 +345,4 @@ backend/
 
 ---
 
-*PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026*
+*PFE Argus — TAHI Ezan Franck Emmanuel — 2025-2026*

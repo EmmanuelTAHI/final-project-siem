@@ -21,7 +21,7 @@ class ConnectorConfig(models.Model):
         ("google_workspace", "Google Workspace"),
         ("wazuh", "Wazuh SIEM"),
         ("syslog", "Syslog"),
-        ("agent", "Agent Log+ (HTTP authentifié)"),
+        ("agent", "Agent Argus (HTTP authentifié)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

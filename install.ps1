@@ -1,5 +1,5 @@
 # ============================================================
-# Log+ — installation en une commande (Windows / PowerShell)
+# Argus — installation en une commande (Windows / PowerShell)
 #
 # Usage : .\install.ps1
 #
@@ -19,7 +19,7 @@ Set-Location $RootDir
 function Write-Bold($text) { Write-Host $text -ForegroundColor Cyan }
 function Write-Step($text) { Write-Host "  -> $text" }
 
-Write-Bold "Log+ — installation"
+Write-Bold "Argus — installation"
 
 # 1. Vérification des prérequis
 try {
@@ -89,7 +89,7 @@ $adminEmail = ($envContent | Where-Object { $_ -match '^DJANGO_SUPERUSER_EMAIL='
 $adminPasswordOut = ($envContent | Where-Object { $_ -match '^DJANGO_SUPERUSER_PASSWORD=' }) -replace '^DJANGO_SUPERUSER_PASSWORD=', ''
 
 Write-Host ""
-Write-Bold "Log+ est démarré !"
+Write-Bold "Argus est démarré !"
 Write-Host "  Interface web          : http://localhost:3000"
 Write-Host "  API backend            : http://localhost:8000"
 Write-Host "  Compte administrateur :"

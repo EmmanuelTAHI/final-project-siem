@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Log+ — script de mise à jour rapide (VPS)
+# Argus — script de mise à jour rapide (VPS)
 #
 # Usage : ./deploy.sh
 #

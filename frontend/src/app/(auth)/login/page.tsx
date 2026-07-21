@@ -21,7 +21,7 @@ import { getDocsUrl } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 // ─── Session OTP persistée (survit aux rechargements) ─────────────────────────
-const SESSION_KEY = "logplus_otp_session";
+const SESSION_KEY = "argus_otp_session";
 
 interface OtpSession {
   preAuthToken: string;
@@ -419,7 +419,7 @@ function LoginPageContent() {
             <BookOpen size={12} />
             Documentation
           </a>
-          <span>© 2026 Log+ · TAHI Ezan Franck Emmanuel</span>
+          <span>© 2026 Argus · TAHI Ezan Franck Emmanuel</span>
         </div>
       </div>
 

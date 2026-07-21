@@ -1,5 +1,5 @@
 """
-Ingestion des événements générés par la plateforme Log+ elle-même (login au
+Ingestion des événements générés par la plateforme Argus elle-même (login au
 SOC, indépendamment des connecteurs M365/Google/Wazuh/syslog) dans le pipeline
 NormalizedLog, pour que le moteur de corrélation (impossible travel, etc.) et
 la page Logs les traitent comme n'importe quel autre événement d'auth.
@@ -20,13 +20,13 @@ def record_platform_login(
     user_agent: str | None = None,
 ) -> NormalizedLog:
     """
-    Journalise un login (réussi ou échoué) à la plateforme Log+ elle-même.
+    Journalise un login (réussi ou échoué) à la plateforme Argus elle-même.
     `organization` doit être celle de l'utilisateur qui se connecte (None
     uniquement pour un staff plateforme sans organisation) afin que
     l'isolation multi-tenant s'applique aussi aux événements d'auth internes.
     """
     raw_log = RawLog.objects.create(
-        source_type="logplus",
+        source_type="argus",
         organization=organization,
         raw_data={
             "user_email": user_email,
@@ -45,10 +45,10 @@ def record_platform_login(
         user_email=user_email,
         action="login_success" if success else "login_failure",
         outcome="success" if success else "failure",
-        resource="Log+ SOC platform",
+        resource="Argus SOC platform",
         geo_country=geo_country or None,
         geo_city=geo_city or None,
         user_agent=user_agent or None,
         severity="info" if success else "medium",
-        source_type="logplus",
+        source_type="argus",
     )

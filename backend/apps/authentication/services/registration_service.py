@@ -14,10 +14,10 @@ from django.core import signing
 
 logger = logging.getLogger(__name__)
 
-VERIFY_EMAIL_SALT = "logplus_email_verification"
+VERIFY_EMAIL_SALT = "argus_email_verification"
 VERIFY_EMAIL_MAX_AGE = 24 * 60 * 60  # 24h — plus long que le reset, l'utilisateur peut traîner
 
-INVITE_SALT = "logplus_org_invite"
+INVITE_SALT = "argus_org_invite"
 INVITE_MAX_AGE = 7 * 24 * 60 * 60  # 7 jours
 
 
@@ -67,10 +67,10 @@ def send_verification_email(user, organization) -> Optional[str]:
 
         text_body = (
             f"Bonjour {name},\n\n"
-            f"Votre organisation « {organization.name} » vient d'être créée sur Log+.\n\n"
+            f"Votre organisation « {organization.name} » vient d'être créée sur Argus.\n\n"
             f"Confirmez votre adresse email pour activer votre compte administrateur "
             f"(lien valide 24h) : {verify_link}\n\n"
-            f"-- Log+"
+            f"-- Argus"
         )
         html_body_table = f"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="
@@ -90,14 +90,14 @@ def send_verification_email(user, organization) -> Optional[str]:
         """
 
         msg = EmailMultiAlternatives(
-            subject="[Log+] Confirmez votre adresse email",
+            subject="[Argus] Confirmez votre adresse email",
             body=text_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
             to=[user.email],
         )
         msg.attach_alternative(
             render_email(
-                preheader="Confirmez votre adresse email pour activer votre compte Log+.",
+                preheader="Confirmez votre adresse email pour activer votre compte Argus.",
                 badge_label="Bienvenue",
                 badge_letter="L+",
                 accent=PRIMARY,
@@ -135,9 +135,9 @@ def send_invite_email(user, organization, inviter) -> Optional[str]:
 
         text_body = (
             f"Bonjour {name},\n\n"
-            f"{inviter_name} vous invite à rejoindre l'organisation « {organization.name} » sur Log+.\n\n"
+            f"{inviter_name} vous invite à rejoindre l'organisation « {organization.name} » sur Argus.\n\n"
             f"Définissez votre mot de passe (lien valide 7 jours) : {invite_link}\n\n"
-            f"-- Log+"
+            f"-- Argus"
         )
         html_body_table = f"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="
@@ -157,18 +157,18 @@ def send_invite_email(user, organization, inviter) -> Optional[str]:
         """
 
         msg = EmailMultiAlternatives(
-            subject=f"[Log+] Invitation à rejoindre {organization.name}",
+            subject=f"[Argus] Invitation à rejoindre {organization.name}",
             body=text_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
             to=[user.email],
         )
         msg.attach_alternative(
             render_email(
-                preheader=f"{inviter_name} vous invite à rejoindre {organization.name} sur Log+.",
+                preheader=f"{inviter_name} vous invite à rejoindre {organization.name} sur Argus.",
                 badge_label="Invitation",
                 badge_letter="L+",
                 accent=PRIMARY,
-                title="Vous êtes invité(e) sur Log+",
+                title="Vous êtes invité(e) sur Argus",
                 subtitle_html=(
                     f"<strong style=\"color:{TEXT};\">{inviter_name}</strong> vous invite à rejoindre "
                     f"« <strong style=\"color:{TEXT};\">{organization.name}</strong> »."

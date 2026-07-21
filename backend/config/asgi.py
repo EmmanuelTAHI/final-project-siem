@@ -1,6 +1,6 @@
 ﻿"""
 ASGI config — Django Channels pour WebSockets + HTTP classique.
-PFE Log+ — TAHI Ezan Franck Emmanuel — 2025-2026
+PFE Argus — TAHI Ezan Franck Emmanuel — 2025-2026
 """
 import os
 

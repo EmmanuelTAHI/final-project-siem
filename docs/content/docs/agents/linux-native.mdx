@@ -1,12 +1,12 @@
 ---
-title: Linux — agent Log+ natif (recommandé)
-description: Installer l'agent Log+ natif sur Linux, sans dépendance externe
+title: Linux — agent Argus natif (recommandé)
+description: Installer l'agent Argus natif sur Linux, sans dépendance externe
 ---
 
-L'agent Log+ natif est un binaire unique, compilé statiquement (aucune
+L'agent Argus natif est un binaire unique, compilé statiquement (aucune
 dépendance externe à installer — pas de rsyslog à reconfigurer, pas de
 paquet supplémentaire). C'est la méthode recommandée pour connecter un
-serveur ou un poste Linux à Log+.
+serveur ou un poste Linux à Argus.
 
 ## 1. Générer un token
 
@@ -23,22 +23,22 @@ Collez la commande générée dans un terminal root (ou avec `sudo`) :
 
 ```bash
 curl -fsSL https://votre-instance.example/agents/install-linux.sh | sudo bash -s -- \
-  --url https://votre-instance.example --token logplus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  --url https://votre-instance.example --token argus_agt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 </Terminal>
 
 Le script :
 1. détecte l'architecture (amd64/arm64) et télécharge le binaire correspondant
-   **depuis votre propre instance Log+** (`/agents/...`, servi par nginx) ;
+   **depuis votre propre instance Argus** (`/agents/...`, servi par nginx) ;
 2. vérifie son intégrité (**SHA-256**) avant toute exécution — installation
    annulée si la somme de contrôle ne correspond pas ;
-3. installe l'agent comme **service systemd** (`logplus-agent`), démarré
+3. installe l'agent comme **service systemd** (`argus-agent`), démarré
    automatiquement et redémarré en cas de crash (`Restart=always`).
 
 <Callout type="info">
   Testez d'abord la connexion sans rien installer :
-  `logplus-agent test-connection --url <url> --token <token>`.
+  `argus-agent test-connection --url <url> --token <token>`.
   L'installation elle-même refuse de se terminer si ce test échoue — jamais
   de service cassé silencieusement installé.
 </Callout>
@@ -64,7 +64,7 @@ survenant **à partir de l'installation** sont collectés (comme `tail -f`).
 <Terminal title="bash">
 
 ```bash
-systemctl status logplus-agent
+systemctl status argus-agent
 ```
 
 </Terminal>
@@ -76,15 +76,15 @@ de bord, généralement en quelques secondes.
 ## 5. Désinstaller
 
 ```bash
-sudo logplus-agent uninstall
+sudo argus-agent uninstall
 ```
 
 Arrête et supprime le service, le binaire, la configuration et le spool
-local (`/opt/logplus-agent/`).
+local (`/opt/argus-agent/`).
 
 ## Sécurité
 
-- Le token est stocké dans `/opt/logplus-agent/config.json`, **permissions
+- Le token est stocké dans `/opt/argus-agent/config.json`, **permissions
   0600, propriétaire root uniquement** — un utilisateur non-root ne peut ni
   le lire ni modifier la configuration.
 - L'agent refuse de démarrer contre une URL non-HTTPS (sauf option explicite
@@ -94,12 +94,12 @@ local (`/opt/logplus-agent/`).
   tentative d'envoi, et n'en est retiré qu'une fois la confirmation du
   serveur reçue.
 - Logs de diagnostic de l'agent lui-même (pas les logs collectés, mais son
-  propre fonctionnement) : `/opt/logplus-agent/agent.log`.
+  propre fonctionnement) : `/opt/argus-agent/agent.log`.
 
 ## Aller plus loin
 
 Pour un contrôle plus fin des fichiers surveillés, consultez le format de
-config JSON (`/opt/logplus-agent/config.json`, éditable puis
-`sudo systemctl restart logplus-agent`). Pour une intégration via un outil
+config JSON (`/opt/argus-agent/config.json`, éditable puis
+`sudo systemctl restart argus-agent`). Pour une intégration via un outil
 déjà présent sur votre parc (rsyslog, Fluent Bit), voir les méthodes
 alternatives ci-dessous.

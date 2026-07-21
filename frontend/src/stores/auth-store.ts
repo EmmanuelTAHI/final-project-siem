@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
     {
-      name: "logplus-auth",
+      name: "argus-auth",
       onRehydrateStorage: () => (state) => {
         // Called once localStorage data has been loaded into the store
         state?.setHasHydrated(true);

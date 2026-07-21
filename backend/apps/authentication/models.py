@@ -3,7 +3,7 @@ Modèles de l'app authentication.
 
 Trois entités persistées (les states OAuth restent dans Redis) :
 
-- LinkedAccount       : compte tiers (Google / Microsoft / GitHub) lié à un utilisateur de Log+.
+- LinkedAccount       : compte tiers (Google / Microsoft / GitHub) lié à un utilisateur de Argus.
 - ProviderLoginEvent  : événement de sécurité (login, échec, MFA, etc.) capté chez le provider.
 - LoginConfirmation   : ticket signé envoyé à l'utilisateur pour confirmer/rejeter une connexion.
 - SecurityNotification: notification persistante (cloche dans la topbar).
@@ -21,9 +21,9 @@ from django.db import models
 
 class LinkedAccount(models.Model):
     """
-    Compte OAuth d'un service tiers lié à un utilisateur de Log+.
+    Compte OAuth d'un service tiers lié à un utilisateur de Argus.
 
-    Log+ monitore l'activité de connexion sur ce compte (brute force,
+    Argus monitore l'activité de connexion sur ce compte (brute force,
     nouvelle géoloc, nouveau device) et peut révoquer la session côté
     provider en cas d'incident confirmé.
     """
@@ -46,7 +46,7 @@ class LinkedAccount(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="linked_accounts",
-        verbose_name="Propriétaire Log+",
+        verbose_name="Propriétaire Argus",
     )
     provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
     provider_user_id = models.CharField(max_length=255, db_index=True)

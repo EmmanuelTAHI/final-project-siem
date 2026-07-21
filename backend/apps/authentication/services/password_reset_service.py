@@ -12,7 +12,7 @@ from django.core import signing
 
 logger = logging.getLogger(__name__)
 
-RESET_TOKEN_SALT = "logplus_password_reset"
+RESET_TOKEN_SALT = "argus_password_reset"
 RESET_TOKEN_MAX_AGE = 30 * 60  # 30 min
 
 
@@ -53,14 +53,14 @@ def _render_html(user, reset_link: str) -> str:
     """
 
     return render_email(
-        preheader="Réinitialisation de votre mot de passe Log+ — lien valide 30 minutes.",
+        preheader="Réinitialisation de votre mot de passe Argus — lien valide 30 minutes.",
         badge_label="Compte & sécurité",
         badge_letter="L+",
         accent=PRIMARY,
         title="Réinitialisation de votre mot de passe",
         subtitle_html=(
             f"Bonjour <strong style=\"color:{TEXT};\">{name}</strong>, une demande de réinitialisation "
-            "de mot de passe a été effectuée pour votre compte Log+."
+            "de mot de passe a été effectuée pour votre compte Argus."
         ),
         body_html=body,
         warning_html="Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe restera inchangé.",
@@ -87,15 +87,15 @@ def send_password_reset_email(user) -> Optional[str]:
         text_body = (
             f"Bonjour {user.first_name or user.email},\n\n"
             f"Une demande de réinitialisation de mot de passe a été effectuée "
-            f"pour votre compte Log+.\n\n"
+            f"pour votre compte Argus.\n\n"
             f"Lien de réinitialisation (valide 30 min) : {reset_link}\n\n"
             f"Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n"
-            f"-- Log+"
+            f"-- Argus"
         )
         msg = EmailMultiAlternatives(
-            subject="[Log+] Réinitialisation de votre mot de passe",
+            subject="[Argus] Réinitialisation de votre mot de passe",
             body=text_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@logplus.ci"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@argussiem.com"),
             to=[user.email],
         )
         msg.attach_alternative(_render_html(user, reset_link), "text/html")

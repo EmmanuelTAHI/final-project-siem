@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from django.core import signing
 
-DEMO_TOKEN_SALT = "logplus_demo_access"
+DEMO_TOKEN_SALT = "argus_demo_access"
 
 
 def generate_demo_token(user_id, max_age_seconds: int) -> str:
