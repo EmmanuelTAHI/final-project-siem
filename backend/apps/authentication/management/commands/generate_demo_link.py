@@ -14,7 +14,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.authentication.services.demo_access_service import generate_demo_token
-from apps.organizations.models import Organization
 from apps.organizations.management.commands.setup_demo_tenant import DEMO_USER_EMAIL
 from apps.users.models import User
 
@@ -39,9 +38,9 @@ class Command(BaseCommand):
             raise CommandError(
                 "Compte démo introuvable — lancez d'abord `python manage.py setup_demo_tenant`."
             )
-        if not user.organization_id or not user.organization.is_demo:
+        if not user.is_demo_spectator:
             raise CommandError(
-                "Le compte démo n'est pas rattaché à un tenant is_demo=True — vérifiez setup_demo_tenant."
+                "Ce compte n'est pas marqué is_demo_spectator=True — vérifiez setup_demo_tenant."
             )
 
         max_age_seconds = int(options["hours"] * 3600)

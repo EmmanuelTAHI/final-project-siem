@@ -83,6 +83,10 @@ def _issue_jwt_for_user(user) -> dict:
     refresh["organization_id"] = str(user.organization_id) if user.organization_id else None
     refresh["organization_name"] = user.organization.name if user.organization_id else None
     refresh["session_id"] = str(refresh["jti"])
+    # Claim lue par DemoSpectatorReadOnlyMiddleware (utils/demo_readonly_middleware.py) —
+    # seul mécanisme qui bloque réellement l'écriture pour ce compte, quelle
+    # que soit la vue DRF atteinte (voir docstring du middleware).
+    refresh["is_demo_spectator"] = bool(user.is_demo_spectator)
 
     return {
         "access_token": str(refresh.access_token),
@@ -96,7 +100,7 @@ def _issue_jwt_for_user(user) -> dict:
             "is_superuser": user.is_superuser,
             "organization_id": str(user.organization_id) if user.organization_id else None,
             "organization_name": user.organization.name if user.organization_id else None,
-            "is_demo": bool(user.organization_id and user.organization.is_demo),
+            "is_demo": bool(user.is_demo_spectator),
         },
     }
 
@@ -1491,10 +1495,13 @@ class DemoAccessView(APIView):
     Contourne mot de passe + OTP pour connecter directement le compte
     spectateur du tenant de démonstration (voir `setup_demo_tenant`).
 
-    Garde-fous : le token ne peut désigner qu'un utilisateur dont
-    l'organisation est explicitement marquée `is_demo=True` — toute
-    incohérence (org supprimée, is_demo repassé à False, token forgé pour un
-    autre user) est traitée comme un échec, jamais comme un bypass générique.
+    Garde-fous : le token ne peut désigner qu'un utilisateur explicitement
+    marqué `is_demo_spectator=True` — toute incohérence (flag repassé à
+    False, compte désactivé, token forgé pour un autre user) est traitée
+    comme un échec, jamais comme un bypass générique. Ce même flag est
+    ensuite embarqué dans le JWT émis et appliqué en lecture seule GLOBALE
+    par DemoSpectatorReadOnlyMiddleware, quelle que soit l'organisation à
+    laquelle le compte est rattaché (voir setup_demo_tenant).
     Redirige vers le frontend avec les tokens dans le FRAGMENT d'URL (#...),
     jamais en query string, pour qu'ils n'atterrissent pas dans les logs
     d'accès nginx ni dans l'historique du navigateur d'un tiers qui
@@ -1520,8 +1527,8 @@ class DemoAccessView(APIView):
         except User.DoesNotExist:
             return _frontend_redirect("/demo-access", error="invalid")
 
-        if not user.organization_id or not user.organization.is_demo:
-            logger.warning("DemoAccessView: token pour user=%s hors tenant démo", user_id)
+        if not user.is_demo_spectator:
+            logger.warning("DemoAccessView: token pour user=%s non marqué is_demo_spectator", user_id)
             return _frontend_redirect("/demo-access", error="invalid")
 
         auth_payload = _issue_jwt_for_user(user)

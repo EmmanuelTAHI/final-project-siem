@@ -65,6 +65,16 @@ class User(AbstractUser):
         verbose_name="Rôle",
     )
     is_active = models.BooleanField(default=True, verbose_name="Actif")
+    is_demo_spectator = models.BooleanField(
+        default=False,
+        verbose_name="Spectateur démo",
+        help_text=(
+            "Compte utilisé par le lien magique / QR code public. Forcé en "
+            "lecture seule au niveau middleware (utils.demo_readonly), "
+            "indépendamment du rôle et des permissions déclarées par chaque "
+            "vue — voir MIDDLEWARE dans config.settings.base."
+        ),
+    )
     email_notifications = models.BooleanField(
         default=True, verbose_name="Notifications par email",
         help_text="Recevoir les notifications de sécurité par email.",
