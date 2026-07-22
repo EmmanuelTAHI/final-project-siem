@@ -35,6 +35,31 @@ _PAM_FAIL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Paramètres de requête à ne jamais stocker en clair dans les logs — le
+# WebSocket de notifications passe le JWT en query string
+# (?token=eyJhbG...), et il atterrissait donc en clair dans NormalizedLog
+# avant ce correctif (constaté lors du test réel de ce flux : un jeton
+# d'accès complet visible dans le tableau de bord Trafic & IP).
+_SENSITIVE_QUERY_PARAMS = {"token", "access_token", "refresh_token", "password", "secret", "api_key", "authorization", "jwt"}
+
+
+def _sanitize_request_path(path: str) -> str:
+    """Redacte les valeurs de paramètres sensibles dans un chemin de requête."""
+    if "?" not in path:
+        return path
+    base, _, query = path.partition("?")
+    if not query:
+        return path
+    parts = []
+    for pair in query.split("&"):
+        key, _, value = pair.partition("=")
+        if key.lower() in _SENSITIVE_QUERY_PARAMS and value:
+            parts.append(f"{key}=***redacted***")
+        else:
+            parts.append(pair)
+    return f"{base}?{'&'.join(parts)}"
+
+
 # ─── Accès nginx (format "combined", voir nginx/nginx.conf log_format argus_access) ──
 # Le message syslog complet garde le préfixe RFC3164 avant la ligne utile :
 # "Jul 22 11:42:23 <hostname> nginx_access: 1.2.3.4 - [22/Jul/2026:...] "GET ...
@@ -362,7 +387,7 @@ class LogNormalizer:
 
         status_code = int(m.group("status"))
         referer = m.group("referer") or ""
-        referer = None if referer in ("-", "") else referer
+        referer = None if referer in ("-", "") else _sanitize_request_path(referer)
         if status_code >= 500:
             sev = "high"
         elif status_code >= 400:
@@ -379,7 +404,7 @@ class LogNormalizer:
             "destination_ip": None,
             "action": "http_request",
             "outcome": outcome,
-            "resource": m.group("path")[:500],
+            "resource": _sanitize_request_path(m.group("path"))[:500],
             "geo_country": None,
             "geo_city": None,
             "geo_latitude": None,
