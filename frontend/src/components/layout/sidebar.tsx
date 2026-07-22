@@ -24,6 +24,7 @@ import {
   Ticket,
   Bug,
   Sparkles,
+  Radar,
 } from "lucide-react";
 import { cn, getInitials, getDocsUrl } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -67,6 +68,7 @@ const sections: NavSection[] = [
       { label: "Alertes", href: "/alerts", icon: ShieldAlert, badge: true },
       { label: "Tickets", href: "/tickets", icon: Ticket },
       { label: "Logs", href: "/logs", icon: FileText },
+      { label: "Trafic & IP", href: "/ip-traffic", icon: Radar },
       { label: "Corrélation", href: "/correlation", icon: GitBranch },
       { label: "Machine Learning", href: "/ml", icon: Brain },
     ],

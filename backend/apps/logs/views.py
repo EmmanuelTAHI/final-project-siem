@@ -4,9 +4,9 @@ Vues pour les logs bruts, normalisés et les statistiques.
 import logging
 from datetime import timedelta
 
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Min, Q
 from django.db.models.expressions import RawSQL
-from django.db.models.functions import TruncHour, TruncDay
+from django.db.models.functions import TruncDay, TruncHour
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import filters, status
@@ -304,6 +304,200 @@ class LogStatsView(APIView):
             },
             message="Statistiques des logs calculées.",
         )
+
+
+_PERIOD_CONFIG = {
+    # période → (timedelta, fonction de troncature, format de clé de bucket)
+    "1h": (timedelta(hours=1), "hour"),
+    "24h": (timedelta(hours=24), "hour"),
+    "7d": (timedelta(days=7), "day"),
+    "30d": (timedelta(days=30), "day"),
+}
+
+
+class IPTrafficOverviewView(APIView):
+    """
+    GET /api/logs/ip-traffic/?period=24h
+    Vue agrégée "qui contacte le système" — pensée comme un tableau de bord
+    de trafic façon Grafana/observabilité réseau, mais entièrement native à
+    Argus : classement des IP par volume, répartition par pays, chronologie
+    globale, et un mini-historique par IP (sparkline) pour les IP les plus
+    actives. `period` : 1h | 24h | 7d | 30d.
+    """
+
+    permission_classes = [IsAnalyst]
+
+    def get(self, request):
+        period = request.query_params.get("period", "24h")
+        if period not in _PERIOD_CONFIG:
+            return error_response(
+                message=f"Période invalide. Valeurs acceptées : {list(_PERIOD_CONFIG.keys())}",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
+        delta, granularity = _PERIOD_CONFIG[period]
+        now = timezone.now()
+        cutoff = now - delta
+        trunc_fn = TruncHour if granularity == "hour" else TruncDay
+
+        user = request.user
+        if user.is_superuser and user.organization_id is None:
+            base_qs = NormalizedLog.objects.none()
+        else:
+            base_qs = NormalizedLog.objects.filter(organization_id=user.organization_id)
+
+        period_qs = base_qs.filter(event_time__gte=cutoff)
+
+        # ─── Résumé ────────────────────────────────────────────────────────
+        total_requests = period_qs.count()
+        unique_ips = period_qs.exclude(source_ip__isnull=True).values("source_ip").distinct().count()
+        unique_countries = (
+            period_qs.exclude(geo_country__isnull=True).values("geo_country").distinct().count()
+        )
+
+        # ─── Chronologie globale (comble les buckets vides à 0) ────────────
+        raw_buckets = (
+            period_qs
+            .annotate(bucket=trunc_fn("event_time"))
+            .values("bucket")
+            .annotate(count=Count("id"))
+            .order_by("bucket")
+        )
+        bucket_counts = {row["bucket"]: row["count"] for row in raw_buckets if row["bucket"]}
+        expected_buckets = self._expected_buckets(cutoff, now, granularity)
+        timeline = [
+            {"bucket": b.isoformat(), "count": bucket_counts.get(b, 0)} for b in expected_buckets
+        ]
+
+        # ─── Répartition par pays ───────────────────────────────────────────
+        country_rows = list(
+            period_qs.exclude(geo_country__isnull=True).exclude(geo_country="")
+            .values("geo_country")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:15]
+        )
+        country_total = sum(r["count"] for r in country_rows) or 1
+        by_country = [
+            {
+                "country_code": r["geo_country"],
+                "count": r["count"],
+                "percentage": round((r["count"] / country_total) * 100, 1),
+            }
+            for r in country_rows
+        ]
+
+        # ─── Top IP + détails (3 requêtes groupées, pas N+1) ───────────────
+        top_ip_rows = list(
+            period_qs.exclude(source_ip__isnull=True)
+            .values("source_ip")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:25]
+        )
+        top_ips_list = [r["source_ip"] for r in top_ip_rows]
+        top_ips_data = self._build_top_ips(period_qs, top_ips_list, top_ip_rows, trunc_fn, expected_buckets)
+
+        return Response({
+            "period": period,
+            "generated_at": now.isoformat(),
+            "summary": {
+                "total_requests": total_requests,
+                "unique_ips": unique_ips,
+                "unique_countries": unique_countries,
+                "known_threats": sum(1 for ip in top_ips_data if ip["is_known_threat"]),
+            },
+            "timeline": timeline,
+            "by_country": by_country,
+            "top_ips": top_ips_data,
+        })
+
+    @staticmethod
+    def _expected_buckets(cutoff, now, granularity) -> list:
+        """Liste complète des buckets attendus sur la période, pour ne jamais
+        avoir de trou dans le graphe temporel (une heure/jour sans trafic
+        doit apparaître à 0, pas disparaître du graphe)."""
+        buckets = []
+        if granularity == "hour":
+            current = cutoff.replace(minute=0, second=0, microsecond=0)
+            step = timedelta(hours=1)
+        else:
+            current = cutoff.replace(hour=0, minute=0, second=0, microsecond=0)
+            step = timedelta(days=1)
+        while current <= now:
+            buckets.append(current)
+            current += step
+        return buckets
+
+    @staticmethod
+    def _build_top_ips(period_qs, top_ips_list, top_ip_rows, trunc_fn, expected_buckets) -> list:
+        if not top_ips_list:
+            return []
+
+        from apps.threat_intel.models import ThreatIndicator
+
+        ip_qs = period_qs.filter(source_ip__in=top_ips_list)
+
+        # Succès/échecs + première/dernière activité — 1 requête pour tous les IP.
+        detail_rows = (
+            ip_qs.values("source_ip")
+            .annotate(
+                success_count=Count("id", filter=Q(outcome="success")),
+                failure_count=Count("id", filter=Q(outcome="failure")),
+                first_seen=Min("event_time"),
+                last_seen=Max("event_time"),
+            )
+        )
+        details_by_ip = {r["source_ip"]: r for r in detail_rows}
+
+        # Pays le plus fréquent par IP — 1 requête pour tous les IP (le
+        # premier groupe rencontré par IP est le plus fréquent grâce au tri).
+        country_rows = (
+            ip_qs.exclude(geo_country__isnull=True).exclude(geo_country="")
+            .values("source_ip", "geo_country")
+            .annotate(count=Count("id"))
+            .order_by("source_ip", "-count")
+        )
+        country_by_ip = {}
+        for row in country_rows:
+            country_by_ip.setdefault(row["source_ip"], row["geo_country"])
+
+        # Sparkline (historique par bucket) — 1 requête pour tous les IP.
+        spark_rows = (
+            ip_qs
+            .annotate(bucket=trunc_fn("event_time"))
+            .values("source_ip", "bucket")
+            .annotate(count=Count("id"))
+            .order_by("source_ip", "bucket")
+        )
+        spark_by_ip: dict = {}
+        for row in spark_rows:
+            spark_by_ip.setdefault(row["source_ip"], {})[row["bucket"]] = row["count"]
+
+        # IP déjà connues comme malveillantes par le référentiel CTI — 1 requête.
+        malicious_ips = set(
+            ThreatIndicator.objects.filter(
+                indicator_type="ip", value__in=top_ips_list, is_malicious=True,
+            ).values_list("value", flat=True)
+        )
+
+        # Ne garder que les derniers buckets pour la sparkline (compacte, ~12-24 points).
+        spark_buckets = expected_buckets[-24:] if len(expected_buckets) > 24 else expected_buckets
+
+        results = []
+        for row in top_ip_rows:
+            ip = row["source_ip"]
+            detail = details_by_ip.get(ip, {})
+            ip_sparkline = spark_by_ip.get(ip, {})
+            results.append({
+                "source_ip": ip,
+                "count": row["count"],
+                "geo_country": country_by_ip.get(ip),
+                "success_count": detail.get("success_count", 0),
+                "failure_count": detail.get("failure_count", 0),
+                "first_seen": detail["first_seen"].isoformat() if detail.get("first_seen") else None,
+                "last_seen": detail["last_seen"].isoformat() if detail.get("last_seen") else None,
+                "is_known_threat": ip in malicious_ips,
+                "sparkline": [ip_sparkline.get(b, 0) for b in spark_buckets],
+            })
+        return results
 
 
 class LogsCleanupTask:

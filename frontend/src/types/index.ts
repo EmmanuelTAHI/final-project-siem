@@ -791,6 +791,49 @@ export interface AlertSummary {
   generated_at: string;
 }
 
+// ─── Trafic IP (tableau de bord type Grafana, natif) ──────────────────────────
+
+export type IPTrafficPeriod = "1h" | "24h" | "7d" | "30d";
+
+export interface IPTrafficSummary {
+  total_requests: number;
+  unique_ips: number;
+  unique_countries: number;
+  known_threats: number;
+}
+
+export interface IPTrafficTimelinePoint {
+  bucket: string;
+  count: number;
+}
+
+export interface IPTrafficCountry {
+  country_code: string;
+  count: number;
+  percentage: number;
+}
+
+export interface IPTrafficEntry {
+  source_ip: string;
+  count: number;
+  geo_country: string | null;
+  success_count: number;
+  failure_count: number;
+  first_seen: string | null;
+  last_seen: string | null;
+  is_known_threat: boolean;
+  sparkline: number[];
+}
+
+export interface IPTrafficOverview {
+  period: IPTrafficPeriod;
+  generated_at: string;
+  summary: IPTrafficSummary;
+  timeline: IPTrafficTimelinePoint[];
+  by_country: IPTrafficCountry[];
+  top_ips: IPTrafficEntry[];
+}
+
 // ─── SOAR ─────────────────────────────────────────────────────────────────────
 
 export type TriggerType = "severity" | "rule_match" | "ml_anomaly" | "cti_match" | "manual";

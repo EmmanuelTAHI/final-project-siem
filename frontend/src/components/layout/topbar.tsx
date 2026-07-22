@@ -10,6 +10,7 @@ const breadcrumbLabels: Record<string, string> = {
   dashboard: "Tableau de bord",
   alerts: "Alertes",
   logs: "Événements",
+  "ip-traffic": "Trafic & IP",
   correlation: "Corrélation",
   ml: "Machine Learning",
   "threat-intel": "Threat Intelligence",

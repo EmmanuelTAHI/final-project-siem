@@ -53,6 +53,8 @@ import type {
   AlertSummary,
   ComplianceCoverage,
   BlockedIP,
+  IPTrafficOverview,
+  IPTrafficPeriod,
 } from "@/types";
 import type {
   LinkedAccount,
@@ -530,6 +532,12 @@ export const logsApi = {
   getHistogram: async (params: LogsQueryParams = {}): Promise<LogHistogramResponse> => {
     const { data } = await api.get(`/api/logs/histogram/?${buildLogQueryString(params)}`);
     return unwrap<LogHistogramResponse>(data);
+  },
+
+  getIPTraffic: async (period: IPTrafficPeriod = "24h"): Promise<IPTrafficOverview> => {
+    const { data } = await api.get("/api/logs/ip-traffic/", { params: { period } });
+    // Vue construite avec Response() DRF brut (pas success_response) — pas d'enveloppe à déballer.
+    return data as IPTrafficOverview;
   },
 };
 

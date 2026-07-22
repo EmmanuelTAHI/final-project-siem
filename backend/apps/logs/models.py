@@ -190,6 +190,7 @@ class NormalizedLog(models.Model):
             models.Index(fields=["geo_country"]),
             models.Index(fields=["severity", "event_time"]),
             models.Index(fields=["organization", "event_time"]),
+            models.Index(fields=["source_ip", "event_time"]),
         ]
 
     def save(self, *args, **kwargs):
