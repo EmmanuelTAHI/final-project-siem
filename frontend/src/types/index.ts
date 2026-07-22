@@ -308,17 +308,27 @@ export interface NormalizedLog {
   id: number;
   source_type: string;
   action: string;
+  outcome?: "success" | "failure" | "unknown";
   user_email?: string;
   source_ip?: string;
   destination_ip?: string;
+  resource?: string;
   geo_country?: string;
   geo_country_code?: string;
   geo_city?: string;
+  user_agent?: string;
   severity: LogSeverity;
   event_time?: string;
   timestamp: string;
   raw_data: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  extra_fields?: {
+    http_method?: string;
+    http_status?: number;
+    http_referer?: string | null;
+    detected_service?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface LogStats {

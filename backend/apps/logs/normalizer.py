@@ -35,6 +35,15 @@ _PAM_FAIL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# ─── Accès nginx (format "combined", voir nginx/nginx.conf log_format argus_access) ──
+# 1.2.3.4 - [22/Jul/2026:10:00:00 +0000] "GET /api/alerts/ HTTP/1.1" 200 1234 "https://argussiem.com/dashboard" "Mozilla/5.0..."
+_NGINX_ACCESS_RE = re.compile(
+    r'^(?P<ip>[0-9a-fA-F:.]+) - \[(?P<time>[^\]]+)\] '
+    r'"(?P<method>[A-Z]+) (?P<path>\S+) HTTP/[0-9.]+" '
+    r'(?P<status>\d{3}) (?P<bytes>\d+) '
+    r'"(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)"'
+)
+
 
 def _parse_ssh_auth(message: str) -> dict | None:
     """
@@ -263,8 +272,18 @@ class LogNormalizer:
         facility = data.get("facility", "unknown")
         message = data.get("message") or ""
 
-        # IP source par défaut : celle de l'émetteur du paquet syslog.
+        # IP source par défaut : celle de l'émetteur du paquet syslog. Pour
+        # nginx, l'émetteur syslog est TOUJOURS le conteneur nginx lui-même
+        # (jamais le vrai visiteur) — la vraie IP cliente est dans le
+        # contenu du message ($remote_addr), extraite par _map_nginx_access.
         sender_ip = data.get("source_ip") or None
+
+        # local6 = facility dédiée aux accès nginx (voir nginx/nginx.conf) —
+        # distingue sans ambiguïté ce flux des logs d'auth SSH (auth/authpriv).
+        if facility == "local6":
+            nginx_fields = self._map_nginx_access(message, severity, facility, data)
+            if nginx_fields:
+                return nginx_fields
 
         # Détection d'un évènement d'authentification SSH → alimente la règle
         # brute force (action=login_failure groupé par user_email).
@@ -326,6 +345,62 @@ class LogNormalizer:
                 "raw_message": data.get("raw_message", "")[:500],
             },
         }
+
+    def _map_nginx_access(self, message: str, severity: str, facility: str, data: dict) -> dict | None:
+        """
+        Mappe une ligne d'accès nginx (format combined) vers NormalizedLog —
+        c'est ici que la "requête exacte" et le referer demandés pour le
+        tableau de bord Trafic & IP sont capturés (le SIEM ne se limite plus
+        à des évènements de sécurité applicatifs, il voit aussi le trafic web
+        brut, comme le ferait un WAF/CrowdSec).
+        """
+        m = _NGINX_ACCESS_RE.match(message.strip())
+        if not m:
+            return None
+
+        status_code = int(m.group("status"))
+        referer = m.group("referer") or ""
+        referer = None if referer in ("-", "") else referer
+        if status_code >= 500:
+            sev = "high"
+        elif status_code >= 400:
+            sev = "low"
+        else:
+            sev = "info"
+        outcome = "success" if status_code < 400 else "failure"
+
+        return {
+            "event_time": self._parse_nginx_time(m.group("time")) or self._parse_datetime(data.get("received_at")),
+            "user_email": None,
+            "user_id": None,
+            "source_ip": m.group("ip"),
+            "destination_ip": None,
+            "action": "http_request",
+            "outcome": outcome,
+            "resource": m.group("path")[:500],
+            "geo_country": None,
+            "geo_city": None,
+            "geo_latitude": None,
+            "geo_longitude": None,
+            "user_agent": m.group("user_agent") or None,
+            "severity": sev,
+            "extra_fields": {
+                "http_method": m.group("method"),
+                "http_status": status_code,
+                "http_referer": referer,
+                "bytes_sent": int(m.group("bytes")),
+                "facility": facility,
+                "detected_service": "nginx",
+            },
+        }
+
+    @staticmethod
+    def _parse_nginx_time(time_local: str) -> datetime | None:
+        """Parse le format $time_local nginx : '22/Jul/2026:10:00:00 +0000'."""
+        try:
+            return datetime.strptime(time_local, "%d/%b/%Y:%H:%M:%S %z")
+        except (ValueError, TypeError):
+            return None
 
     # ─── Agent Argus natif (JSON structuré) ───────────────────────────────────
 

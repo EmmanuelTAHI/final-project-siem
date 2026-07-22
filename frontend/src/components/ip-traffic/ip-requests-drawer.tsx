@@ -98,20 +98,49 @@ export function IPRequestsDrawer({ entry, onClose }: IPRequestsDrawerProps) {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between gap-2 py-2 px-2.5 rounded-lg bg-secondary/30 border border-border/40">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate">{log.action}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {log.user_email || "utilisateur inconnu"} · {log.source_type}
-                        </p>
+                  {logs.map((log) => {
+                    const isHttp = log.action === "http_request";
+                    const method = log.extra_fields?.http_method;
+                    const httpStatus = log.extra_fields?.http_status;
+                    const referer = log.extra_fields?.http_referer;
+                    return (
+                      <div key={log.id} className="py-2 px-2.5 rounded-lg bg-secondary/30 border border-border/40">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            {isHttp ? (
+                              <p className="text-xs font-mono text-foreground truncate">
+                                <span className="font-semibold text-primary">{method}</span> {log.resource}
+                              </p>
+                            ) : (
+                              <p className="text-xs font-medium text-foreground truncate">{log.action}</p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {isHttp
+                                ? `Referer : ${referer || "aucun (accès direct)"}`
+                                : `${log.user_email || "utilisateur inconnu"} · ${log.source_type}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isHttp && httpStatus !== undefined && (
+                              <span
+                                className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${
+                                  httpStatus >= 500 ? "bg-red-500/15 text-red-400"
+                                  : httpStatus >= 400 ? "bg-amber-500/15 text-amber-400"
+                                  : "bg-emerald-500/15 text-emerald-400"
+                                }`}
+                              >
+                                {httpStatus}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
+                              <Clock className="w-3 h-3" />
+                              {timeAgo(log.event_time || log.timestamp)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 text-[10px] text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        {timeAgo(log.event_time || log.timestamp)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {logs.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-6">Aucune requête détaillée trouvée pour cette IP.</p>
                   )}
