@@ -116,16 +116,26 @@ def enrich_logs_with_cti():
 
 
 def _create_cti_alert(log, enriched_log):
-    """Crée une alerte si une IP malveillante est confirmée par CTI."""
+    """
+    Crée une alerte si une IP malveillante est confirmée par CTI — ou
+    rattache le log à l'alerte déjà ouverte pour cette IP si elle existe
+    (même logique que le moteur de corrélation : une activité qui continue
+    ne doit jamais devenir invisible / rester à "0 évènement").
+    """
     from apps.alerts.models import Alert
 
     title = f"CTI: IP malveillante détectée — {log.source_ip}"
-    if Alert.objects.filter(
+    existing = Alert.objects.filter(
         title=title, status__in=["open", "in_progress"], organization=log.organization
-    ).exists():
+    ).first()
+
+    if existing:
+        existing.source_logs.add(log)
+        existing.save(update_fields=["updated_at"])
+        logger.info("Alerte CTI existante enrichie pour IP %s (+1 log)", log.source_ip)
         return
 
-    Alert.objects.create(
+    alert = Alert.objects.create(
         title=title,
         description=(
             f"L'IP source {log.source_ip} a un score de réputation CTI de "
@@ -138,6 +148,7 @@ def _create_cti_alert(log, enriched_log):
         status="open",
         organization=log.organization,
     )
+    alert.source_logs.add(log)
     logger.info("Alerte CTI créée pour IP %s (score=%.1f)", log.source_ip, enriched_log.max_score)
 
 
