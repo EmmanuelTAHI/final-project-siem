@@ -201,6 +201,7 @@ def sync_nvd_recent_cves():
     """
     from datetime import datetime
 
+    from django.utils.dateparse import parse_datetime
     from django.utils.timezone import make_aware, is_naive
 
     from apps.threat_intel.models import CVERecord
@@ -214,6 +215,15 @@ def sync_nvd_recent_cves():
         except (ValueError, TypeError):
             return None
         return make_aware(dt) if is_naive(dt) else dt
+
+    def _parse_nvd_timestamp(value):
+        """NVD renvoie des timestamps ISO sans offset explicite (toujours UTC)."""
+        if not value:
+            return None
+        parsed = parse_datetime(value)
+        if parsed is None:
+            return None
+        return make_aware(parsed) if is_naive(parsed) else parsed
 
     items = nvd.fetch_recent_cves(days=2)
     synced = 0
@@ -241,8 +251,8 @@ def sync_nvd_recent_cves():
             "severity": nvd.score_to_severity(score) or (existing.severity if existing else ""),
             "vendor_project": vendor[:255],
             "product": product[:255],
-            "published_date": cve.get("published") or None,
-            "modified_date": cve.get("lastModified") or None,
+            "published_date": _parse_nvd_timestamp(cve.get("published")),
+            "modified_date": _parse_nvd_timestamp(cve.get("lastModified")),
             "raw_data": {"id": cve_id, "sourceIdentifier": cve.get("sourceIdentifier")},
         }
         if is_kev:
