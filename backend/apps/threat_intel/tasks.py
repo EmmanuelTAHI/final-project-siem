@@ -18,7 +18,7 @@ def enrich_logs_with_cti():
     """
     from apps.logs.models import NormalizedLog
     from apps.threat_intel.models import EnrichedLog, ThreatIndicator
-    from apps.threat_intel.services import abuseipdb, virustotal
+    from apps.threat_intel.services import abuseipdb, ip_enrichment, virustotal
 
     cutoff = timezone.now() - timedelta(hours=2)
     enriched_ids = EnrichedLog.objects.values_list("log_id", flat=True)
@@ -35,9 +35,27 @@ def enrich_logs_with_cti():
     # quasi-totalité des enrichissements échouaient silencieusement.
     unique_ips = {log.source_ip for log in logs if log.source_ip}
     indicators_by_ip: dict[str, list] = {}
+    geo_tagged = 0
 
     for ip in unique_ips:
         indicators = []
+
+        # Géolocalisation (ip-api.com, gratuite) — les logs syslog/agent (SSH,
+        # nginx...) n'ont jamais de geo_country renseigné par le normaliseur
+        # (contrairement à M365/Google qui le fournissent déjà). On comble ce
+        # trou ICI, au moment où l'IP est de toute façon déjà interrogée pour
+        # le CTI, plutôt que de faire un appel réseau séparé par log — et on
+        # rattrape TOUS les logs historiques de cette IP encore sans pays,
+        # pas seulement le lot en cours de traitement (le tableau de bord
+        # Trafic & IP en profite immédiatement).
+        geo = ip_enrichment.geo_lookup(ip)
+        country_code = geo.get("countryCode")
+        if country_code:
+            updated = (
+                NormalizedLog.objects.filter(source_ip=ip, geo_country__isnull=True)
+                .update(geo_country=country_code, geo_city=geo.get("city") or None)
+            )
+            geo_tagged += updated
 
         abuse_data = abuseipdb.check_ip(ip)
         if abuse_data:
@@ -91,10 +109,10 @@ def enrich_logs_with_cti():
                 _create_cti_alert(log, enriched_log)
 
     logger.info(
-        "CTI enrichissement: %d logs traités (%d IP uniques interrogées), %d menaces détectées",
-        enriched_count, len(unique_ips), threat_count,
+        "CTI enrichissement: %d logs traités (%d IP uniques interrogées), %d menaces détectées, %d logs géolocalisés",
+        enriched_count, len(unique_ips), threat_count, geo_tagged,
     )
-    return {"enriched": enriched_count, "unique_ips": len(unique_ips), "threats": threat_count}
+    return {"enriched": enriched_count, "unique_ips": len(unique_ips), "threats": threat_count, "geo_tagged": geo_tagged}
 
 
 def _create_cti_alert(log, enriched_log):
