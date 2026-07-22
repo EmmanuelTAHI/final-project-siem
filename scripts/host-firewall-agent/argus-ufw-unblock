@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Wrapper appelé UNIQUEMENT via sudo par argus-firewall-agent — voir
+# argus-ufw-block pour le rationale de la validation stricte de l'IP.
+set -euo pipefail
+
+IP="${1:-}"
+
+if [[ ! "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && [[ ! "$IP" =~ ^[0-9a-fA-F:]+$ ]]; then
+  echo "IP invalide : $IP" >&2
+  exit 1
+fi
+
+# "|| true" : idempotent, ne doit jamais échouer si la règle n'existe déjà
+# plus (ex: déjà levée manuellement) -- le déblocage automatique programmé
+# par le démon ne doit jamais planter sur ce cas normal.
+ufw delete deny from "$IP" to any comment "argus-soar-auto-block" || true
+echo "débloqué: $IP"

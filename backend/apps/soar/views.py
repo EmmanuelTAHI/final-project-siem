@@ -74,6 +74,23 @@ class BlockedIPViewSet(ModelViewSet):
         blocked.save(update_fields=["is_active"])
         from django.core.cache import cache
         cache.delete(f"blocked_ip:{blocked.ip_address}")
+
+        # Lève aussi le blocage réseau réel (démon local ufw), pas seulement
+        # la ligne applicative — sinon l'IP reste bloquée au niveau réseau
+        # alors que l'UI affiche "débloqué" (faux positif rassurant).
+        from django.conf import settings
+        if settings.HOST_FIREWALL_URL:
+            import httpx
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    client.post(
+                        f"{settings.HOST_FIREWALL_URL.rstrip('/')}/unblock",
+                        json={"ip": blocked.ip_address},
+                        headers={"Authorization": f"Bearer {settings.HOST_FIREWALL_TOKEN}"},
+                    )
+            except httpx.HTTPError:
+                pass  # le blocage applicatif est déjà levé ; ne pas faire échouer la requête pour ça
+
         return Response({"is_active": False})
 
 

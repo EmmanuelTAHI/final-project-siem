@@ -47,10 +47,17 @@ services:
       - ./backend:/app
       - ml_models:/app/ml_models
       - logs:/app/logs
+    # Permet au backend d'atteindre le démon de blocage réseau réel
+    # (scripts/host-firewall-agent), qui tourne sur l'hôte, hors Docker,
+    # en écoute uniquement sur 127.0.0.1 côté hôte.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery_worker:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery_beat:
     environment:

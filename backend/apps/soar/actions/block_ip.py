@@ -27,11 +27,24 @@ def execute(params: dict, alert) -> dict:
         target_ips: [...]  # si vide, utilise source_ips de l'alerte
     }
     """
+    from django.conf import settings
     from django.utils import timezone
 
     from apps.soar.models import BlockedIP
 
-    firewall_url = params.get("firewall_api_url", "")
+    # Priorité : firewall_api_url explicite du playbook (NGFW/CrowdSec tiers,
+    # utilisée telle quelle — l'admin qui la configure connaît le chemin exact
+    # attendu par son firewall) > démon de blocage réseau local, configuré une
+    # fois pour toutes via HOST_FIREWALL_URL — rend le blocage réseau réel
+    # actif PAR DÉFAUT pour tout playbook, sans configuration manuelle répétée.
+    # Le démon local expose des chemins fixes (/block, /unblock) qu'on
+    # complète nous-mêmes ; une URL explicite est en revanche utilisée sans
+    # modification (elle représente déjà le endpoint complet côté NGFW tiers).
+    custom_url = params.get("firewall_api_url")
+    firewall_url = f"{custom_url.rstrip('/')}" if custom_url else (
+        f"{settings.HOST_FIREWALL_URL.rstrip('/')}/block" if settings.HOST_FIREWALL_URL else ""
+    )
+    api_key = params.get("api_key") or settings.HOST_FIREWALL_TOKEN
     target_ips = params.get("target_ips", [])
 
     if not target_ips:
@@ -75,14 +88,15 @@ def execute(params: dict, alert) -> dict:
             },
         )
 
-        # Couche 2 — optionnelle, firewall/NGFW externe.
+        # Couche 2 — blocage réseau réel (démon local ufw, ou NGFW/CrowdSec
+        # externe si firewall_api_url était explicitement fourni au playbook).
         if firewall_url:
             try:
                 with httpx.Client(timeout=10.0) as client:
                     resp = client.post(
                         firewall_url,
                         json={"ip": ip, "action": "block", "duration_hours": duration_hours},
-                        headers={"Authorization": f"Bearer {params.get('api_key', '')}"},
+                        headers={"Authorization": f"Bearer {api_key}"},
                     )
                     resp.raise_for_status()
             except httpx.HTTPError as exc:

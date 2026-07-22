@@ -1,0 +1,22 @@
+[Unit]
+Description=Argus SOAR — démon de blocage réseau réel (ufw)
+After=network.target
+
+[Service]
+Type=simple
+User=argus-fw
+Group=argus-fw
+ExecStart=/usr/bin/python3 /opt/argus-firewall-agent/firewall_agent.py
+Restart=always
+RestartSec=3
+# Durcissement : pas d'accès au reste du système au-delà de ce qui est
+# nécessaire (le binaire sudo + les 2 scripts wrapper restent accessibles
+# via la politique sudoers, qui est un mécanisme séparé de ces restrictions).
+NoNewPrivileges=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/argus-firewall-agent
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Wrapper appelé UNIQUEMENT via sudo par argus-firewall-agent (voir
+# /etc/sudoers.d/argus-firewall) — revalide l'IP en argument (défense en
+# profondeur, ne fait jamais confiance à l'appelant) avant d'insérer une
+# règle ufw en première position (priorité sur toute règle ALLOW existante).
+set -euo pipefail
+
+IP="${1:-}"
+
+# Format IPv4/IPv6 strict — rejette tout ce qui n'est pas une adresse valide
+# (évite toute injection de commande via un argument malformé).
+if [[ ! "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && [[ ! "$IP" =~ ^[0-9a-fA-F:]+$ ]]; then
+  echo "IP invalide : $IP" >&2
+  exit 1
+fi
+
+ufw insert 1 deny from "$IP" to any comment "argus-soar-auto-block"
+echo "bloqué: $IP"
