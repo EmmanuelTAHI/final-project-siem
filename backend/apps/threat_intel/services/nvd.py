@@ -27,9 +27,11 @@ def fetch_recent_cves(days: int = 1, results_per_page: int = 200) -> list[dict]:
     end = datetime.now(dt_timezone.utc)
     start = end - timedelta(days=days)
 
+    # NVD exige un offset avec deux-points ("+00:00"), pas le format %z brut
+    # ("+0000") — sinon l'API renvoie 404 sans message d'erreur exploitable.
     params = {
-        "lastModStartDate": start.strftime("%Y-%m-%dT%H:%M:%S.000%z"),
-        "lastModEndDate": end.strftime("%Y-%m-%dT%H:%M:%S.000%z"),
+        "lastModStartDate": start.strftime("%Y-%m-%dT%H:%M:%S.000+00:00"),
+        "lastModEndDate": end.strftime("%Y-%m-%dT%H:%M:%S.000+00:00"),
         "resultsPerPage": results_per_page,
     }
 

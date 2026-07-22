@@ -199,8 +199,21 @@ def sync_nvd_recent_cves():
     c'est ce qui manque à une solution purement basée sur des règles écrites
     à l'avance : dès qu'une CVE sort, elle est en base en quelques heures.
     """
+    from datetime import datetime
+
+    from django.utils.timezone import make_aware, is_naive
+
     from apps.threat_intel.models import CVERecord
     from apps.threat_intel.services import nvd
+
+    def _parse_date(value):
+        if not value:
+            return None
+        try:
+            dt = datetime.strptime(value, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return None
+        return make_aware(dt) if is_naive(dt) else dt
 
     items = nvd.fetch_recent_cves(days=2)
     synced = 0
@@ -215,19 +228,36 @@ def sync_nvd_recent_cves():
         score = nvd.extract_cvss_score(cve)
         vendor, product = nvd.extract_vendor_product(cve)
 
-        CVERecord.objects.update_or_create(
-            cve_id=cve_id,
-            defaults={
-                "description": desc_en[:4000],
-                "cvss_score": score,
-                "severity": nvd.score_to_severity(score),
-                "vendor_project": vendor[:255],
-                "product": product[:255],
-                "published_date": cve.get("published") or None,
-                "modified_date": cve.get("lastModified") or None,
-                "raw_data": {"id": cve_id, "sourceIdentifier": cve.get("sourceIdentifier")},
-            },
-        )
+        # NVD expose directement les champs CISA KEV (cisaExploitAdd...) sur
+        # chaque CVE quand elle est exploitée activement — source de secours
+        # fiable si le flux JSON CISA brut est bloqué (WAF anti-datacenter,
+        # fréquent sur IP de VPS/cloud).
+        is_kev = bool(cve.get("cisaExploitAdd"))
+        existing = CVERecord.objects.filter(cve_id=cve_id).first()
+
+        defaults = {
+            "description": desc_en[:4000],
+            "cvss_score": score,
+            "severity": nvd.score_to_severity(score) or (existing.severity if existing else ""),
+            "vendor_project": vendor[:255],
+            "product": product[:255],
+            "published_date": cve.get("published") or None,
+            "modified_date": cve.get("lastModified") or None,
+            "raw_data": {"id": cve_id, "sourceIdentifier": cve.get("sourceIdentifier")},
+        }
+        if is_kev:
+            defaults.update({
+                "is_kev": True,
+                "severity": "critical",
+                "kev_date_added": _parse_date(cve.get("cisaExploitAdd")),
+                "kev_due_date": _parse_date(cve.get("cisaActionDue")),
+                "kev_required_action": cve.get("cisaRequiredAction", ""),
+            })
+        elif existing and existing.is_kev:
+            # Ne jamais rétrograder un statut KEV déjà connu (ex: via le sync CISA direct).
+            defaults["is_kev"] = True
+
+        CVERecord.objects.update_or_create(cve_id=cve_id, defaults=defaults)
         synced += 1
 
     logger.info("NVD: %d CVE synchronisées", synced)
