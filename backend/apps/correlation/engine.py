@@ -145,27 +145,39 @@ class CorrelationEngine:
 
     def _create_alert_if_new(self, rule: CorrelationRule, match: RuleMatch, now: datetime):
         """
-        Crée une alerte si aucune alerte similaire n'est déjà ouverte.
-        Déduplique sur (rule, user_email) avec statut open ou in_progress.
-        Pour les règles Wazuh, la déduplication inclut le wazuh_rule_id, et pour
-        Impossible Travel la paire de pays, afin de permettre plusieurs alertes
-        distinctes pour le même user (évènements différents) sans qu'une seule
-        alerte ouverte ne bloque toutes les suivantes.
+        Crée une alerte si aucune alerte similaire n'est déjà ouverte, ou MET À
+        JOUR l'alerte existante si une attaque en cours continue de matcher.
+        Déduplique sur (rule, source_ip) quand une IP est disponible dans le
+        contexte (identité la plus stable/précise d'une attaque en cours),
+        sinon sur (rule, user_email). Pour les règles Wazuh, la déduplication
+        inclut le wazuh_rule_id, et pour Impossible Travel la paire de pays,
+        afin de permettre plusieurs alertes distinctes pour le même user
+        (évènements différents) sans qu'une seule alerte ouverte ne bloque
+        toutes les suivantes.
+
+        Important : une attaque qui continue APRÈS la création de l'alerte ne
+        doit jamais devenir invisible pour l'analyste — plutôt que d'ignorer
+        silencieusement les correspondances suivantes, les nouveaux logs
+        matchés sont ajoutés à l'alerte déjà ouverte (le badge "×N" du
+        frontend grandit, la preuve d'attaque continue s'accumule).
         """
         from apps.alerts.models import Alert
         from apps.correlation.models import RuleMatch as RuleMatchModel
 
         user_email = match.context.get("user_email", "")
+        source_ip = match.context.get("source_ip", "")
         wazuh_rule_id = match.context.get("wazuh_rule_id", "")
         country_1 = match.context.get("country_1", "")
         country_2 = match.context.get("country_2", "")
 
-        # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/user
+        # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/attaque.
         existing = Alert.objects.filter(
             rule=rule,
             status__in=("open", "in_progress"),
         )
-        if user_email:
+        if source_ip:
+            existing = existing.filter(description__icontains=source_ip)
+        elif user_email:
             existing = existing.filter(description__icontains=user_email)
 
         # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
@@ -180,12 +192,12 @@ class CorrelationEngine:
                 description__icontains=country_1
             ).filter(description__icontains=country_2)
 
-        if existing.exists():
+        existing_alert = existing.order_by("-created_at").first()
+        if existing_alert:
+            self._merge_into_existing_alert(existing_alert, rule, match, now)
             logger.debug(
-                "Alerte dédupliquée pour règle '%s' / user '%s' / wazuh_rule='%s'.",
-                rule.name,
-                user_email,
-                wazuh_rule_id or "n/a",
+                "Alerte existante mise à jour pour règle '%s' / user '%s' / ip '%s'.",
+                rule.name, user_email or "n/a", source_ip or "n/a",
             )
             return None
 
@@ -233,6 +245,37 @@ class CorrelationEngine:
             alert.id,
         )
         return alert
+
+    def _merge_into_existing_alert(self, alert, rule: CorrelationRule, match: RuleMatch, now: datetime) -> None:
+        """
+        Rattache les nouveaux logs matchés à une alerte déjà ouverte, au lieu
+        de les ignorer. Une attaque qui continue (ex: brute force qui dure
+        10 minutes) doit rester visible : le compteur d'évènements de
+        l'alerte (badge "×N" côté frontend) grandit à chaque nouveau lot de
+        logs correspondants, plutôt que de plafonner silencieusement au
+        premier lot qui a déclenché l'alerte initiale.
+        """
+        from apps.correlation.models import RuleMatch as RuleMatchModel
+
+        if not match.matched_logs:
+            return
+
+        existing_log_ids = set(alert.source_logs.values_list("id", flat=True))
+        new_logs = [log for log in match.matched_logs if log.id not in existing_log_ids]
+        if not new_logs:
+            return
+
+        alert.source_logs.add(*new_logs)
+        # touche updated_at (auto_now) pour que l'alerte remonte comme "activité récente"
+        alert.save(update_fields=["updated_at"])
+
+        rule_match_obj = RuleMatchModel.objects.create(rule=rule, alert=alert)
+        rule_match_obj.logs.set(new_logs)
+
+        logger.info(
+            "Alerte %s enrichie : +%d nouveaux logs (activité d'attaque continue)",
+            alert.id, len(new_logs),
+        )
 
     def test_rule(self, rule: CorrelationRule, max_logs: int = 1000) -> dict:
         """
