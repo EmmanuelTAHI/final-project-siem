@@ -37,6 +37,16 @@ fi
 chmod 600 "$CONFIG_DIR/token"
 chown argus-fw:argus-fw "$CONFIG_DIR/token"
 
+echo "-> Autorisation ufw du port 8765 depuis le réseau Docker uniquement..."
+# ufw refuse par défaut TOUT trafic entrant non explicitement autorisé, y
+# compris depuis le réseau Docker interne (testé et confirmé : le backend ne
+# pouvait pas joindre le démon tant que cette règle n'existait pas). Limité
+# au bloc RFC1918 172.16.0.0/12 (plage standard des réseaux Docker Compose)
+# -- jamais "Anywhere", ce port reste bloqué depuis l'internet public.
+if ! ufw status | grep -q "8765.*172.16.0.0/12"; then
+  ufw allow from 172.16.0.0/12 to any port 8765 proto tcp comment "argus-firewall-agent (Docker uniquement)"
+fi
+
 echo "-> Écriture de la règle sudoers restreinte (2 binaires précis, jamais ALL)..."
 cat > /etc/sudoers.d/argus-firewall <<'EOF'
 # Autorise UNIQUEMENT l'utilisateur argus-fw à exécuter ces deux scripts
