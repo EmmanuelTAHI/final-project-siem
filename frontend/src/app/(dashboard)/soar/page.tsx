@@ -8,6 +8,7 @@ import {
   Clock, Activity, Trash2, Edit, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { soarApi } from "@/lib/api";
+import { BlockedIPsPanel } from "@/components/soar/blocked-ips-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,8 @@ const ACTION_TEMPLATES = [
   { type: "send_email", label: "Envoyer un email", params: { recipients: [], subject_template: "Alerte Argus: {title}" } },
   { type: "webhook", label: "Appel webhook (Slack/Teams)", params: { url: "", method: "POST" } },
   { type: "block_ip", label: "Bloquer l'IP source", params: { block_duration_hours: 24 } },
-  { type: "create_ticket", label: "Créer un ticket ITSM", params: { system: "jira", api_url: "" } },
+  { type: "create_ticket", label: "Créer un ticket ITSM (externe)", params: { system: "jira", api_url: "" } },
+  { type: "create_internal_ticket", label: "Créer un ticket Argus (interne)", params: { priority: "" } },
 ];
 
 function StatusBadge({ status }: { status: string }) {
@@ -290,6 +292,8 @@ export default function SOARPage() {
           </div>
         </CardContent>
       </Card>
+
+      <BlockedIPsPanel />
 
       {/* Dialog création playbook */}
       <Dialog open={showForm} onOpenChange={setShowForm}>

@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Playbook, PlaybookExecution
+from .models import BlockedIP, Playbook, PlaybookExecution
+
+
+class BlockedIPSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlockedIP
+        fields = ["id", "ip_address", "reason", "source", "is_active", "expires_at", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class PlaybookSerializer(serializers.ModelSerializer):

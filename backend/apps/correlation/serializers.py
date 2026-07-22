@@ -28,6 +28,7 @@ class CorrelationRuleSerializer(serializers.ModelSerializer):
             "alert_title_template",
             "mitre_tactic",
             "mitre_technique",
+            "compliance_controls",
             "created_by",
             "created_by_email",
             "created_at",
@@ -74,12 +75,14 @@ class CorrelationRuleCreateSerializer(serializers.ModelSerializer):
             "alert_title_template",
             "mitre_tactic",
             "mitre_technique",
+            "compliance_controls",
         ]
         extra_kwargs = {
             "alert_title_template": {"required": False, "allow_blank": True},
             "description": {"required": False, "allow_blank": True},
             "mitre_tactic": {"required": False, "allow_null": True, "allow_blank": True},
             "mitre_technique": {"required": False, "allow_null": True, "allow_blank": True},
+            "compliance_controls": {"required": False},
         }
 
     def to_internal_value(self, data):

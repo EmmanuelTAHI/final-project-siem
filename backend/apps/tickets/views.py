@@ -53,7 +53,7 @@ class TicketViewSet(ModelViewSet):
     queryset = (
         Ticket.objects
         .select_related("reporter", "assignee", "alert")
-        .prefetch_related("comments__author", "activities__actor")
+        .prefetch_related("comments__author", "activities__actor", "linked_alerts")
         .all()
     )
     filter_backends = [
@@ -221,6 +221,45 @@ class TicketViewSet(ModelViewSet):
         return success_response(
             data=TicketSerializer(fresh).data, message="Commentaire ajouté.", http_status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="link-alert")
+    def link_alert(self, request, pk=None):
+        """
+        POST /api/tickets/{id}/link-alert/ {"alert_id": "<uuid>"}
+        Rattache une alerte supplémentaire au ticket (case management :
+        regrouper plusieurs alertes corrélées d'un même incident).
+        """
+        from apps.alerts.models import Alert
+
+        ticket = self.get_object()
+        alert_id = request.data.get("alert_id")
+        alert = Alert.objects.filter(id=alert_id, organization_id=request.user.organization_id).first()
+        if not alert:
+            return error_response(message="Alerte introuvable dans votre organisation.", http_status=status.HTTP_404_NOT_FOUND)
+
+        ticket.linked_alerts.add(alert)
+        TicketActivity.objects.create(
+            ticket=ticket, actor=request.user, action="updated",
+            to_value=f"Alerte liée : {alert.title[:100]}",
+        )
+        fresh = self.get_queryset().get(pk=ticket.pk)
+        return success_response(data=TicketSerializer(fresh).data, message="Alerte liée au ticket.")
+
+    @action(detail=True, methods=["post"], url_path="unlink-alert")
+    def unlink_alert(self, request, pk=None):
+        """POST /api/tickets/{id}/unlink-alert/ {"alert_id": "<uuid>"}"""
+        ticket = self.get_object()
+        alert_id = request.data.get("alert_id")
+        removed = ticket.linked_alerts.filter(id=alert_id)
+        alert_title = removed.first().title[:100] if removed.exists() else None
+        ticket.linked_alerts.remove(*removed)
+        if alert_title:
+            TicketActivity.objects.create(
+                ticket=ticket, actor=request.user, action="updated",
+                to_value=f"Alerte déliée : {alert_title}",
+            )
+        fresh = self.get_queryset().get(pk=ticket.pk)
+        return success_response(data=TicketSerializer(fresh).data, message="Alerte déliée du ticket.")
 
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):

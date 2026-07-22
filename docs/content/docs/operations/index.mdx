@@ -1,0 +1,81 @@
+---
+title: Scalabilité & Haute disponibilité
+description: Charger tester Argus, faire évoluer l'architecture pour un usage à plus grande échelle
+---
+
+Argus fonctionne aujourd'hui en instance unique (un conteneur par service),
+adapté à une PME ou un déploiement pilote. Cette page documente comment
+faire évoluer l'architecture pour un usage à plus grande échelle, sans
+attendre d'y être forcé par un incident de production.
+
+## Test de charge
+
+Un script k6 est fourni dans `loadtest/k6-script.js` — voir
+`loadtest/README.md` pour l'installation et l'exécution. Il simule un usage
+SOC réaliste (login, dashboard, alertes, logs) en montée de charge progressive
+(0 → 100 utilisateurs virtuels concurrents) et vérifie deux seuils : p95 des
+temps de réponse sous 800ms, taux d'erreur sous 1%.
+
+**Ne jamais lancer ce test contre une instance de production** sans fenêtre
+de maintenance annoncée — voir l'avertissement dans le README du script.
+
+## PostgreSQL — réplication
+
+Configuration actuelle : instance unique, aucune réplication. Pour la haute
+disponibilité :
+
+- **Réplication en streaming** (`primary`/`standby`) : le standby suit le
+  primary en continu via le WAL, bascule manuelle ou automatique (avec
+  `repmgr`/`Patroni`) en cas de panne du primary.
+- **Sauvegarde continue** (déjà en place manuellement via `pg_dump` avant
+  chaque migration risquée — voir le workflow de déploiement) : à automatiser
+  en tâche planifiée (`pg_dump` quotidien + rétention glissante) indépendamment
+  de la réplication, qui ne protège pas contre une corruption logique
+  (`DROP TABLE` accidentel répliqué instantanément).
+
+## Redis — haute disponibilité
+
+Configuration actuelle : instance unique, utilisée à la fois comme broker
+Celery, cache Django et backend Django Channels (WebSocket).
+
+- **Redis Sentinel** : bascule automatique vers un réplica en cas de panne du
+  primary Redis — nécessaire dès que Redis devient un point de défaillance
+  unique critique (perte du broker Celery = plus aucune tâche périodique ne
+  s'exécute : corrélation, CTI, CVE...).
+- Séparer les usages sur des instances/DB Redis distinctes (déjà fait
+  partiellement : `CELERY_BROKER_URL` en DB 0, `CELERY_RESULT_BACKEND` en DB 1)
+  pour qu'une charge excessive du cache n'affecte pas la file Celery.
+
+## Celery — scaling horizontal
+
+- **Plusieurs workers** : `docker compose up -d --scale celery_worker=3`
+  fonctionne directement (les workers se partagent les tâches de la même
+  file Redis) — aucun changement de code nécessaire.
+- **Files séparées par priorité** : actuellement toutes les tâches partagent
+  la même file par défaut. Pour éviter qu'une tâche lourde (sync NVD, génération
+  de rapport PDF) ne retarde une tâche critique (moteur de corrélation, toutes
+  les 20s), router les tâches vers des files nommées (`-Q corrélation,cti,reports`)
+  et lancer des workers dédiés par file.
+- **Celery Beat reste single-instance** par design (un seul scheduler doit
+  décider quand déclencher les tâches périodiques) — ne jamais scaler ce
+  service horizontalement, contrairement à `celery_worker`.
+
+## Backend Django — scaling horizontal
+
+Le backend (Daphne, ASGI) est stateless (JWT, pas de session serveur) —
+`docker compose up -d --scale backend=3` fonctionne directement derrière
+nginx en round-robin. Point d'attention : Django Channels (WebSocket) utilise
+déjà `RedisPubSubChannelLayer`, ce qui permet à un message broadcasté sur une
+instance backend d'atteindre un client connecté sur une autre — condition
+nécessaire pour scaler le WebSocket horizontalement, déjà remplie.
+
+## Résumé des priorités si la charge augmente réellement
+
+1. Automatiser les sauvegardes PostgreSQL (actuellement manuelles avant
+   chaque migration).
+2. Scaler `celery_worker` horizontalement (`--scale`) — gain immédiat, aucun
+   changement de code.
+3. Ajouter Redis Sentinel si Redis devient un SPOF inacceptable.
+4. Réplication PostgreSQL + bascule automatique seulement si la volumétrie
+   ou les exigences de disponibilité le justifient réellement — complexité
+   opérationnelle non négligeable, à ne pas ajouter par anticipation.

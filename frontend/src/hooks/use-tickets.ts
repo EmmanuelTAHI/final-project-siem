@@ -83,3 +83,27 @@ export function useAddTicketComment() {
     },
   });
 }
+
+export function useLinkAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ticketId, alertId }: { ticketId: string; alertId: string }) =>
+      ticketsApi.linkAlert(ticketId, alertId),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.setQueryData(["ticket", updated.id], updated);
+    },
+  });
+}
+
+export function useUnlinkAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ticketId, alertId }: { ticketId: string; alertId: string }) =>
+      ticketsApi.unlinkAlert(ticketId, alertId),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.setQueryData(["ticket", updated.id], updated);
+    },
+  });
+}

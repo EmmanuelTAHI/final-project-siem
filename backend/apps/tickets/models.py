@@ -65,6 +65,17 @@ class Ticket(models.Model):
         related_name="tickets",
         verbose_name="Alerte liée",
     )
+    # Agrégation multi-alertes (case management) : un incident réel implique
+    # souvent plusieurs alertes corrélées (ex: brute force + impossible
+    # travel sur le même compte). `alert` reste la relation "principale"
+    # (rétrocompatibilité), `linked_alerts` permet de regrouper tout un
+    # scénario d'incident sur un seul ticket.
+    linked_alerts = models.ManyToManyField(
+        "alerts.Alert",
+        blank=True,
+        related_name="linked_tickets",
+        verbose_name="Alertes associées",
+    )
     reporter = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

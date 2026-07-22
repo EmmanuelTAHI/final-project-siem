@@ -20,6 +20,7 @@ from utils.permissions import IsAnalyst
 from utils.response import error_response, success_response
 from utils.tenant import OrganizationFilterBackend
 
+from .compliance_catalog import COMPLIANCE_CATALOG, build_compliance_coverage
 from .models import GeneratedReport
 from .serializers import GeneratedReportSerializer
 
@@ -260,6 +261,27 @@ class ReportExportView(APIView):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response["Content-Length"] = len(content)
         return response
+
+
+class ComplianceCoverageView(APIView):
+    """
+    GET /api/reports/compliance-coverage/?framework=iso27001
+    Matrice de couverture EN CONTINU (pas un PDF ponctuel) : quels contrôles
+    sont couverts par au moins une règle de détection active de
+    l'organisation, dès maintenant. Complète les rapports PDF à la demande
+    par une vue "toujours à jour" de la posture de conformité opérationnelle.
+    """
+    permission_classes = [IsAnalyst]
+
+    def get(self, request):
+        framework = request.query_params.get("framework", "iso27001").lower()
+        if framework not in COMPLIANCE_CATALOG:
+            return Response(
+                {"error": f"Framework inconnu. Valeurs acceptées: {list(COMPLIANCE_CATALOG.keys())}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        coverage = build_compliance_coverage(request.user.organization_id, framework)
+        return Response(coverage)
 
 
 class ReportHistoryViewSet(ReadOnlyModelViewSet):

@@ -12,16 +12,27 @@ import {
   History,
   Trash2,
   ExternalLink,
+  Link2,
+  Link2Off,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TicketPriorityBadge, TicketStatusBadge } from "./ticket-badges";
 import { cn, timeAgo, formatDate, getInitials } from "@/lib/utils";
-import { useAssignableUsers, useUpdateTicket, useAddTicketComment, useDeleteTicket } from "@/hooks/use-tickets";
+import {
+  useAssignableUsers,
+  useUpdateTicket,
+  useAddTicketComment,
+  useDeleteTicket,
+  useLinkAlert,
+  useUnlinkAlert,
+} from "@/hooks/use-tickets";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Ticket, TicketPriority, TicketStatus } from "@/types";
 import toast from "react-hot-toast";
@@ -38,11 +49,14 @@ const PRIORITY_OPTIONS: TicketPriority[] = ["low", "medium", "high", "critical"]
 export function TicketDetailPanel({ ticket, onClose }: TicketDetailPanelProps) {
   const [comment, setComment] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [linkAlertId, setLinkAlertId] = useState("");
   const { user } = useAuthStore();
   const { data: users = [] } = useAssignableUsers();
   const updateMutation = useUpdateTicket();
   const commentMutation = useAddTicketComment();
   const deleteMutation = useDeleteTicket();
+  const linkAlertMutation = useLinkAlert();
+  const unlinkAlertMutation = useUnlinkAlert();
 
   if (!ticket) return null;
 
@@ -81,6 +95,26 @@ export function TicketDetailPanel({ ticket, onClose }: TicketDetailPanelProps) {
       toast.success("Commentaire ajouté");
     } catch {
       toast.error("Erreur lors de l'ajout du commentaire.");
+    }
+  };
+
+  const handleLinkAlert = async () => {
+    if (!linkAlertId.trim()) return;
+    try {
+      await linkAlertMutation.mutateAsync({ ticketId: ticket.id, alertId: linkAlertId.trim() });
+      setLinkAlertId("");
+      toast.success("Alerte liée au ticket");
+    } catch {
+      toast.error("Alerte introuvable ou déjà liée.");
+    }
+  };
+
+  const handleUnlinkAlert = async (alertId: string) => {
+    try {
+      await unlinkAlertMutation.mutateAsync({ ticketId: ticket.id, alertId });
+      toast.success("Alerte déliée");
+    } catch {
+      toast.error("Erreur lors de la déliaison.");
     }
   };
 
@@ -159,6 +193,45 @@ export function TicketDetailPanel({ ticket, onClose }: TicketDetailPanelProps) {
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                   </Link>
                 )}
+
+                {/* Case management : alertes associées (regroupement multi-alertes sur un incident) */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Link2 className="w-3 h-3" /> Alertes associées ({ticket.linked_alerts?.length ?? 0})
+                  </p>
+                  <div className="space-y-1.5 mb-2">
+                    {(ticket.linked_alerts ?? []).map((a) => (
+                      <div key={a.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-secondary/40 text-xs">
+                        <div className="min-w-0 flex-1 flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] shrink-0 capitalize">{a.severity}</Badge>
+                          <span className="truncate text-foreground">{a.title}</span>
+                        </div>
+                        <button
+                          onClick={() => handleUnlinkAlert(a.id)}
+                          className="text-muted-foreground hover:text-destructive shrink-0"
+                          title="Délier cette alerte"
+                        >
+                          <Link2Off className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {(ticket.linked_alerts ?? []).length === 0 && (
+                      <p className="text-xs text-muted-foreground">Aucune alerte associée pour l'instant.</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="ID d'alerte à lier (UUID)"
+                      value={linkAlertId}
+                      onChange={(e) => setLinkAlertId(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleLinkAlert()}
+                      className="text-xs h-8"
+                    />
+                    <Button size="sm" variant="outline" onClick={handleLinkAlert} disabled={!linkAlertId.trim() || linkAlertMutation.isPending} className="h-8 shrink-0">
+                      Lier
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Status / priority / assignee controls */}
                 <div className="grid grid-cols-2 gap-3">

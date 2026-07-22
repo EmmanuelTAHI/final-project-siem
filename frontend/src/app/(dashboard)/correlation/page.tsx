@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Plus, Search, GitBranch, Zap, ToggleLeft } from "lucide-react";
 import { RuleCard } from "@/components/correlation/rule-card";
 import { RuleFormModal } from "@/components/correlation/rule-form-modal";
+import { CoveragePanel } from "@/components/correlation/coverage-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -137,6 +138,8 @@ function CorrelationPageContent() {
           </div>
         ))}
       </motion.div>
+
+      <CoveragePanel />
 
       {/* Filters */}
       <motion.div

@@ -51,6 +51,8 @@ import type {
   CopilotConversation,
   CopilotAskResponse,
   AlertSummary,
+  ComplianceCoverage,
+  BlockedIP,
 } from "@/types";
 import type {
   LinkedAccount,
@@ -442,6 +444,16 @@ export const ticketsApi = {
   getAssignableUsers: async (): Promise<TicketUserBrief[]> => {
     const { data } = await api.get("/api/tickets/assignable-users/");
     return unwrap<TicketUserBrief[]>(data);
+  },
+
+  linkAlert: async (ticketId: string, alertId: string): Promise<Ticket> => {
+    const { data } = await api.post(`/api/tickets/${ticketId}/link-alert/`, { alert_id: alertId });
+    return unwrap<Ticket>(data);
+  },
+
+  unlinkAlert: async (ticketId: string, alertId: string): Promise<Ticket> => {
+    const { data } = await api.post(`/api/tickets/${ticketId}/unlink-alert/`, { alert_id: alertId });
+    return unwrap<Ticket>(data);
   },
 };
 
@@ -902,6 +914,30 @@ export const soarApi = {
   getStats: async (): Promise<SOARStats> => {
     const { data } = await api.get("/api/soar/stats/");
     return unwrap<SOARStats>(data);
+  },
+
+  getBlockedIPs: async (params: Record<string, unknown> = {}): Promise<PaginatedResponse<BlockedIP>> => {
+    const { data } = await api.get("/api/soar/blocked-ips/", { params });
+    return unwrapPaginated<BlockedIP>(data);
+  },
+
+  blockIP: async (ip_address: string, reason = ""): Promise<BlockedIP> => {
+    const { data } = await api.post("/api/soar/blocked-ips/", { ip_address, reason });
+    return unwrap<BlockedIP>(data);
+  },
+
+  unblockIP: async (id: string): Promise<{ is_active: boolean }> => {
+    const { data } = await api.post(`/api/soar/blocked-ips/${id}/unblock/`);
+    return unwrap<{ is_active: boolean }>(data);
+  },
+};
+
+// ─── Conformité continue ────────────────────────────────────────────────────
+
+export const complianceApi = {
+  getCoverage: async (framework: string): Promise<ComplianceCoverage> => {
+    const { data } = await api.get("/api/reports/compliance-coverage/", { params: { framework } });
+    return unwrap<ComplianceCoverage>(data);
   },
 };
 

@@ -105,3 +105,44 @@ class PlaybookExecution(models.Model):
         if self.finished_at and self.started_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
+
+
+class BlockedIP(models.Model):
+    """
+    Blocage IP appliqué localement par Argus lui-même (via
+    `utils.blocklist_middleware`), en complément d'un éventuel appel à un
+    firewall/NGFW externe. Contrairement à une action SOAR qui ne fait que
+    "logger" un blocage sans configuration externe, cette table rend le
+    blocage RÉELLEMENT effectif dès le prochain appel API — l'IP reçoit un
+    403 de la plateforme elle-même, sans dépendre d'une intégration tierce.
+    """
+
+    SOURCE_CHOICES = [
+        ("soar_playbook", "Playbook SOAR"),
+        ("manual", "Blocage manuel"),
+        ("threat_intel", "Threat Intelligence"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="blocked_ips",
+        verbose_name="Organisation",
+    )
+    ip_address = models.GenericIPAddressField(db_index=True)
+    reason = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=30, choices=SOURCE_CHOICES, default="soar_playbook")
+    playbook_execution = models.ForeignKey(
+        PlaybookExecution, on_delete=models.SET_NULL, null=True, blank=True, related_name="blocked_ips",
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["ip_address", "is_active"])]
+
+    def __str__(self):
+        return f"{self.ip_address} [{'actif' if self.is_active else 'levé'}]"

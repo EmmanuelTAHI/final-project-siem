@@ -14,6 +14,7 @@ ACTION_REGISTRY = {
     "webhook": "apps.soar.actions.webhook",
     "block_ip": "apps.soar.actions.block_ip",
     "create_ticket": "apps.soar.actions.create_ticket",
+    "create_internal_ticket": "apps.soar.actions.create_internal_ticket",
 }
 
 
@@ -100,6 +101,12 @@ def execute_playbook(playbook_id: str, alert_id: str, triggered_by: str = "autom
     for action_def in playbook.actions:
         action_type = action_def.get("type", "")
         params = action_def.get("params", {})
+        # Arrêt de la séquence si une étape précédente marquée
+        # `stop_on_failure: true` a échoué — sans ça, un playbook linéaire
+        # exécute TOUJOURS toutes ses actions même si la première (ex:
+        # bloquer l'IP) a échoué, ce qui n'a pas de sens pour des actions
+        # dépendantes (ex: ne notifier "IP bloquée" que si elle l'est vraiment).
+        stop_on_failure = action_def.get("stop_on_failure", False)
         module_path = ACTION_REGISTRY.get(action_type)
 
         if not module_path:
@@ -112,10 +119,16 @@ def execute_playbook(playbook_id: str, alert_id: str, triggered_by: str = "autom
             actions_taken.append({"type": action_type, **result})
             if result.get("status") == "failed":
                 overall_success = False
+                if stop_on_failure:
+                    actions_taken.append({"type": "_playbook", "status": "stopped", "reason": "stop_on_failure"})
+                    break
         except Exception as exc:
             logger.exception("Action %s failed: %s", action_type, exc)
             actions_taken.append({"type": action_type, "status": "failed", "error": str(exc)})
             overall_success = False
+            if stop_on_failure:
+                actions_taken.append({"type": "_playbook", "status": "stopped", "reason": "stop_on_failure"})
+                break
 
     execution.status = "success" if overall_success else "partial"
     execution.actions_taken = actions_taken

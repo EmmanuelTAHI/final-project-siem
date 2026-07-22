@@ -51,6 +51,13 @@ class TicketActivitySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class LinkedAlertBriefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    severity = serializers.CharField()
+    status = serializers.CharField()
+
+
 class _TicketFlatFieldsMixin:
     """Champs à plat partagés par le serializer de liste ET de détail, pour
     que le panneau de détail (qui lit d'abord la ligne de liste) affiche
@@ -58,6 +65,14 @@ class _TicketFlatFieldsMixin:
 
     def get_comments_count(self, obj):
         return obj.comments.count()
+
+    def get_linked_alerts(self, obj):
+        return LinkedAlertBriefSerializer(
+            obj.linked_alerts.only("id", "title", "severity", "status"), many=True
+        ).data
+
+    def get_linked_alerts_count(self, obj):
+        return obj.linked_alerts.count()
 
 
 class TicketSerializer(_TicketFlatFieldsMixin, serializers.ModelSerializer):
@@ -72,6 +87,8 @@ class TicketSerializer(_TicketFlatFieldsMixin, serializers.ModelSerializer):
     comments_count = serializers.SerializerMethodField()
     comments = TicketCommentSerializer(many=True, read_only=True)
     activities = TicketActivitySerializer(many=True, read_only=True)
+    linked_alerts = serializers.SerializerMethodField()
+    linked_alerts_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -79,6 +96,7 @@ class TicketSerializer(_TicketFlatFieldsMixin, serializers.ModelSerializer):
             "id", "display_id", "number", "title", "description",
             "status", "priority",
             "alert", "alert_title", "alert_severity",
+            "linked_alerts", "linked_alerts_count",
             "reporter", "assignee",
             "due_date", "is_overdue", "resolution_note",
             "created_at", "updated_at", "resolved_at", "closed_at",
@@ -98,13 +116,14 @@ class TicketListSerializer(_TicketFlatFieldsMixin, serializers.ModelSerializer):
     alert_title = serializers.CharField(source="alert.title", read_only=True, allow_null=True)
     alert_severity = serializers.CharField(source="alert.severity", read_only=True, allow_null=True)
     comments_count = serializers.SerializerMethodField()
+    linked_alerts_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
         fields = [
             "id", "display_id", "number", "title", "description",
             "status", "priority",
-            "alert", "alert_title", "alert_severity",
+            "alert", "alert_title", "alert_severity", "linked_alerts_count",
             "reporter_email", "assignee", "assignee_email", "assignee_full_name",
             "due_date", "is_overdue",
             "created_at", "updated_at", "resolved_at", "closed_at",

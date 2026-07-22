@@ -9,8 +9,8 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from utils.permissions import IsAdmin, IsAnalyst, IsAdminOrReadOnly
-from .models import Playbook, PlaybookExecution
-from .serializers import PlaybookExecutionSerializer, PlaybookSerializer
+from .models import BlockedIP, Playbook, PlaybookExecution
+from .serializers import BlockedIPSerializer, PlaybookExecutionSerializer, PlaybookSerializer
 from .tasks import execute_playbook
 
 
@@ -48,6 +48,33 @@ class PlaybookExecutionViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAnalyst]
     filterset_fields = ["status", "playbook", "triggered_by"]
     ordering = ["-started_at"]
+
+
+class BlockedIPViewSet(ModelViewSet):
+    """
+    Blocages IP actifs sur la plateforme (appliqués par
+    `utils.blocklist_middleware.BlockedIPMiddleware`).
+    GET    /api/soar/blocked-ips/
+    POST   /api/soar/blocked-ips/                (blocage manuel)
+    POST   /api/soar/blocked-ips/{id}/unblock/    (lever le blocage — ex: faux positif)
+    """
+    queryset = BlockedIP.objects.all()
+    serializer_class = BlockedIPSerializer
+    permission_classes = [IsAnalyst]
+    filterset_fields = ["is_active", "source"]
+    ordering = ["-created_at"]
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self.request.user.organization, source="manual")
+
+    @action(detail=True, methods=["post"])
+    def unblock(self, request, pk=None):
+        blocked = self.get_object()
+        blocked.is_active = False
+        blocked.save(update_fields=["is_active"])
+        from django.core.cache import cache
+        cache.delete(f"blocked_ip:{blocked.ip_address}")
+        return Response({"is_active": False})
 
 
 class SOARStatsView(APIView):

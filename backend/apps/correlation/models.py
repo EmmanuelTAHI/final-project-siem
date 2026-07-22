@@ -62,6 +62,12 @@ class CorrelationRule(models.Model):
         blank=True,
         verbose_name="MITRE Technique",
     )
+    compliance_controls = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Contrôles de conformité couverts",
+        help_text="Ex: ['iso27001:A.5.15', 'pci_dss:REQ-10', 'nist_csf:PR.AC-1']",
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

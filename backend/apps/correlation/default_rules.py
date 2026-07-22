@@ -20,6 +20,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Tentative de brute force sur {user_email}",
         "mitre_tactic": "Credential Access",
         "mitre_technique": "T1110 - Brute Force",
+        "compliance_controls": ["iso27001:A.5.15", "pci_dss:REQ-8", "nist_csf:PR.AC-1"],
     },
     {
         "name": "Impossible Travel - Connexion depuis deux pays simultanément",
@@ -29,6 +30,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Connexion impossible depuis {country_1} et {country_2} pour {user_email}",
         "mitre_tactic": "Initial Access",
         "mitre_technique": "T1078 - Valid Accounts",
+        "compliance_controls": ["iso27001:A.5.15", "iso27001:A.8.16", "nist_csf:DE.CM"],
     },
     {
         "name": "Off-Hours Login - Connexion hors horaires de bureau",
@@ -41,6 +43,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Connexion hors horaires pour {user_email} à {hour_utc}h UTC",
         "mitre_tactic": "Initial Access",
         "mitre_technique": "T1078 - Valid Accounts",
+        "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
     },
     {
         "name": "Privilege Escalation - Élévation de privilèges détectée",
@@ -54,6 +57,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Élévation de privilèges détectée pour {user_email}",
         "mitre_tactic": "Privilege Escalation",
         "mitre_technique": "T1078.003 - Local Accounts",
+        "compliance_controls": ["iso27001:A.5.15", "iso27001:A.8.2", "pci_dss:REQ-7", "nist_csf:PR.AC-4"],
     },
     {
         "name": "MFA Bypass - Contournement de l'authentification multi-facteurs",
@@ -66,6 +70,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Contournement MFA détecté pour {user_email}",
         "mitre_tactic": "Defense Evasion",
         "mitre_technique": "T1556.006 - Disable or Modify Cloud Firewall",
+        "compliance_controls": ["iso27001:A.5.17", "pci_dss:REQ-8", "nist_csf:PR.AC-1"],
     },
     {
         "name": "Connexions suspectes bloquées répétées",
@@ -78,6 +83,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Connexions suspectes répétées bloquées pour {user_email}",
         "mitre_tactic": "Credential Access",
         "mitre_technique": "T1110 - Brute Force",
+        "compliance_controls": ["iso27001:A.5.15", "nist_csf:PR.AC-1"],
     },
     {
         "name": "Compte compromis - Désactivation automatique répétée",
@@ -90,6 +96,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Compromission persistante détectée sur le compte {user_email}",
         "mitre_tactic": "Persistence",
         "mitre_technique": "T1098 - Account Manipulation",
+        "compliance_controls": ["iso27001:A.5.15", "iso27001:A.5.26", "nist_csf:RS.AN"],
     },
     {
         "name": "Wazuh Critical - Activité système critique (level >= 12)",
@@ -102,6 +109,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Wazuh CRITICAL [{wazuh_level}] {wazuh_rule_description} — {source_ip}",
         "mitre_tactic": "Execution",
         "mitre_technique": "T1059 - Command and Scripting Interpreter",
+        "compliance_controls": ["iso27001:A.8.16", "pci_dss:REQ-10", "nist_csf:DE.CM"],
     },
     {
         "name": "Wazuh High - Escalade de privilèges système (level >= 9)",
@@ -114,6 +122,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Wazuh HIGH [{wazuh_level}] {wazuh_rule_description} — {source_ip}",
         "mitre_tactic": "Privilege Escalation",
         "mitre_technique": "T1548 - Abuse Elevation Control Mechanism",
+        "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
     },
     {
         "name": "Mouvement Latéral - Connexions multi-hôtes suspectes",
@@ -126,6 +135,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Mouvement latéral : {source_ip} -> {distinct_hosts_count} hôtes en {window_seconds}s",
         "mitre_tactic": "Lateral Movement",
         "mitre_technique": "T1021 - Remote Services",
+        "compliance_controls": ["iso27001:A.8.20", "nist_csf:DE.CM"],
     },
     {
         "name": "C2 Beaconing - Communication régulière vers C&C",
@@ -138,6 +148,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Beacon C2 détecté : {source_ip} -> {destination} ({beacon_count} connexions, jitter={jitter_ratio})",
         "mitre_tactic": "Command and Control",
         "mitre_technique": "T1071 - Application Layer Protocol",
+        "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
     },
     {
         "name": "Exfiltration - Transfert de données massif",
@@ -150,6 +161,7 @@ DEFAULT_RULES = [
         "alert_title_template": "Exfiltration de données : {source_ip} — {event_count} événements en {window_seconds}s",
         "mitre_tactic": "Exfiltration",
         "mitre_technique": "T1048 - Exfiltration Over Alternative Protocol",
+        "compliance_controls": ["iso27001:A.5.14", "iso27001:A.8.12", "pci_dss:REQ-3", "gdpr:Art.32"],
     },
 ]
 

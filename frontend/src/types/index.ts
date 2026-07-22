@@ -269,6 +269,8 @@ export interface Ticket {
   alert: string | null;
   alert_title?: string | null;
   alert_severity?: AlertSeverity | null;
+  linked_alerts?: Array<{ id: string; title: string; severity: AlertSeverity; status: string }>;
+  linked_alerts_count?: number;
   reporter?: TicketUserBrief | null;
   reporter_email?: string | null;
   assignee: TicketUserBrief | null;
@@ -413,12 +415,43 @@ export interface CorrelationRule {
   condition_logic: Record<string, unknown>;
   mitre_tactic?: string;
   mitre_technique?: string;
+  compliance_controls?: string[];
   is_active: boolean;
   alert_count: number;
   last_triggered?: string;
   created_at: string;
   updated_at: string;
   created_by: string;
+}
+
+// ─── Conformité continue ────────────────────────────────────────────────────
+
+export interface ComplianceControlCoverage {
+  id: string;
+  title: string;
+  covered: boolean;
+  covering_rules: string[];
+}
+
+export interface ComplianceCoverage {
+  framework: string;
+  label: string;
+  controls: ComplianceControlCoverage[];
+  covered_count: number;
+  total_count: number;
+  coverage_percent: number;
+}
+
+// ─── SOAR : blocages IP ─────────────────────────────────────────────────────
+
+export interface BlockedIP {
+  id: string;
+  ip_address: string;
+  reason: string;
+  source: "soar_playbook" | "manual" | "threat_intel";
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
 }
 
 export interface RuleTestResult {
