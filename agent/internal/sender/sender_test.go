@@ -56,15 +56,15 @@ func TestSend_SetsBearerTokenAndGzip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	sd, err := New(srv.URL, "logplus_agt_secret", true, testLogger())
+	sd, err := New(srv.URL, "argus_agt_secret", true, testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := sd.Send(context.Background(), []model.Event{{Message: "hello", Source: "test"}}); err != nil {
 		t.Fatalf("Send a échoué: %v", err)
 	}
-	if gotAuth != "Bearer logplus_agt_secret" {
-		t.Errorf("Authorization = %q, attendu 'Bearer logplus_agt_secret'", gotAuth)
+	if gotAuth != "Bearer argus_agt_secret" {
+		t.Errorf("Authorization = %q, attendu 'Bearer argus_agt_secret'", gotAuth)
 	}
 	if gotEncoding != "gzip" {
 		t.Errorf("Content-Encoding = %q, attendu 'gzip'", gotEncoding)

@@ -6,7 +6,7 @@
 #
 # Usage :
 #   curl -fsSL https://<votre-instance>/agents/install-linux.sh | sudo bash -s -- \
-#     --url https://<votre-instance> --token logplus_agt_xxxxx
+#     --url https://<votre-instance> --token argus_agt_xxxxx
 set -euo pipefail
 
 URL=""
@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$URL" ] || [ -z "$TOKEN" ]; then
-  echo "Usage: install-linux.sh --url <https://...> --token <logplus_agt_...> [--insecure] [--linux-syslog-addr <addr>]" >&2
+  echo "Usage: install-linux.sh --url <https://...> --token <argus_agt_...> [--insecure] [--linux-syslog-addr <addr>]" >&2
   exit 1
 fi
 

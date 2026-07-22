@@ -26,10 +26,10 @@ import (
 const usage = `logplus-agent — agent de collecte de logs natif Log+
 
 Usage:
-  logplus-agent install --url=<https://...> --token=<logplus_agt_...> [--insecure] [--linux-syslog-addr=addr]
+  logplus-agent install --url=<https://...> --token=<argus_agt_...> [--insecure] [--linux-syslog-addr=addr]
   logplus-agent uninstall
   logplus-agent status
-  logplus-agent test-connection --url=<https://...> --token=<logplus_agt_...> [--insecure]
+  logplus-agent test-connection --url=<https://...> --token=<argus_agt_...> [--insecure]
   logplus-agent run                 (généralement lancé par le service, pas manuellement)
 `
 
@@ -75,7 +75,7 @@ func main() {
 func cmdInstall(args []string) error {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	url := fs.String("url", "", "URL de l'instance Log+ (ex: https://logplus.duckdns.org)")
-	token := fs.String("token", "", "Token d'agent (logplus_agt_...) — préférez LOGPLUS_AGENT_TOKEN en variable d'environnement, jamais visible dans la liste des process")
+	token := fs.String("token", "", "Token d'agent (argus_agt_...) — préférez LOGPLUS_AGENT_TOKEN en variable d'environnement, jamais visible dans la liste des process")
 	insecure := fs.Bool("insecure", false, "Autorise http:// non chiffré (dev local uniquement)")
 	syslogAddr := fs.String("linux-syslog-addr", "", "Active un relais syslog local sur cette adresse (ex: 0.0.0.0:1514), Linux uniquement")
 	if err := fs.Parse(args); err != nil {
@@ -92,8 +92,8 @@ func cmdInstall(args []string) error {
 	if *url == "" || *token == "" {
 		return fmt.Errorf("--url et --token (ou la variable d'environnement LOGPLUS_AGENT_TOKEN) sont requis")
 	}
-	if !strings.HasPrefix(*token, "logplus_agt_") {
-		return fmt.Errorf("le token ne ressemble pas à un token d'agent Log+ (préfixe logplus_agt_ attendu)")
+	if !strings.HasPrefix(*token, "argus_agt_") {
+		return fmt.Errorf("le token ne ressemble pas à un token d'agent Log+ (préfixe argus_agt_ attendu)")
 	}
 
 	cfg := config.DefaultConfig()

@@ -8,7 +8,7 @@
   s'eleve en administrateur si necessaire, puis installe le service.
 .EXAMPLE
   # Telecharge et execute depuis le tableau de bord Agents :
-  .\install-windows.ps1 -Url "https://logplus.duckdns.org" -Token "logplus_agt_xxxxx"
+  .\install-windows.ps1 -Url "https://logplus.duckdns.org" -Token "argus_agt_xxxxx"
 .NOTES
   Ce fichier est volontairement en ASCII pur (pas d'accents, pas de
   caracteres speciaux) : Windows PowerShell 5.1 lit un script .ps1 sans BOM

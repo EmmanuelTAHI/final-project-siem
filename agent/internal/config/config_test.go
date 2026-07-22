@@ -9,7 +9,7 @@ func containsSubstring(haystack, needle string) bool { return strings.Contains(h
 
 func TestSetTokenThenToken_RoundTrips(t *testing.T) {
 	var c Config
-	const plaintext = "logplus_agt_secret-value-123"
+	const plaintext = "argus_agt_secret-value-123"
 
 	if err := c.SetToken(plaintext); err != nil {
 		t.Fatalf("SetToken a échoué: %v", err)
