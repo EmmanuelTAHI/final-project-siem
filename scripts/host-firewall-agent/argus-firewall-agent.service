@@ -9,14 +9,15 @@ Group=argus-fw
 ExecStart=/usr/bin/python3 /opt/argus-firewall-agent/firewall_agent.py
 Restart=always
 RestartSec=3
-# Durcissement : pas d'accès au reste du système au-delà de ce qui est
-# nécessaire (le binaire sudo + les 2 scripts wrapper restent accessibles
-# via la politique sudoers, qui est un mécanisme séparé de ces restrictions).
+# Pas de ProtectSystem=strict ici : ce service exécute `ufw` via sudo, qui a
+# besoin d'écrire /run/ufw.lock et sa configuration système — une
+# restriction d'espace de montage systemd s'applique à TOUT le sous-arbre de
+# processus, y compris après une élévation sudo, et bloquerait ufw même en
+# root (testé et confirmé : "Read-only file system: /run/ufw.lock"). La
+# vraie frontière de sécurité ici est la règle sudoers restreinte à 2
+# binaires précis (/etc/sudoers.d/argus-firewall), pas un bac à sable
+# filesystem qui casserait la fonction même du service.
 NoNewPrivileges=false
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/argus-firewall-agent
-PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
