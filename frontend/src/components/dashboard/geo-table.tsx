@@ -7,10 +7,11 @@ import type { GeoData } from "@/types";
 
 interface GeoTableProps {
   data: GeoData[];
+  subtitle?: string;
 }
 
-export function GeoTable({ data }: GeoTableProps) {
-  const maxCount = Math.max(...data.map((d) => d.count));
+export function GeoTable({ data, subtitle = "Dernières 24 heures" }: GeoTableProps) {
+  const maxCount = Math.max(1, ...data.map((d) => d.count));
 
   return (
     <motion.div
@@ -22,7 +23,7 @@ export function GeoTable({ data }: GeoTableProps) {
     >
       <div className="mb-5">
         <h3 className="text-sm font-semibold text-foreground">Connexions par pays</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Dernières 24 heures</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
       </div>
 
       <div className="space-y-3">
@@ -90,6 +91,9 @@ export function GeoTable({ data }: GeoTableProps) {
             )}
           </motion.div>
         ))}
+        {data.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée géographique sur cette période</p>
+        )}
       </div>
     </motion.div>
   );

@@ -12,7 +12,7 @@ import {
 import { Radar, Globe2, MapPin, ShieldAlert, Search, ExternalLink } from "lucide-react";
 import { logsApi } from "@/lib/api";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { GeoMapLeaflet } from "@/components/dashboard/geo-map-leaflet";
+import { GeoTable } from "@/components/dashboard/geo-table";
 import { CountryDonut } from "@/components/ip-traffic/country-donut";
 import { IPSparkline } from "@/components/ip-traffic/ip-sparkline";
 import { IPRequestsDrawer } from "@/components/ip-traffic/ip-requests-drawer";
@@ -133,27 +133,19 @@ function IPTrafficPageInner() {
         </ResponsiveContainer>
       </motion.div>
 
-      {/* Géo : carte + camembert */}
+      {/* Géo : classement par pays + camembert */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="rounded-xl border border-border p-5" style={{ background: "hsl(var(--card))" }}>
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Origine géographique</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Taille du point = volume de trafic</p>
-          </div>
-          <GeoMapLeaflet
-            data={(data?.by_country ?? []).map((c) => ({
-              country: countryName(c.country_code),
-              country_code: c.country_code,
-              count: c.count,
-              percentage: c.percentage,
-              threat_count: 0,
-            }))}
-            height="300px"
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <CountryDonut data={data?.by_country ?? []} />
-        </motion.div>
+        <GeoTable
+          data={(data?.by_country ?? []).map((c) => ({
+            country: countryName(c.country_code),
+            country_code: c.country_code,
+            count: c.count,
+            percentage: c.percentage,
+            threat_count: 0,
+          }))}
+          subtitle={`Sur la période sélectionnée (${PERIODS.find((p) => p.value === period)?.label ?? period})`}
+        />
+        <CountryDonut data={data?.by_country ?? []} />
       </div>
 
       {/* Top IPs */}
