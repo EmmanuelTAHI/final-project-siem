@@ -182,7 +182,7 @@ function IPTrafficPageInner() {
             <tbody>
               {isLoading &&
                 [...Array(6)].map((_, i) => (
-                  <tr key={i}><td colSpan={7} className="px-5 py-2"><div className="h-8 bg-secondary/40 rounded animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={7} className="px-5 py-2"><div className="h-8 bg-muted rounded animate-pulse" /></td></tr>
                 ))}
               {!isLoading && filteredIPs.map((ip) => (
                 <tr

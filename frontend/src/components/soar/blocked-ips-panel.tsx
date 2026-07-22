@@ -73,7 +73,7 @@ export function BlockedIPsPanel() {
 
         {isLoading ? (
           <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-9 bg-secondary/40 rounded animate-pulse" />)}
+            {[...Array(3)].map((_, i) => <div key={i} className="h-9 bg-muted rounded animate-pulse" />)}
           </div>
         ) : (
           <div className="space-y-1.5 max-h-64 overflow-y-auto">

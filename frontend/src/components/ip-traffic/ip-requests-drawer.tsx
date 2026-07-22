@@ -94,7 +94,7 @@ export function IPRequestsDrawer({ entry, onClose }: IPRequestsDrawerProps) {
 
               {isLoading ? (
                 <div className="space-y-2">
-                  {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-secondary/40 rounded animate-pulse" />)}
+                  {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
                 </div>
               ) : (
                 <div className="space-y-1.5">

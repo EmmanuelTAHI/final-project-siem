@@ -256,7 +256,7 @@ export default function CVEPage() {
           <CardContent>
             {kevLoading ? (
               <div className="space-y-2">
-                {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-secondary/40 rounded animate-pulse" />)}
+                {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -308,7 +308,7 @@ export default function CVEPage() {
           <CardContent>
             {assetsLoading ? (
               <div className="space-y-2">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-secondary/40 rounded animate-pulse" />)}
+                {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
               </div>
             ) : (
               <div className="max-h-96 overflow-y-auto">

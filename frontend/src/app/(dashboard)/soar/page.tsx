@@ -172,7 +172,7 @@ export default function SOARPage() {
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
-              {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse" />)}
+              {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
             </div>
           ) : playbooks.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">

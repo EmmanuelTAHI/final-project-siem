@@ -334,7 +334,7 @@ export default function HuntingPage() {
           <CardContent>
             {queriesLoading ? (
               <div className="space-y-2">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-secondary/30 rounded animate-pulse" />)}
+                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-muted rounded animate-pulse" />)}
               </div>
             ) : savedQueries.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
