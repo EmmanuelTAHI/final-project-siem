@@ -26,6 +26,8 @@ RULE_REGISTRY = {
     "lateral_movement": "apps.correlation.rules.lateral_movement.LateralMovementRule",
     "c2_beacon": "apps.correlation.rules.c2_beacon.C2BeaconRule",
     "data_exfil": "apps.correlation.rules.data_exfil.DataExfilRule",
+    "web_attack_signature": "apps.correlation.rules.web_attack_signature.WebAttackSignatureRule",
+    "web_scan_detection": "apps.correlation.rules.web_scan_detection.WebScanDetectionRule",
 }
 
 

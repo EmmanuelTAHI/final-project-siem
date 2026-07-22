@@ -163,6 +163,26 @@ DEFAULT_RULES = [
         "mitre_technique": "T1048 - Exfiltration Over Alternative Protocol",
         "compliance_controls": ["iso27001:A.5.14", "iso27001:A.8.12", "pci_dss:REQ-3", "gdpr:Art.32"],
     },
+    {
+        "name": "Attaque web - Signature connue (injection, traversée)",
+        "description": "Détecte une requête HTTP dont le chemin ou le referer correspond à un motif connu d'injection SQL, de traversée de répertoires ou d'injection de commande/script.",
+        "severity": "high",
+        "condition_logic": {"type": "web_attack_signature"},
+        "alert_title_template": "Attaque web détectée [{category}] : {http_method} {path} depuis {source_ip}",
+        "mitre_tactic": "Initial Access",
+        "mitre_technique": "T1190 - Exploit Public-Facing Application",
+        "compliance_controls": ["iso27001:A.8.16", "pci_dss:REQ-11", "nist_csf:DE.CM"],
+    },
+    {
+        "name": "Scan web - Balayage de chemins sensibles",
+        "description": "Détecte un balayage de chemins (panneaux admin, fichiers sensibles) : 10 réponses 403/404 sur des chemins distincts ou plus depuis la même IP en 5 minutes.",
+        "severity": "medium",
+        "condition_logic": {"type": "web_scan_detection", "count": 10, "window_seconds": 300},
+        "alert_title_template": "Scan web détecté : {source_ip} — {distinct_paths_count} chemins distincts en {window_seconds}s",
+        "mitre_tactic": "Reconnaissance",
+        "mitre_technique": "T1595 - Active Scanning",
+        "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
+    },
 ]
 
 
