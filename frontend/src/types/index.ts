@@ -180,6 +180,9 @@ export interface Alert {
   resolved_at?: string;
   log_sources: AlertLogSource[];
   comments: AlertComment[];
+  ai_summary?: string;
+  ai_recommended_actions?: string[];
+  ai_summary_generated_at?: string | null;
 }
 
 export interface AlertLogSource {
@@ -632,6 +635,127 @@ export interface CTIStats {
   by_source: Array<{ source: string; count: number }>;
   by_type: Array<{ indicator_type: string; count: number }>;
   top_malicious_ips: Array<{ value: string; reputation_score: number; source: string }>;
+}
+
+// ─── CVE / Vulnérabilités & Actifs ─────────────────────────────────────────────
+
+export interface CVERecord {
+  id: string;
+  cve_id: string;
+  description: string;
+  cvss_score: number | null;
+  severity: "low" | "medium" | "high" | "critical" | "";
+  vendor_project: string;
+  product: string;
+  published_date: string | null;
+  modified_date: string | null;
+  is_kev: boolean;
+  kev_date_added: string | null;
+  kev_due_date: string | null;
+  kev_ransomware_use: boolean;
+  kev_required_action: string;
+}
+
+export interface CVEStats {
+  total: number;
+  kev_count: number;
+  critical_count: number;
+  high_count: number;
+  ransomware_associated: number;
+}
+
+export type AssetType = "server" | "workstation" | "network_device" | "application" | "cloud_service" | "other";
+export type AssetCriticality = "low" | "medium" | "high" | "critical";
+
+export interface Asset {
+  id: string;
+  name: string;
+  asset_type: AssetType;
+  vendor: string;
+  product: string;
+  version: string;
+  hostname: string;
+  ip_address: string | null;
+  criticality: AssetCriticality;
+  source: "manual" | "auto_detected";
+  last_seen: string | null;
+  created_at: string;
+  updated_at: string;
+  open_vulnerabilities_count: number;
+  kev_vulnerabilities_count: number;
+}
+
+export interface AssetVulnerability {
+  id: string;
+  asset: string;
+  asset_name: string;
+  cve: string;
+  cve_id: string;
+  cve_cvss_score: number | null;
+  cve_is_kev: boolean;
+  cve_description: string;
+  status: "open" | "acknowledged" | "mitigated" | "false_positive";
+  matched_reason: string;
+  matched_at: string;
+}
+
+// ─── MITRE ATT&CK ───────────────────────────────────────────────────────────────
+
+export interface MitreTechnique {
+  id: string;
+  name: string;
+  covered?: boolean;
+  covering_rules?: string[];
+}
+
+export interface MitreTactic {
+  tactic: string;
+  tactic_id: string;
+  techniques: MitreTechnique[];
+}
+
+export interface MitreCoverage {
+  matrix: MitreTactic[];
+  coverage_percent: number;
+  covered_count: number;
+  total_count: number;
+}
+
+// ─── SOC Copilot IA ─────────────────────────────────────────────────────────────
+
+export interface CopilotToolCall {
+  tool: string;
+  input: Record<string, unknown>;
+  output_summary: string;
+}
+
+export interface CopilotMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  tool_calls: CopilotToolCall[];
+  created_at: string;
+}
+
+export interface CopilotConversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages?: CopilotMessage[];
+}
+
+export interface CopilotAskResponse {
+  conversation_id: string;
+  answer: string;
+  tool_calls: CopilotToolCall[];
+  configured: boolean;
+}
+
+export interface AlertSummary {
+  summary: string;
+  recommended_actions: string[];
+  generated_at: string;
 }
 
 // ─── SOAR ─────────────────────────────────────────────────────────────────────

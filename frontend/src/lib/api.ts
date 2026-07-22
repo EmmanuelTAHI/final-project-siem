@@ -42,6 +42,15 @@ import type {
   TicketUserBrief,
   TicketPriority,
   TicketStatus,
+  CVERecord,
+  CVEStats,
+  Asset,
+  AssetVulnerability,
+  MitreTactic,
+  MitreCoverage,
+  CopilotConversation,
+  CopilotAskResponse,
+  AlertSummary,
 } from "@/types";
 import type {
   LinkedAccount,
@@ -745,6 +754,111 @@ export const threatIntelApi = {
   triggerEnrichment: async (): Promise<{ task_id: string; status: string }> => {
     const { data } = await api.post("/api/threat-intel/indicators/trigger_enrichment/");
     return unwrap<{ task_id: string; status: string }>(data);
+  },
+
+  triggerCommunitySync: async (): Promise<{ task_id: string; status: string }> => {
+    const { data } = await api.post("/api/threat-intel/indicators/trigger_community_sync/");
+    return unwrap<{ task_id: string; status: string }>(data);
+  },
+};
+
+// ─── CVE / Vulnérabilités & Actifs ─────────────────────────────────────────────
+
+export const cveApi = {
+  getCVEs: async (params: Record<string, unknown> = {}): Promise<PaginatedResponse<CVERecord>> => {
+    const { data } = await api.get("/api/threat-intel/cves/", { params });
+    return unwrapPaginated<CVERecord>(data);
+  },
+
+  getStats: async (): Promise<CVEStats> => {
+    const { data } = await api.get("/api/threat-intel/cves/stats/");
+    return unwrap<CVEStats>(data);
+  },
+
+  triggerSync: async (): Promise<{ kev_task_id: string; nvd_task_id: string; status: string }> => {
+    const { data } = await api.post("/api/threat-intel/cves/trigger_sync/");
+    return unwrap<{ kev_task_id: string; nvd_task_id: string; status: string }>(data);
+  },
+};
+
+export const assetsApi = {
+  getAssets: async (params: Record<string, unknown> = {}): Promise<PaginatedResponse<Asset>> => {
+    const { data } = await api.get("/api/threat-intel/assets/", { params });
+    return unwrapPaginated<Asset>(data);
+  },
+
+  createAsset: async (asset: Partial<Asset>): Promise<Asset> => {
+    const { data } = await api.post("/api/threat-intel/assets/", asset);
+    return unwrap<Asset>(data);
+  },
+
+  updateAsset: async (id: string, updates: Partial<Asset>): Promise<Asset> => {
+    const { data } = await api.patch(`/api/threat-intel/assets/${id}/`, updates);
+    return unwrap<Asset>(data);
+  },
+
+  deleteAsset: async (id: string): Promise<void> => {
+    await api.delete(`/api/threat-intel/assets/${id}/`);
+  },
+
+  triggerCorrelation: async (): Promise<{ task_id: string; status: string }> => {
+    const { data } = await api.post("/api/threat-intel/assets/trigger_correlation/");
+    return unwrap<{ task_id: string; status: string }>(data);
+  },
+
+  getVulnerabilities: async (
+    params: Record<string, unknown> = {}
+  ): Promise<PaginatedResponse<AssetVulnerability>> => {
+    const { data } = await api.get("/api/threat-intel/asset-vulnerabilities/", { params });
+    return unwrapPaginated<AssetVulnerability>(data);
+  },
+
+  updateVulnerabilityStatus: async (id: string, statusValue: string): Promise<AssetVulnerability> => {
+    const { data } = await api.patch(`/api/threat-intel/asset-vulnerabilities/${id}/status/`, {
+      status: statusValue,
+    });
+    return unwrap<AssetVulnerability>(data);
+  },
+};
+
+// ─── MITRE ATT&CK ───────────────────────────────────────────────────────────────
+
+export const mitreApi = {
+  getReference: async (): Promise<MitreTactic[]> => {
+    const { data } = await api.get("/api/correlation/mitre-attack/");
+    return unwrap<MitreTactic[]>(data);
+  },
+
+  getCoverage: async (): Promise<MitreCoverage> => {
+    const { data } = await api.get("/api/correlation/mitre-attack/coverage/");
+    return unwrap<MitreCoverage>(data);
+  },
+};
+
+// ─── SOC Copilot IA ─────────────────────────────────────────────────────────────
+
+export const copilotApi = {
+  ask: async (question: string, conversationId?: string): Promise<CopilotAskResponse> => {
+    const { data } = await api.post("/api/copilot/ask/", {
+      question,
+      conversation_id: conversationId,
+    });
+    return unwrap<CopilotAskResponse>(data);
+  },
+
+  getConversations: async (): Promise<PaginatedResponse<CopilotConversation>> => {
+    const { data } = await api.get("/api/copilot/conversations/");
+    return unwrapPaginated<CopilotConversation>(data);
+  },
+
+  getConversation: async (id: string): Promise<CopilotConversation> => {
+    const { data } = await api.get(`/api/copilot/conversations/${id}/`);
+    return unwrap<CopilotConversation>(data);
+  },
+
+  summarizeAlert: async (alertId: string): Promise<AlertSummary> => {
+    const { data } = await api.post(`/api/copilot/alerts/${alertId}/summarize/`);
+    return unwrap<AlertSummary>(data);
   },
 };
 

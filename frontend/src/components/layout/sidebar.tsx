@@ -22,6 +22,8 @@ import {
   Cpu,
   BookOpen,
   Ticket,
+  Bug,
+  Sparkles,
 } from "lucide-react";
 import { cn, getInitials, getDocsUrl } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -74,8 +76,10 @@ const sections: NavSection[] = [
     label: "Opérations",
     items: [
       { label: "Threat Intel", href: "/threat-intel", icon: Globe },
+      { label: "Vulnérabilités (CVE)", href: "/cve", icon: Bug },
       { label: "SOAR", href: "/soar", icon: Zap },
       { label: "Threat Hunting", href: "/hunting", icon: Search },
+      { label: "SOC Copilot IA", href: "/copilot", icon: Sparkles },
     ],
   },
   {

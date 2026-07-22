@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/reports/", include("apps.reports.urls")),
     path("api/hunting/", include("apps.hunting.urls")),
     path("api/tickets/", include("apps.tickets.urls")),
+    path("api/copilot/", include("apps.copilot.urls")),
     # Ingestion agents — auth par token bearer dédiée, PAS de session JWT humaine.
     path("api/ingest/agent/logs/", AgentLogIngestView.as_view(), name="agent-log-ingest"),
     # Vue cross-org réservée au staff plateforme (super-admin) — IsPlatformStaff.

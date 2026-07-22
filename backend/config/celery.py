@@ -98,6 +98,26 @@ app.conf.beat_schedule = {
         "task": "apps.authentication.tasks.expire_login_confirmations",
         "schedule": crontab(minute=15),
     },
+    # CISA KEV (vulnérabilités exploitées activement) — toutes les 6 heures
+    "sync-cisa-kev": {
+        "task": "apps.threat_intel.tasks.sync_cisa_kev",
+        "schedule": crontab(hour="*/6", minute=5),
+    },
+    # NVD CVE récentes — toutes les 4 heures
+    "sync-nvd-cves": {
+        "task": "apps.threat_intel.tasks.sync_nvd_recent_cves",
+        "schedule": crontab(hour="*/4", minute=10),
+    },
+    # Corrélation CVE ↔ inventaire d'actifs — toutes les heures
+    "correlate-cve-assets": {
+        "task": "apps.threat_intel.tasks.correlate_cve_with_assets",
+        "schedule": crontab(minute=20),
+    },
+    # Flux collaboratifs communautaires (URLhaus, Feodo Tracker) — toutes les 30 min
+    "sync-community-threat-feeds": {
+        "task": "apps.threat_intel.tasks.sync_community_threat_feeds",
+        "schedule": crontab(minute="*/30"),
+    },
 }
 
 app.conf.timezone = "UTC"

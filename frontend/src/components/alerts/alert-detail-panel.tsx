@@ -17,6 +17,7 @@ import {
   FileText,
   ChevronDown,
   Ticket as TicketIcon,
+  Sparkles,
 } from "lucide-react";
 import { SeverityBadge } from "./severity-badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ import { IpLink } from "@/components/common/ip-link";
 import { CreateTicketModal } from "@/components/tickets/create-ticket-modal";
 import type { Alert, AlertStatus } from "@/types";
 import toast from "react-hot-toast";
-import { alertsApi } from "@/lib/api";
+import { alertsApi, copilotApi } from "@/lib/api";
 
 interface AlertDetailPanelProps {
   alert: Alert | null;
@@ -47,6 +48,7 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   const handleStatusChange = async (status: AlertStatus) => {
     if (!alert) return;
@@ -71,6 +73,25 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
       toast.error("Erreur lors de l'ajout du commentaire");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!alert) return;
+    setIsSummarizing(true);
+    try {
+      const result = await copilotApi.summarizeAlert(String(alert.id));
+      onUpdate({
+        ...alert,
+        ai_summary: result.summary,
+        ai_recommended_actions: result.recommended_actions,
+        ai_summary_generated_at: result.generated_at,
+      });
+      toast.success("Résumé IA généré");
+    } catch {
+      toast.error("Erreur lors de la génération du résumé IA");
+    } finally {
+      setIsSummarizing(false);
     }
   };
 
@@ -132,6 +153,44 @@ export function AlertDetailPanel({ alert, onClose, onUpdate }: AlertDetailPanelP
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Description</p>
                   <p className="text-sm text-foreground leading-relaxed">{alert.description}</p>
+                </div>
+
+                {/* Résumé IA (SOC Copilot) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Résumé IA
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSummarize}
+                      loading={isSummarizing}
+                      className="text-xs h-6 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {alert.ai_summary ? "Régénérer" : "Générer"}
+                    </Button>
+                  </div>
+                  {alert.ai_summary ? (
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                      <p className="text-xs text-foreground leading-relaxed">{alert.ai_summary}</p>
+                      {(alert.ai_recommended_actions?.length ?? 0) > 0 && (
+                        <ul className="space-y-1">
+                          {alert.ai_recommended_actions!.map((action, i) => (
+                            <li key={i} className="text-[11px] flex items-start gap-1.5 text-foreground/80">
+                              <span className="mt-0.5 text-primary">▸</span>
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Aucun résumé généré — cliquez sur « Générer » pour une synthèse et des actions recommandées par l'IA.
+                    </p>
+                  )}
                 </div>
 
                 {/* Details grid */}

@@ -77,6 +77,9 @@ class Alert(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifiée le")
     resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="Résolue le")
     resolution_note = models.TextField(null=True, blank=True, verbose_name="Note de résolution")
+    ai_summary = models.TextField(blank=True, verbose_name="Résumé généré par IA")
+    ai_recommended_actions = models.JSONField(default=list, blank=True, verbose_name="Actions recommandées (IA)")
+    ai_summary_generated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Alerte"

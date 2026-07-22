@@ -6,12 +6,15 @@ import logging
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
 from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from utils.permissions import IsAdmin, IsAnalyst
 from utils.response import created_response, error_response, no_content_response, success_response
 from utils.tenant import OrganizationFilterBackend
 
+from .mitre_attack import MITRE_ATTACK_REFERENCE, build_coverage_matrix
 from .models import CorrelationRule
 from .serializers import CorrelationRuleCreateSerializer, CorrelationRuleSerializer
 
@@ -124,3 +127,35 @@ class CorrelationRuleViewSet(ModelViewSet):
                 message=f"Erreur lors du test : {str(exc)}",
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class MitreAttackReferenceView(APIView):
+    """GET /api/correlation/mitre-attack/ — référentiel ATT&CK complet."""
+
+    permission_classes = [IsAnalyst]
+
+    def get(self, request):
+        return Response(MITRE_ATTACK_REFERENCE)
+
+
+class MitreAttackCoverageView(APIView):
+    """
+    GET /api/correlation/mitre-attack/coverage/
+    Matrice de couverture ATT&CK pour l'organisation de l'utilisateur :
+    quelles tactiques/techniques sont couvertes par au moins une règle
+    active. Concept de maturité SOC reconnu, absent des SIEM open source
+    grand public par défaut.
+    """
+
+    permission_classes = [IsAnalyst]
+
+    def get(self, request):
+        matrix = build_coverage_matrix(request.user.organization_id)
+        total = sum(len(t["techniques"]) for t in matrix)
+        covered = sum(1 for t in matrix for tech in t["techniques"] if tech["covered"])
+        return Response({
+            "matrix": matrix,
+            "coverage_percent": round((covered / total) * 100, 1) if total else 0,
+            "covered_count": covered,
+            "total_count": total,
+        })

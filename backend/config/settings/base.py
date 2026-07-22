@@ -61,6 +61,7 @@ LOCAL_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.hunting",
     "apps.tickets",
+    "apps.copilot",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -274,6 +275,13 @@ ABUSEIPDB_API_KEY = env("ABUSEIPDB_API_KEY", default="")
 VIRUSTOTAL_API_KEY = env("VIRUSTOTAL_API_KEY", default="")
 CRIMINALIP_API_KEY = env("CRIMINALIP_API_KEY", default="")
 SHODAN_API_KEY = env("SHODAN_API_KEY", default="")
+# NVD (National Vulnerability Database) — fonctionne sans clé (5 req/30s),
+# une clé gratuite relève la limite à 50 req/30s.
+NVD_API_KEY = env("NVD_API_KEY", default="")
+
+# ─── SOC Copilot IA (Anthropic Claude) ────────────────────────────────────────
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", default="claude-sonnet-4-5")
 
 # ─── Frontend ─────────────────────────────────────────────────────────────────
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")

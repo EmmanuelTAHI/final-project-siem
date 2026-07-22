@@ -22,6 +22,9 @@ class ThreatIndicator(models.Model):
         ("virustotal", "VirusTotal"),
         ("manual", "Manuel"),
         ("otx", "AlienVault OTX"),
+        ("urlhaus", "abuse.ch URLhaus (communautaire)"),
+        ("feodotracker", "abuse.ch Feodo Tracker (communautaire)"),
+        ("federation", "Réseau collaboratif Argus (instances fédérées)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -83,3 +86,145 @@ class EnrichedLog(models.Model):
         self.max_score = agg["reputation_score__max"] or 0.0
         self.is_threat = self.max_score >= 50.0
         self.save(update_fields=["max_score", "is_threat"])
+
+
+class CVERecord(models.Model):
+    """
+    Référentiel de vulnérabilités connues, synchronisé automatiquement depuis
+    des sources publiques (NVD, CISA KEV). Table globale (pas de FK
+    organization) : une CVE existe indépendamment des organisations, comme
+    ThreatIndicator. C'est ce référentiel qui permet à Argus de savoir
+    qu'une vulnérabilité vient d'être découverte AVANT qu'un incident ne se
+    produise, contrairement à une détection purement réactive basée sur des
+    règles écrites à la main.
+    """
+
+    SEVERITY_CHOICES = [
+        ("low", "Faible"),
+        ("medium", "Moyen"),
+        ("high", "Élevé"),
+        ("critical", "Critique"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cve_id = models.CharField(max_length=32, unique=True, db_index=True, verbose_name="Identifiant CVE")
+    description = models.TextField(blank=True, verbose_name="Description")
+    cvss_score = models.FloatField(null=True, blank=True, verbose_name="Score CVSS")
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, blank=True, db_index=True)
+    vendor_project = models.CharField(max_length=255, blank=True, db_index=True, verbose_name="Éditeur")
+    product = models.CharField(max_length=255, blank=True, db_index=True, verbose_name="Produit")
+    published_date = models.DateTimeField(null=True, blank=True)
+    modified_date = models.DateTimeField(null=True, blank=True)
+
+    # Champs CISA KEV (Known Exploited Vulnerabilities) — le point clé : une
+    # CVE marquée is_kev=True est EXPLOITÉE ACTIVEMENT dans la nature, pas
+    # juste théorique. C'est le signal de priorisation le plus fort qui
+    # existe en threat intel gratuite.
+    is_kev = models.BooleanField(default=False, db_index=True, verbose_name="Exploitée activement (CISA KEV)")
+    kev_date_added = models.DateTimeField(null=True, blank=True)
+    kev_due_date = models.DateTimeField(null=True, blank=True)
+    kev_ransomware_use = models.BooleanField(default=False, verbose_name="Utilisée par des ransomwares connus")
+    kev_required_action = models.TextField(blank=True)
+
+    raw_data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_kev", "-cvss_score", "-published_date"]
+        indexes = [
+            models.Index(fields=["is_kev", "severity"]),
+            models.Index(fields=["vendor_project", "product"]),
+        ]
+
+    def __str__(self):
+        return f"{self.cve_id} (CVSS {self.cvss_score or '?'}, KEV={self.is_kev})"
+
+
+class Asset(models.Model):
+    """
+    Inventaire logiciel/matériel d'une organisation. Alimenté manuellement
+    (formulaire) ou automatiquement (best-effort, ex. extraction depuis
+    NormalizedLog.extra_fields/user_agent par les collecteurs). Sert de base
+    à la corrélation CVE ↔ actif exposé.
+    """
+
+    ASSET_TYPES = [
+        ("server", "Serveur"),
+        ("workstation", "Poste de travail"),
+        ("network_device", "Équipement réseau"),
+        ("application", "Application"),
+        ("cloud_service", "Service cloud"),
+        ("other", "Autre"),
+    ]
+
+    CRITICALITY_CHOICES = [
+        ("low", "Faible"),
+        ("medium", "Moyen"),
+        ("high", "Élevé"),
+        ("critical", "Critique"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("manual", "Saisie manuelle"),
+        ("auto_detected", "Détection automatique"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, related_name="assets",
+    )
+    name = models.CharField(max_length=255, verbose_name="Nom de l'actif")
+    asset_type = models.CharField(max_length=30, choices=ASSET_TYPES, default="server")
+    vendor = models.CharField(max_length=255, blank=True, verbose_name="Éditeur/Fabricant")
+    product = models.CharField(max_length=255, blank=True, verbose_name="Produit")
+    version = models.CharField(max_length=100, blank=True)
+    hostname = models.CharField(max_length=255, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    criticality = models.CharField(max_length=20, choices=CRITICALITY_CHOICES, default="medium")
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="manual")
+    last_seen = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-criticality", "name"]
+        indexes = [
+            models.Index(fields=["organization", "vendor", "product"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.vendor} {self.product} {self.version})".strip()
+
+
+class AssetVulnerability(models.Model):
+    """Liaison actif ↔ CVE : ce qu'Argus a détecté comme exposition réelle."""
+
+    STATUS_CHOICES = [
+        ("open", "Ouverte"),
+        ("acknowledged", "Prise en compte"),
+        ("mitigated", "Corrigée"),
+        ("false_positive", "Faux positif"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, related_name="asset_vulnerabilities",
+    )
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="vulnerabilities")
+    cve = models.ForeignKey(CVERecord, on_delete=models.CASCADE, related_name="affected_assets")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="open", db_index=True)
+    matched_reason = models.CharField(max_length=255, blank=True)
+    matched_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("asset", "cve")]
+        ordering = ["-matched_at"]
+
+    def save(self, *args, **kwargs):
+        if self.asset_id and not self.organization_id:
+            self.organization_id = self.asset.organization_id
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.asset.name} — {self.cve.cve_id} [{self.status}]"

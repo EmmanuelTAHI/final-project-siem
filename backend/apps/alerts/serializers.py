@@ -115,6 +115,9 @@ class AlertSerializer(_FlatLogFieldsMixin, serializers.ModelSerializer):
             "time_to_resolve_hours",
             "comments_count",
             "comments",
+            "ai_summary",
+            "ai_recommended_actions",
+            "ai_summary_generated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 

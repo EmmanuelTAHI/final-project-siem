@@ -7,13 +7,25 @@ from datetime import timedelta
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.views import APIView
 
 from utils.permissions import IsAnalyst
-from .models import EnrichedLog, ThreatIndicator
-from .serializers import EnrichedLogSerializer, ThreatIndicatorSerializer
-from .tasks import enrich_logs_with_cti
+from .models import Asset, AssetVulnerability, CVERecord, EnrichedLog, ThreatIndicator
+from .serializers import (
+    AssetSerializer,
+    AssetVulnerabilitySerializer,
+    CVERecordSerializer,
+    EnrichedLogSerializer,
+    ThreatIndicatorSerializer,
+)
+from .tasks import (
+    correlate_cve_with_assets,
+    enrich_logs_with_cti,
+    sync_cisa_kev,
+    sync_community_threat_feeds,
+    sync_nvd_recent_cves,
+)
 
 
 class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
@@ -154,6 +166,90 @@ class ThreatIndicatorViewSet(ReadOnlyModelViewSet):
         """Lance manuellement l'enrichissement CTI."""
         task = enrich_logs_with_cti.delay()
         return Response({"task_id": task.id, "status": "queued"})
+
+    @action(detail=False, methods=["post"])
+    def trigger_community_sync(self, request):
+        """Lance manuellement la synchronisation des flux communautaires (URLhaus, Feodo Tracker)."""
+        task = sync_community_threat_feeds.delay()
+        return Response({"task_id": task.id, "status": "queued"})
+
+
+class CVERecordViewSet(ReadOnlyModelViewSet):
+    """
+    Référentiel de vulnérabilités (NVD + CISA KEV), synchronisé
+    automatiquement. C'est la réponse directe à "un SIEM par règles ne sait
+    rien tant qu'on ne lui a pas donné les données à l'avance" : ce
+    référentiel se met à jour tout seul, en continu.
+    """
+
+    queryset = CVERecord.objects.all()
+    serializer_class = CVERecordSerializer
+    permission_classes = [IsAnalyst]
+    filterset_fields = ["is_kev", "severity"]
+    search_fields = ["cve_id", "description", "vendor_project", "product"]
+    ordering_fields = ["cvss_score", "published_date", "kev_date_added"]
+    ordering = ["-is_kev", "-cvss_score"]
+
+    @action(detail=False, methods=["post"])
+    def trigger_sync(self, request):
+        """Lance manuellement la synchronisation CVE (NVD) + KEV (CISA) + corrélation actifs."""
+        kev_task = sync_cisa_kev.delay()
+        nvd_task = sync_nvd_recent_cves.delay()
+        return Response({
+            "kev_task_id": kev_task.id,
+            "nvd_task_id": nvd_task.id,
+            "status": "queued",
+        })
+
+    @action(detail=False, methods=["get"])
+    def stats(self, request):
+        qs = CVERecord.objects.all()
+        return Response({
+            "total": qs.count(),
+            "kev_count": qs.filter(is_kev=True).count(),
+            "critical_count": qs.filter(severity="critical").count(),
+            "high_count": qs.filter(severity="high").count(),
+            "ransomware_associated": qs.filter(kev_ransomware_use=True).count(),
+        })
+
+
+class AssetViewSet(ModelViewSet):
+    """Inventaire d'actifs de l'organisation, base de la corrélation CVE."""
+
+    queryset = Asset.objects.all()
+    serializer_class = AssetSerializer
+    permission_classes = [IsAnalyst]
+    filterset_fields = ["asset_type", "criticality"]
+    search_fields = ["name", "vendor", "product", "hostname"]
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self.request.user.organization, source="manual")
+
+    @action(detail=False, methods=["post"])
+    def trigger_correlation(self, request):
+        """Relance manuellement la corrélation CVE ↔ actifs pour toute la plateforme."""
+        task = correlate_cve_with_assets.delay()
+        return Response({"task_id": task.id, "status": "queued"})
+
+
+class AssetVulnerabilityViewSet(ReadOnlyModelViewSet):
+    queryset = AssetVulnerability.objects.select_related("asset", "cve").all()
+    serializer_class = AssetVulnerabilitySerializer
+    permission_classes = [IsAnalyst]
+    filterset_fields = ["status"]
+    ordering = ["-matched_at"]
+
+    @action(detail=True, methods=["patch"])
+    def status(self, request, pk=None):
+        """PATCH /api/threat-intel/asset-vulnerabilities/{id}/status/ — change le statut de traitement."""
+        obj = self.get_object()
+        new_status = request.data.get("status")
+        valid = [c[0] for c in AssetVulnerability.STATUS_CHOICES]
+        if new_status not in valid:
+            return Response({"error": f"Statut invalide. Valeurs: {valid}"}, status=status.HTTP_400_BAD_REQUEST)
+        obj.status = new_status
+        obj.save(update_fields=["status"])
+        return Response(AssetVulnerabilitySerializer(obj).data)
 
 
 class EnrichedLogViewSet(ReadOnlyModelViewSet):
