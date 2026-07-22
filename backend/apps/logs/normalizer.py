@@ -36,9 +36,11 @@ _PAM_FAIL_RE = re.compile(
 )
 
 # ─── Accès nginx (format "combined", voir nginx/nginx.conf log_format argus_access) ──
-# 1.2.3.4 - [22/Jul/2026:10:00:00 +0000] "GET /api/alerts/ HTTP/1.1" 200 1234 "https://argussiem.com/dashboard" "Mozilla/5.0..."
+# Le message syslog complet garde le préfixe RFC3164 avant la ligne utile :
+# "Jul 22 11:42:23 <hostname> nginx_access: 1.2.3.4 - [22/Jul/2026:...] "GET ...
+# → pas d'ancrage ^ ni .match() : on cherche le motif n'importe où dans la chaîne.
 _NGINX_ACCESS_RE = re.compile(
-    r'^(?P<ip>[0-9a-fA-F:.]+) - \[(?P<time>[^\]]+)\] '
+    r'(?P<ip>[0-9a-fA-F:.]+) - \[(?P<time>[^\]]+)\] '
     r'"(?P<method>[A-Z]+) (?P<path>\S+) HTTP/[0-9.]+" '
     r'(?P<status>\d{3}) (?P<bytes>\d+) '
     r'"(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)"'
@@ -354,7 +356,7 @@ class LogNormalizer:
         à des évènements de sécurité applicatifs, il voit aussi le trafic web
         brut, comme le ferait un WAF/CrowdSec).
         """
-        m = _NGINX_ACCESS_RE.match(message.strip())
+        m = _NGINX_ACCESS_RE.search(message)
         if not m:
             return None
 
