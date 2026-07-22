@@ -33,8 +33,13 @@
     --popover-foreground: 224 55% 8%;
     --primary-hsl: 220 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary-hsl: 167 100% 42%;
-    --secondary-foreground: 224 55% 8%;
+    /* Gris neutre — PAS le turquoise de marque : cette variable pilote
+       toutes les surfaces "discrètes" (bg-secondary/XX) dans des dizaines
+       de composants (fonds de formulaire, badges, lignes de tableau,
+       onglets...). Le turquoise reste disponible via --secondary (hex brut)
+       pour les vrais accents de marque (logo, indicateur "live"). */
+    --secondary-hsl: 220 20% 94%;
+    --secondary-foreground: 224 20% 25%;
     --muted: 220 20% 94%;
     --muted-foreground: 224 10% 47%;
     --accent: 220 100% 50%;
@@ -72,8 +77,9 @@
     --popover-foreground: 222 100% 95%;
     --primary-hsl: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary-hsl: 163 94% 43%;
-    --secondary-foreground: 222 100% 95%;
+    /* Gris neutre — voir commentaire équivalent dans :root. */
+    --secondary-hsl: 220 25% 20%;
+    --secondary-foreground: 220 20% 88%;
     --muted: 220 37% 16%;
     --muted-foreground: 221 36% 66%;
     --accent: 217 91% 60%;

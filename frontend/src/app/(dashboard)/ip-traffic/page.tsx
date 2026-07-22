@@ -9,7 +9,7 @@ import { fr } from "date-fns/locale";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Radar, Globe2, MapPin, ShieldAlert, Search, ExternalLink } from "lucide-react";
+import { Radar, Globe2, MapPin, ShieldAlert, Search, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { logsApi } from "@/lib/api";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { GeoTable } from "@/components/dashboard/geo-table";
@@ -53,6 +53,8 @@ function IPTrafficPageInner() {
   const [period, setPeriod] = useState<IPTrafficPeriod>((searchParams.get("period") as IPTrafficPeriod) || "24h");
   const [search, setSearch] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<IPTrafficEntry | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const { data, isLoading } = useQuery({
     queryKey: ["ip-traffic", period],
@@ -71,6 +73,9 @@ function IPTrafficPageInner() {
   const filteredIPs = (data?.top_ips ?? []).filter(
     (ip) => !search.trim() || ip.source_ip.includes(search.trim())
   );
+  const totalPages = Math.max(1, Math.ceil(filteredIPs.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedIPs = filteredIPs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="page p-6 space-y-6">
@@ -159,7 +164,10 @@ function IPTrafficPageInner() {
             <Input
               placeholder="Filtrer par IP..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               leftIcon={<Search className="w-3.5 h-3.5" />}
               className="h-8 text-xs"
             />
@@ -184,7 +192,7 @@ function IPTrafficPageInner() {
                 [...Array(6)].map((_, i) => (
                   <tr key={i}><td colSpan={7} className="px-5 py-2"><div className="h-8 bg-muted rounded animate-pulse" /></td></tr>
                 ))}
-              {!isLoading && filteredIPs.map((ip) => (
+              {!isLoading && pagedIPs.map((ip) => (
                 <tr
                   key={ip.source_ip}
                   onClick={() => setSelectedEntry(ip)}
@@ -233,6 +241,31 @@ function IPTrafficPageInner() {
             </tbody>
           </table>
         </div>
+
+        {!isLoading && filteredIPs.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-border/60">
+            <p className="text-xs text-muted-foreground">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredIPs.length)} sur {filteredIPs.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs text-muted-foreground font-mono">{currentPage} / {totalPages}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       <IPRequestsDrawer entry={selectedEntry} onClose={() => setSelectedEntry(null)} />

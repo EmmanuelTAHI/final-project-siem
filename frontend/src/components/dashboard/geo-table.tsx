@@ -52,11 +52,13 @@ export function GeoTable({ data, subtitle = "Dernières 24 heures" }: GeoTablePr
                   transition={{ duration: 0.8, delay: 0.9 + i * 0.05, ease: "easeOut" }}
                   className="h-full rounded-full"
                   style={{
+                    // Gris neutre par défaut — la couleur n'est réservée qu'aux pays
+                    // avec une activité de menace réelle (ambre/rouge = signal).
                     background: item.threat_count > 10
                       ? "linear-gradient(90deg, #ef4444, #f97316)"
                       : item.threat_count > 5
                       ? "linear-gradient(90deg, #f59e0b, #eab308)"
-                      : "linear-gradient(90deg, #3b82f6, #06b6d4)",
+                      : "#94a3b8",
                   }}
                 />
               </div>
