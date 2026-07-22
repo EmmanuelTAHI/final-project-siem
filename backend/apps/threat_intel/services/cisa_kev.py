@@ -24,7 +24,11 @@ def fetch_kev_catalog() -> list[dict]:
     """
     try:
         with httpx.Client(timeout=30.0) as client:
-            resp = client.get(CISA_KEV_FEED_URL)
+            # cisa.gov renvoie 403 sans User-Agent de type navigateur.
+            resp = client.get(
+                CISA_KEV_FEED_URL,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; Argus-SIEM/1.0)"},
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("vulnerabilities", [])
