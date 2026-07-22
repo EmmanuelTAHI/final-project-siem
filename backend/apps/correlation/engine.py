@@ -28,6 +28,7 @@ RULE_REGISTRY = {
     "data_exfil": "apps.correlation.rules.data_exfil.DataExfilRule",
     "web_attack_signature": "apps.correlation.rules.web_attack_signature.WebAttackSignatureRule",
     "web_scan_detection": "apps.correlation.rules.web_scan_detection.WebScanDetectionRule",
+    "security_scan_finding": "apps.correlation.rules.security_scan.SecurityScanFindingRule",
 }
 
 

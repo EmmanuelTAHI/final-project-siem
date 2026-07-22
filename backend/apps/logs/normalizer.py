@@ -72,6 +72,20 @@ _NGINX_ACCESS_RE = re.compile(
 )
 
 
+# ─── Détection ClamAV (ligne d'infection, format "clamscan"/"clamdscan") ──────
+# Ex : "/root/eicar.txt: Win.Test.EICAR_HDB-1 FOUND"
+# path ancré sur "/" : le message syslog garde son préfixe RFC3164
+# ("TIMESTAMP HOSTNAME clamav-scan: ...") avant la ligne utile, sans cet
+# ancrage le groupe path engloutirait goulûment ce préfixe au lieu du
+# vrai chemin de fichier infecté.
+_CLAMAV_FOUND_RE = re.compile(r"(?P<path>/\S.*?): (?P<signature>\S.*) FOUND\s*$")
+
+# rkhunter préfixe ses avertissements par "Warning:" n'importe où dans la
+# ligne (après le préfixe RFC3164) -- même raison que ci-dessus, .search()
+# sans ancrage de début de chaîne.
+_RKHUNTER_WARNING_RE = re.compile(r"Warning:\s*(?P<finding>.+)$")
+
+
 def _parse_ssh_auth(message: str) -> dict | None:
     """
     Détecte un évènement d'authentification SSH dans un message syslog et
@@ -312,6 +326,13 @@ class LogNormalizer:
             if nginx_fields:
                 return nginx_fields
 
+        # local5 = facility dédiée aux scans de sécurité rkhunter/ClamAV
+        # (voir scripts/security-scans sur le VPS + config rsyslog imfile).
+        if facility == "local5":
+            scan_fields = self._map_security_scan(message, sender_ip, facility, data)
+            if scan_fields:
+                return scan_fields
+
         # Détection d'un évènement d'authentification SSH → alimente la règle
         # brute force (action=login_failure groupé par user_email).
         ssh = _parse_ssh_auth(message)
@@ -420,6 +441,68 @@ class LogNormalizer:
                 "detected_service": "nginx",
             },
         }
+
+    def _map_security_scan(self, message: str, sender_ip: str | None, facility: str, data: dict) -> dict | None:
+        """
+        Mappe une ligne de scan rkhunter/ClamAV (forwardée par rsyslog via
+        imfile en facility local5, voir scripts/security-scans/) vers
+        NormalizedLog. Distingue les deux outils par forme de ligne : ClamAV
+        termine ses lignes d'infection par " FOUND", rkhunter préfixe ses
+        avertissements par "Warning:". Toute autre ligne (résumé de fin de
+        scan, etc.) est ignorée, pas remontée comme évènement de sécurité.
+        """
+        clamav_match = _CLAMAV_FOUND_RE.search(message)
+        if clamav_match:
+            return {
+                "event_time": self._parse_datetime(data.get("received_at")),
+                "user_email": None,
+                "user_id": None,
+                "source_ip": sender_ip,
+                "destination_ip": None,
+                "action": "malware_detected",
+                "outcome": "failure",
+                "resource": f"{clamav_match.group('path')} : {clamav_match.group('signature')}"[:500],
+                "geo_country": None,
+                "geo_city": None,
+                "geo_latitude": None,
+                "geo_longitude": None,
+                "user_agent": None,
+                "severity": "critical",
+                "extra_fields": {
+                    "facility": facility,
+                    "scan_tool": "clamav",
+                    "hostname": sender_ip or "vps",
+                    "infected_path": clamav_match.group("path"),
+                    "signature": clamav_match.group("signature"),
+                },
+            }
+
+        warning_match = _RKHUNTER_WARNING_RE.search(message)
+        if warning_match:
+            finding = warning_match.group("finding").strip()
+            return {
+                "event_time": self._parse_datetime(data.get("received_at")),
+                "user_email": None,
+                "user_id": None,
+                "source_ip": sender_ip,
+                "destination_ip": None,
+                "action": "rootkit_scan_finding",
+                "outcome": "unknown",
+                "resource": finding[:500],
+                "geo_country": None,
+                "geo_city": None,
+                "geo_latitude": None,
+                "geo_longitude": None,
+                "user_agent": None,
+                "severity": "medium",
+                "extra_fields": {
+                    "facility": facility,
+                    "scan_tool": "rkhunter",
+                    "hostname": sender_ip or "vps",
+                },
+            }
+
+        return None
 
     @staticmethod
     def _parse_nginx_time(time_local: str) -> datetime | None:

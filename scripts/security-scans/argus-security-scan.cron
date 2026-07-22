@@ -1,0 +1,4 @@
+# Scan quotidien rkhunter + ClamAV, heure creuse (03:15 UTC), en root
+# (rkhunter a besoin d'un accès lecture large au système de fichiers).
+# Installer : cp dans /etc/cron.d/argus-security-scan (root:root, 644).
+15 3 * * * root /usr/local/sbin/argus-security-scan.sh

@@ -183,6 +183,26 @@ DEFAULT_RULES = [
         "mitre_technique": "T1595 - Active Scanning",
         "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
     },
+    {
+        "name": "Malware détecté - ClamAV",
+        "description": "Le scan antivirus quotidien ClamAV a détecté une signature de malware connue sur le serveur.",
+        "severity": "critical",
+        "condition_logic": {"type": "security_scan_finding", "actions": ["malware_detected"]},
+        "alert_title_template": "Malware détecté ({tool}) sur {hostname} : {finding}",
+        "mitre_tactic": "Persistence",
+        "mitre_technique": "T1105 - Ingress Tool Transfer",
+        "compliance_controls": ["iso27001:A.8.7", "pci_dss:REQ-5", "nist_csf:DE.CM"],
+    },
+    {
+        "name": "Rootkit / anomalie système - rkhunter",
+        "description": "Le scan rkhunter quotidien a signalé une anomalie système potentielle (binaire modifié, rootkit connu, configuration suspecte).",
+        "severity": "medium",
+        "condition_logic": {"type": "security_scan_finding", "actions": ["rootkit_scan_finding"]},
+        "alert_title_template": "Anomalie système détectée ({tool}) sur {hostname} : {finding}",
+        "mitre_tactic": "Defense Evasion",
+        "mitre_technique": "T1014 - Rootkit",
+        "compliance_controls": ["iso27001:A.8.16", "nist_csf:DE.CM"],
+    },
 ]
 
 
