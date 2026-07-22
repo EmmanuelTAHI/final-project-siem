@@ -18,6 +18,12 @@ import type { ThreatIndicator } from "@/types";
 
 // ─── Sources side-by-side ────────────────────────────────────────────────────
 
+// Masqué côté UI tant que les clés CriminalIP/Shodan de l'utilisateur sont
+// expirées — la logique (appel API, résumé, verdict) reste intacte côté
+// backend ET frontend, il suffit de repasser à true pour réafficher les
+// panneaux dès que les clés sont renouvelées.
+const SHOW_CRIMINALIP_SHODAN = false;
+
 type Verdict = "malicious" | "suspicious" | "clean" | "unknown";
 
 function verdictTone(v: Verdict) {
@@ -480,14 +486,14 @@ function LookupResultPanel({
             summary={abuse}
           />
         )}
-        {type === "ip" && (
+        {type === "ip" && SHOW_CRIMINALIP_SHODAN && (
           <SourcePanel
             name="CriminalIP"
             subtitle="Réputation & exposition — scanner, Tor/VPN, malveillance"
             summary={criminalip}
           />
         )}
-        {type === "ip" && (
+        {type === "ip" && SHOW_CRIMINALIP_SHODAN && (
           <SourcePanel
             name="Shodan"
             subtitle="Surface d'attaque — ports ouverts, services, CVE"
@@ -682,7 +688,8 @@ function ThreatIntelPageInner() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Threat Intelligence</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Enrichissement CTI — SIEM interne · géoloc · AbuseIPDB · CriminalIP · Shodan · VirusTotal
+            Enrichissement CTI — SIEM interne · géoloc · AbuseIPDB · VirusTotal
+            {SHOW_CRIMINALIP_SHODAN && " · CriminalIP · Shodan"}
           </p>
         </div>
         <Button
