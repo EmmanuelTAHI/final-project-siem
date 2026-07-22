@@ -49,7 +49,7 @@ services:
       - logs:/app/logs
     # Permet au backend d'atteindre le démon de blocage réseau réel
     # (scripts/host-firewall-agent), qui tourne sur l'hôte, hors Docker,
-    # en écoute uniquement sur 127.0.0.1 côté hôte.
+    # protégé par la politique par défaut d'ufw (deny incoming), pas un bind loopback.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

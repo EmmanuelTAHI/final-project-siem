@@ -2,9 +2,17 @@
 """
 Démon de blocage réseau réel pour Argus SOAR.
 
-Tourne DIRECTEMENT sur l'hôte VPS (hors Docker), en écoute uniquement sur
-127.0.0.1 — jamais exposé à l'extérieur, atteignable uniquement depuis les
+Tourne DIRECTEMENT sur l'hôte VPS (hors Docker), atteignable depuis les
 conteneurs Docker via `host.docker.internal` (docker-compose.prod.yml).
+
+Écoute sur toutes les interfaces (0.0.0.0) — un bind strict sur 127.0.0.1
+rendrait le service injoignable depuis un conteneur (qui atteint l'hôte via
+la passerelle du réseau Docker, jamais via le loopback ; testé et confirmé :
+timeout de connexion avec un bind 127.0.0.1). La vraie frontière de
+sécurité est la politique par défaut d'ufw ("deny incoming" tant qu'aucune
+règle n'autorise explicitement un port — le port 8765 n'apparaît dans
+aucune règle ufw, donc reste bloqué depuis l'extérieur même en écoutant sur
+0.0.0.0) et le jeton d'authentification, pas l'adresse d'écoute.
 
 Contrairement au blocage applicatif existant (utils.blocklist_middleware,
 403 Django), ce démon exécute une VRAIE règle pare-feu ufw sur l'hôte — le
@@ -33,7 +41,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 logger = logging.getLogger("argus-firewall-agent")
 
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 8765
 TOKEN_FILE = "/etc/argus-firewall-agent/token"
 BLOCK_SCRIPT = "/usr/local/sbin/argus-ufw-block"
@@ -147,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    logger.info("argus-firewall-agent en écoute sur %s:%d (loopback uniquement)", HOST, PORT)
+    logger.info("argus-firewall-agent en écoute sur %s:%d (protégé par ufw + jeton)", HOST, PORT)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

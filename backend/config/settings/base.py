@@ -285,7 +285,8 @@ ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", default="claude-sonnet-4-5")
 
 # ─── Démon de blocage réseau réel (scripts/host-firewall-agent) ───────────────
-# Tourne sur l'hôte VPS, hors Docker, en écoute sur 127.0.0.1 côté hôte —
+# Tourne sur l'hôte VPS, hors Docker — protégé par la politique par défaut
+# d'ufw (deny incoming) plutôt qu'un bind loopback, voir firewall_agent.py —
 # atteint depuis les conteneurs via host.docker.internal (voir extra_hosts
 # dans docker-compose.prod.yml). Vide par défaut : sans configuration, l'action
 # SOAR block_ip retombe sur le blocage applicatif seul (BlockedIP + middleware),

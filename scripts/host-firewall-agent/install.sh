@@ -53,7 +53,7 @@ systemctl daemon-reload
 systemctl enable --now argus-firewall-agent.service
 
 echo ""
-echo "Terminé. Le démon écoute sur 127.0.0.1:8765 (jamais exposé à l'extérieur)."
+echo "Terminé. Le démon écoute sur le port 8765 (bloqué depuis l'extérieur par la politique par défaut d'ufw, atteignable uniquement depuis les conteneurs Docker locaux)."
 echo "Jeton (à mettre dans le .env du SIEM comme HOST_FIREWALL_TOKEN) :"
 echo "  $TOKEN"
 echo ""
