@@ -1,0 +1,65 @@
+name: Build & push images (GHCR)
+
+# Construit les images Docker et les publie sur GitHub Container Registry, pour
+# qu'une nouvelle machine puisse installer Argus avec un simple
+# `docker compose pull && docker compose up -d`, sans jamais rebuilder
+# localement (backend/celery/syslog partagent la même image ; seule la
+# commande lancée dans docker-compose.yml diffère entre ces services).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "docs/**"
+      - ".github/workflows/build-images.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # GHCR exige un nom en minuscules ; github.repository_owner garde la casse
+  # du compte GitHub (EmmanuelTAHI), donc on fixe la valeur en dur ici plutôt
+  # que de la recalculer à chaque run.
+  IMAGE_OWNER: emmanueltahi
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: argus-backend
+            context: ./backend
+          - name: argus-frontend
+            context: ./frontend
+          - name: argus-docs
+            context: ./docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

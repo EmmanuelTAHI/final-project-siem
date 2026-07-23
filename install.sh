@@ -8,7 +8,8 @@
 #   1. vérifie que Docker / Docker Compose sont installés
 #   2. crée .env depuis .env.example (si absent) et génère des secrets
 #      aléatoires (SECRET_KEY, mots de passe DB, clé de chiffrement)
-#   3. construit et démarre toute la stack (docker compose up -d --build)
+#   3. récupère les images pré-construites (GHCR) et démarre toute la stack
+#      (ou build localement en repli si le pull échoue)
 #   4. attend que les services soient prêts
 #   5. affiche les identifiants du compte administrateur
 # ============================================================
@@ -61,8 +62,18 @@ else
 fi
 
 # 3. Démarrage de la stack
-bold "Construction et démarrage des conteneurs (cela peut prendre quelques minutes)..."
-docker compose up -d --build
+# On tente d'abord de récupérer les images pré-construites (GHCR) — quelques
+# secondes/minutes au lieu d'un build complet (pip install / npm build).
+# Si le pull échoue (registre indisponible, image absente...), on retombe
+# sur un build local classique.
+bold "Récupération des images pré-construites..."
+if docker compose pull --quiet 2>/dev/null; then
+  info "Images récupérées, démarrage des conteneurs..."
+  docker compose up -d
+else
+  bold "Images indisponibles, construction locale (cela peut prendre quelques minutes)..."
+  docker compose up -d --build
+fi
 
 # 4. Attente des services
 bold "Attente du démarrage des services..."

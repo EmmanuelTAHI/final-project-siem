@@ -3,7 +3,9 @@
 #
 # Démarrage :
 #   1. copier .env.example -> .env (ou lancer install.sh / install.ps1)
-#   2. docker compose up -d --build
+#   2. docker compose pull && docker compose up -d
+#      (images pré-construites sur GHCR ; ou "docker compose up -d --build"
+#      pour reconstruire localement depuis le code source)
 #   3. ouvrir http://localhost:3000
 # ============================================================
 
@@ -36,6 +38,7 @@ services:
       retries: 5
 
   backend:
+    image: ghcr.io/emmanueltahi/argus-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -63,6 +66,7 @@ services:
         condition: service_healthy
 
   celery_worker:
+    image: ghcr.io/emmanueltahi/argus-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -85,6 +89,7 @@ services:
         condition: service_healthy
 
   celery_beat:
+    image: ghcr.io/emmanueltahi/argus-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -106,6 +111,7 @@ services:
         condition: service_healthy
 
   syslog_receiver:
+    image: ghcr.io/emmanueltahi/argus-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -136,6 +142,7 @@ services:
         condition: service_healthy
 
   frontend:
+    image: ghcr.io/emmanueltahi/argus-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -151,6 +158,7 @@ services:
       - backend
 
   docs:
+    image: ghcr.io/emmanueltahi/argus-docs:latest
     build:
       context: ./docs
       dockerfile: Dockerfile
