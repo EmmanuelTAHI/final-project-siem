@@ -35,7 +35,6 @@ def _to_gemini_contents(messages: list[dict]) -> list[dict]:
             continue
 
         parts = []
-        has_function_response = False
         for block in content:
             btype = block.get("type")
             if btype == "text":
@@ -44,7 +43,9 @@ def _to_gemini_contents(messages: list[dict]) -> list[dict]:
                 tool_id_to_name[block.get("id")] = block.get("name")
                 parts.append({"functionCall": {"name": block.get("name"), "args": block.get("input", {})}})
             elif btype == "tool_result":
-                has_function_response = True
+                # Cette version de l'API Gemini rejette le rôle "function"
+                # ("Role 'function' is not supported") — les réponses d'outils
+                # doivent être envoyées avec le rôle "user".
                 name = tool_id_to_name.get(block.get("tool_use_id"), "unknown_tool")
                 raw = block.get("content")
                 try:
@@ -55,7 +56,7 @@ def _to_gemini_contents(messages: list[dict]) -> list[dict]:
                     response_obj = {"result": response_obj}
                 parts.append({"functionResponse": {"name": name, "response": response_obj}})
 
-        gemini_role = "function" if has_function_response else ("user" if role == "user" else "model")
+        gemini_role = "user" if role == "user" else "model"
         contents.append({"role": gemini_role, "parts": parts})
 
     return contents

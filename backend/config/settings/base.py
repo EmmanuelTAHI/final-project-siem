@@ -284,7 +284,7 @@ NVD_API_KEY = env("NVD_API_KEY", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", default="claude-sonnet-4-5")
 GOOGLE_AI_API_KEY = env("GOOGLE_AI_API_KEY", default="")
-GOOGLE_AI_MODEL = env("GOOGLE_AI_MODEL", default="gemini-2.0-flash")
+GOOGLE_AI_MODEL = env("GOOGLE_AI_MODEL", default="gemini-flash-latest")
 
 # ─── Démon de blocage réseau réel (scripts/host-firewall-agent) ───────────────
 # Tourne sur l'hôte VPS, hors Docker — protégé par la politique par défaut
