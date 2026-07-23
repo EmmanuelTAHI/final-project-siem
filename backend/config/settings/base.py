@@ -280,9 +280,11 @@ SHODAN_API_KEY = env("SHODAN_API_KEY", default="")
 # une clé gratuite relève la limite à 50 req/30s.
 NVD_API_KEY = env("NVD_API_KEY", default="")
 
-# ─── SOC Copilot IA (Anthropic Claude) ────────────────────────────────────────
+# ─── SOC Copilot IA (Anthropic Claude, ou Google Gemini en repli si pas de clé Anthropic) ──
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", default="claude-sonnet-4-5")
+GOOGLE_AI_API_KEY = env("GOOGLE_AI_API_KEY", default="")
+GOOGLE_AI_MODEL = env("GOOGLE_AI_MODEL", default="gemini-2.0-flash")
 
 # ─── Démon de blocage réseau réel (scripts/host-firewall-agent) ───────────────
 # Tourne sur l'hôte VPS, hors Docker — protégé par la politique par défaut

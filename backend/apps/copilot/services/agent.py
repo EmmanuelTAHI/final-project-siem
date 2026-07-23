@@ -8,7 +8,7 @@ seulement ce que les outils lui renvoient.
 import json
 import logging
 
-from .anthropic_client import call_claude, is_configured
+from .llm_client import call_llm, is_configured
 from .tools import TOOL_SCHEMAS, execute_tool
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,8 @@ def ask(question: str, organization_id, history: list[dict] | None = None) -> di
         return {
             "answer": (
                 "Le SOC Copilot n'est pas configuré sur cette instance "
-                "(ANTHROPIC_API_KEY absente). Ajoutez une clé API Anthropic dans "
-                "le fichier .env pour activer cette fonctionnalité."
+                "(ni ANTHROPIC_API_KEY, ni GOOGLE_AI_API_KEY). Ajoutez l'une des deux "
+                "clés dans le fichier .env pour activer cette fonctionnalité."
             ),
             "tool_calls": [],
             "configured": False,
@@ -48,7 +48,7 @@ def ask(question: str, organization_id, history: list[dict] | None = None) -> di
     tool_calls_log = []
 
     for _round in range(MAX_TOOL_ROUNDS):
-        result = call_claude(messages, system=SYSTEM_PROMPT, tools=TOOL_SCHEMAS)
+        result = call_llm(messages, system=SYSTEM_PROMPT, tools=TOOL_SCHEMAS)
         content_blocks = result.get("content", [])
         stop_reason = result.get("stop_reason")
 
@@ -103,7 +103,7 @@ def summarize_alert(alert) -> dict:
     """
     if not is_configured():
         return {
-            "summary": "SOC Copilot non configuré (ANTHROPIC_API_KEY absente).",
+            "summary": "SOC Copilot non configuré (ni ANTHROPIC_API_KEY, ni GOOGLE_AI_API_KEY).",
             "recommended_actions": [],
         }
 
@@ -124,7 +124,7 @@ def summarize_alert(alert) -> dict:
         '"recommended_actions": ["action 1", "action 2", "action 3"]}'
     )
 
-    result = call_claude(
+    result = call_llm(
         [{"role": "user", "content": prompt}],
         system="Tu es un analyste SOC senior. Tu réponds uniquement en JSON valide, en français.",
         max_tokens=800,
