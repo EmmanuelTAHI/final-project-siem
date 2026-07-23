@@ -43,16 +43,20 @@ app.conf.beat_schedule = {
         "task": "apps.correlation.tasks.run_correlation_engine",
         "schedule": timedelta(seconds=20),
     },
-    # Inférence ML — toutes les 10 minutes
-    "run-ml-inference": {
-        "task": "apps.ml.tasks.run_anomaly_detection_on_new_logs",
-        "schedule": crontab(minute="*/10"),
-    },
-    # Entraînement ML — chaque dimanche à 02h00 UTC
-    "train-ml-model": {
-        "task": "apps.ml.tasks.train_isolation_forest",
-        "schedule": crontab(day_of_week="sunday", hour=2, minute=0),
-    },
+    # Inférence ML — DÉSACTIVÉE à la demande de l'utilisateur (2026-07-23) :
+    # trop de faux positifs / bruit, alertes "Anomalie ML" plus voulues pour
+    # l'instant. Ne pas réactiver sans instruction explicite. Pour réactiver :
+    # décommenter ce bloc (et son entraînement ci-dessous si besoin).
+    # "run-ml-inference": {
+    #     "task": "apps.ml.tasks.run_anomaly_detection_on_new_logs",
+    #     "schedule": crontab(minute="*/10"),
+    # },
+    # Entraînement ML — DÉSACTIVÉ en même temps que l'inférence ci-dessus
+    # (inutile d'entraîner un modèle dont on ne consomme plus les prédictions).
+    # "train-ml-model": {
+    #     "task": "apps.ml.tasks.train_isolation_forest",
+    #     "schedule": crontab(day_of_week="sunday", hour=2, minute=0),
+    # },
     # Nettoyage des RawLog anciens (> 90 jours) — chaque jour à 03h00
     "cleanup-old-raw-logs": {
         "task": "apps.logs.tasks.cleanup_old_raw_logs",
@@ -78,11 +82,13 @@ app.conf.beat_schedule = {
         "task": "apps.soar.tasks.check_and_trigger_playbooks",
         "schedule": crontab(minute="*/5"),
     },
-    # Feedback ML (faux positifs → ajustement contamination) — chaque jour à 01h00
-    "ml-false-positive-feedback": {
-        "task": "apps.ml.tasks.retrain_on_false_positives",
-        "schedule": crontab(hour=1, minute=0),
-    },
+    # Feedback ML — DÉSACTIVÉ en même temps que l'inférence ci-dessus (ce
+    # feedback ne fait que déclencher un réentraînement, inutile tant que
+    # l'inférence ne tourne pas).
+    # "ml-false-positive-feedback": {
+    #     "task": "apps.ml.tasks.retrain_on_false_positives",
+    #     "schedule": crontab(hour=1, minute=0),
+    # },
     # Scores de risque utilisateurs — chaque heure
     "compute-user-risk-scores": {
         "task": "apps.ml.tasks.compute_user_risk_scores",
