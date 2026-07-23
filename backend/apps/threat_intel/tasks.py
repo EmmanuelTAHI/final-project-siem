@@ -106,7 +106,12 @@ def enrich_logs_with_cti():
             enriched_count += 1
             if enriched_log.is_threat:
                 threat_count += 1
-                _create_cti_alert(log, enriched_log)
+                # Génération d'alerte désactivée à la demande de l'utilisateur
+                # (2026-07-23) — trop de bruit, comme pour les alertes ML.
+                # L'enrichissement (score, indicateurs) reste actif : la page
+                # Threat Intelligence et le pivot IP en ont toujours besoin.
+                # Pour réactiver : décommenter la ligne ci-dessous.
+                # _create_cti_alert(log, enriched_log)
 
     logger.info(
         "CTI enrichissement: %d logs traités (%d IP uniques interrogées), %d menaces détectées, %d logs géolocalisés",
