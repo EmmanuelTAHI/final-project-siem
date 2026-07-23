@@ -41,6 +41,33 @@ totalement distinct des sessions utilisateur (JWT) :
 Voir [Architecture & isolation](/docs/architecture) pour le détail complet
 du modèle d'isolation entre organisations.
 
+## SOC Copilot IA — données envoyées à un fournisseur tiers
+
+Le SOC Copilot (assistant en langage naturel) est **optionnel** : sans clé
+`ANTHROPIC_API_KEY` ni `GOOGLE_AI_API_KEY` configurée, il reste désactivé et
+n'envoie jamais rien à l'extérieur — le reste de la plateforme fonctionne
+normalement.
+
+Quand il est activé, chaque question envoie au fournisseur d'IA configuré
+(Anthropic ou Google) : la question de l'analyste, et les résultats
+d'outils que le modèle a demandé à exécuter (extraits/agrégats de logs,
+d'alertes, d'indicateurs CTI — jamais un accès direct à la base). Ces
+résultats sont **toujours filtrés côté serveur par l'organisation de
+l'utilisateur authentifié**, jamais par un paramètre fourni par le modèle,
+et plafonnés en volume pour éviter toute fuite massive de données brutes.
+
+Points à connaître avant d'activer cette fonctionnalité en présence de
+données sensibles :
+
+- Les données transitent par l'infrastructure du fournisseur choisi
+  (Anthropic ou Google), soumise à leurs propres conditions de traitement
+  des données.
+- Aucune donnée n'est envoyée si ni clé Anthropic ni clé Google n'est
+  configurée.
+- Le mode self-hosted mono-organisation (par défaut) n'a pas de problème
+  d'isolation entre clients — seul le choix d'activer ou non l'IA externe
+  relève de la politique de confidentialité de l'organisation elle-même.
+
 ## Limitation de débit (rate limiting)
 
 Les endpoints sensibles (connexion, inscription, réinitialisation de mot de

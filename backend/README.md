@@ -56,6 +56,8 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 Depuis la racine du projet :
 
 ```bash
+docker compose pull && docker compose up -d   # images pré-construites (GHCR), rapide
+# ou, pour reconstruire depuis le code source :
 docker compose up --build
 ```
 
@@ -233,6 +235,19 @@ print('Utilisateurs créés.')
 |---------|----------|-------------|
 | GET | `/api/reports/compliance/?framework=&period=` | Génère un rapport PDF (PCI DSS v4.0, RGPD, ISO 27001:2022) |
 | GET | `/api/reports/frameworks/` | Référentiels de conformité disponibles |
+
+### SOC Copilot IA (`/api/copilot/`)
+
+Assistant en langage naturel qui interroge en direct logs, alertes, CTI et
+statistiques — toujours scopé côté serveur à l'organisation de l'utilisateur
+authentifié. Nécessite `ANTHROPIC_API_KEY` ou (à défaut) `GOOGLE_AI_API_KEY`
+dans `.env` ; sans clé, répond poliment que le service n'est pas configuré.
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/copilot/ask/` | Pose une question au Copilot (boucle d'outils, 4 itérations max) |
+| GET | `/api/copilot/conversations/` | Historique des conversations de l'utilisateur |
+| POST | `/api/copilot/alerts/{id}/summarize/` | Résumé IA + actions recommandées pour une alerte |
 
 ---
 

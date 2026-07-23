@@ -36,7 +36,10 @@ Ce script :
 2. crée le fichier `.env` à partir de `.env.example` et **génère automatiquement**
    les secrets nécessaires (clé Django, mots de passe base de données, clé de
    chiffrement, mot de passe administrateur),
-3. construit et démarre l'ensemble de la stack (`docker compose up -d --build`),
+3. récupère les **images pré-construites** publiées sur GitHub Container
+   Registry (`docker compose pull && docker compose up -d`) — quelques
+   secondes/minutes au lieu d'un build complet ; si le pull échoue, bascule
+   automatiquement sur un build local (`docker compose up -d --build`),
 4. affiche les identifiants du compte administrateur à la fin.
 
 Une fois terminé :
@@ -49,9 +52,21 @@ Une fois terminé :
 ```bash
 cp .env.example .env
 # éditer .env si besoin (intégrations optionnelles)
+docker compose pull && docker compose up -d   # images pré-construites (GHCR)
+# ou, pour reconstruire depuis le code source :
 docker compose up -d --build
 docker compose exec backend python manage.py createsuperuser
 ```
+
+### Images pré-construites (GHCR)
+
+Chaque push sur `main` déclenche une CI (`.github/workflows/build-images.yml`)
+qui build et publie les images sur GitHub Container Registry :
+`ghcr.io/emmanueltahi/argus-backend` (partagée par `backend`, `celery_worker`,
+`celery_beat`, `syslog_receiver` — seule la commande lancée diffère),
+`argus-frontend` et `argus-docs`. Elles sont publiques (aucune authentification
+requise pour les récupérer). `docker-compose.yml` référence ces images tout en
+conservant `build:` pour le développement local avec `--build`.
 
 ---
 
@@ -72,7 +87,16 @@ docker compose exec backend python manage.py createsuperuser
   de détection d'anomalies par Machine Learning (Isolation Forest).
 - **Threat Intelligence** : enrichissement IP (AbuseIPDB, VirusTotal,
   géolocalisation, empreinte interne) avec verdict de synthèse, même sans
-  clé API configurée.
+  clé API configurée. Veille CVE/CISA KEV proactive (corrélation automatique
+  actif ↔ vulnérabilité activement exploitée) et flux CTI collaboratifs
+  gratuits (URLhaus, Feodo Tracker).
+- **Corrélation MITRE ATT&CK** : matrice de couverture par organisation
+  (`/api/correlation/mitre-attack/coverage/`).
+- **SOC Copilot IA** : assistant en langage naturel qui interroge en direct
+  logs/alertes/CTI/statistiques de VOTRE organisation (jamais d'accès direct
+  à la base), et résume les alertes en un clic. Fonctionne avec une clé
+  Anthropic (Claude) ou, à défaut, une clé Google AI Studio (Gemini,
+  gratuite) — optionnel, le reste de la plateforme fonctionne sans.
 - **SOAR** : playbooks de réponse automatisée déclenchés par sévérité,
   règle de corrélation ou anomalie ML (blocage IP, email, webhook,
   création de ticket...).
