@@ -14,6 +14,40 @@ from .serializers import BlockedIPSerializer, PlaybookExecutionSerializer, Playb
 from .tasks import execute_playbook
 
 
+def _apply_real_block(blocked: BlockedIP) -> str:
+    """
+    Applique le blocage réseau réel (démon local ufw) pour une IP déjà
+    bloquée au niveau applicatif (BlockedIP). Utilisé aussi bien pour le
+    blocage manuel via dashboard que pour les playbooks SOAR, afin que
+    "bloquer une IP" signifie toujours la même chose : requête applicative
+    ET paquets réseau réellement rejetés, pas juste un 403 Django.
+    Retourne "ok" / "failed" / "unavailable" (démon non configuré).
+    """
+    from django.conf import settings
+
+    if not settings.HOST_FIREWALL_URL:
+        return "unavailable"
+
+    duration_hours = 0.0
+    if blocked.expires_at:
+        remaining = (blocked.expires_at - timezone.now()).total_seconds() / 3600
+        duration_hours = max(remaining, 0.01)
+
+    import httpx
+
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(
+                f"{settings.HOST_FIREWALL_URL.rstrip('/')}/block",
+                json={"ip": blocked.ip_address, "action": "block", "duration_hours": duration_hours},
+                headers={"Authorization": f"Bearer {settings.HOST_FIREWALL_TOKEN}"},
+            )
+            resp.raise_for_status()
+        return "ok"
+    except httpx.HTTPError:
+        return "failed"
+
+
 class PlaybookViewSet(ModelViewSet):
     queryset = Playbook.objects.all()
     serializer_class = PlaybookSerializer
@@ -65,7 +99,16 @@ class BlockedIPViewSet(ModelViewSet):
     ordering = ["-created_at"]
 
     def perform_create(self, serializer):
-        serializer.save(organization=self.request.user.organization, source="manual")
+        blocked = serializer.save(organization=self.request.user.organization, source="manual")
+        self._network_block_result = _apply_real_block(blocked)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        # Renseigne si le blocage réseau réel (ufw, pas juste applicatif) a
+        # réussi — le frontend peut avertir l'utilisateur si le démon local
+        # est injoignable au lieu de laisser croire à un blocage effectif.
+        response.data["network_block"] = getattr(self, "_network_block_result", "unavailable")
+        return response
 
     @action(detail=True, methods=["post"])
     def unblock(self, request, pk=None):

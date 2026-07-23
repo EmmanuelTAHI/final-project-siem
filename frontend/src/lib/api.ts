@@ -929,9 +929,9 @@ export const soarApi = {
     return unwrapPaginated<BlockedIP>(data);
   },
 
-  blockIP: async (ip_address: string, reason = ""): Promise<BlockedIP> => {
+  blockIP: async (ip_address: string, reason = ""): Promise<BlockedIP & { network_block?: "ok" | "failed" | "unavailable" }> => {
     const { data } = await api.post("/api/soar/blocked-ips/", { ip_address, reason });
-    return unwrap<BlockedIP>(data);
+    return unwrap<BlockedIP & { network_block?: "ok" | "failed" | "unavailable" }>(data);
   },
 
   unblockIP: async (id: string): Promise<{ is_active: boolean }> => {

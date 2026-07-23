@@ -42,8 +42,14 @@ export function IpLink({
 
   const blockMutation = useMutation({
     mutationFn: (address: string) => soarApi.blockIP(address, "Blocage manuel depuis une vue IP"),
-    onSuccess: () => {
-      toast.success(`IP ${ip} bloquée — effective sur toute la plateforme`);
+    onSuccess: (result) => {
+      if (result.network_block === "ok") {
+        toast.success(`IP ${ip} bloquée — plateforme + réseau (pare-feu VPS)`);
+      } else if (result.network_block === "failed") {
+        toast.error(`IP ${ip} bloquée sur la plateforme, mais le pare-feu VPS n'a pas répondu — blocage réseau non garanti`, { duration: 6000 });
+      } else {
+        toast.success(`IP ${ip} bloquée — effective sur toute la plateforme`);
+      }
       qc.invalidateQueries({ queryKey: ["blocked-ips"] });
     },
     onError: () => toast.error("Erreur lors du blocage de l'IP"),

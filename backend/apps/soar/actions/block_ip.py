@@ -35,11 +35,9 @@ def execute(params: dict, alert) -> dict:
     # Priorité : firewall_api_url explicite du playbook (NGFW/CrowdSec tiers,
     # utilisée telle quelle — l'admin qui la configure connaît le chemin exact
     # attendu par son firewall) > démon de blocage réseau local, configuré une
-    # fois pour toutes via HOST_FIREWALL_URL — rend le blocage réseau réel
-    # actif PAR DÉFAUT pour tout playbook, sans configuration manuelle répétée.
-    # Le démon local expose des chemins fixes (/block, /unblock) qu'on
-    # complète nous-mêmes ; une URL explicite est en revanche utilisée sans
-    # modification (elle représente déjà le endpoint complet côté NGFW tiers).
+    # fois pour toutes via HOST_FIREWALL_URL — même démon que `_apply_real_block`
+    # (blocage manuel dashboard) mais gardé séparé ici pour supporter l'override
+    # firewall_api_url/api_key propre aux playbooks.
     custom_url = params.get("firewall_api_url")
     firewall_url = f"{custom_url.rstrip('/')}" if custom_url else (
         f"{settings.HOST_FIREWALL_URL.rstrip('/')}/block" if settings.HOST_FIREWALL_URL else ""

@@ -28,8 +28,15 @@ export function BlockedIPsPanel() {
 
   const blockMutation = useMutation({
     mutationFn: () => soarApi.blockIP(newIp.trim(), "Blocage manuel depuis le tableau de bord"),
-    onSuccess: () => {
-      toast.success(`IP ${newIp.trim()} bloquée — effective sur toute la plateforme`);
+    onSuccess: (result) => {
+      const address = newIp.trim();
+      if (result.network_block === "ok") {
+        toast.success(`IP ${address} bloquée — plateforme + réseau (pare-feu VPS)`);
+      } else if (result.network_block === "failed") {
+        toast.error(`IP ${address} bloquée sur la plateforme, mais le pare-feu VPS n'a pas répondu — blocage réseau non garanti`, { duration: 6000 });
+      } else {
+        toast.success(`IP ${address} bloquée — effective sur toute la plateforme`);
+      }
       setNewIp("");
       qc.invalidateQueries({ queryKey: ["blocked-ips"] });
     },
