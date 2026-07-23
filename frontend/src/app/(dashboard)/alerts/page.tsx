@@ -14,6 +14,7 @@ import {
   Eye,
   Check,
   XCircle,
+  ExternalLink,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAlerts, useAlert, useAlertStats, useUpdateAlert, useAddAlertComment } from "@/hooks/use-alerts";
@@ -25,6 +26,28 @@ import type { Alert } from "@/types";
 import toast from "react-hot-toast";
 
 const PAGE_SIZE = 25;
+const LOG_SOURCES_LIMIT = 6;
+
+// Fenêtre temporelle resserrée autour des logs réellement liés à l'alerte
+// (min/max de leurs timestamps, avec un peu de marge) — bien plus précis
+// qu'un filtre sur toute la période, et évite de dépendre d'un user_email
+// qui peut varier d'un log à l'autre (ex: brute force multi-comptes).
+function buildLogsUrl(alert: Alert): string {
+  const params = new URLSearchParams();
+  if (alert.source_ip) params.set("source_ip", alert.source_ip);
+  const timestamps = (alert.log_sources ?? [])
+    .map((l) => new Date(l.timestamp).getTime())
+    .filter((t) => !Number.isNaN(t));
+  if (timestamps.length > 0) {
+    params.set("from", new Date(Math.min(...timestamps) - 60_000).toISOString());
+    params.set("to", new Date(Math.max(...timestamps) + 60_000).toISOString());
+  } else {
+    const created = new Date(alert.created_at).getTime();
+    params.set("from", new Date(created - 3_600_000).toISOString());
+    params.set("to", new Date(created + 300_000).toISOString());
+  }
+  return `/logs?${params.toString()}`;
+}
 
 function LiveChip() {
   const connected = useRealtimeStore((s) => s.connected);
@@ -196,6 +219,7 @@ function AlertCard({
   onComment: (content: string) => void;
 }) {
   const isCrit = alert.severity === "critical";
+  const router = useRouter();
   const [comment, setComment] = useState("");
   // Charge le détail complet (description entière + commentaires) à l'ouverture.
   // La ligne de liste sert de fond immédiat, remplacée dès que le détail arrive.
@@ -407,23 +431,45 @@ function AlertCard({
               </div>
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--text-2)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  marginBottom: 10,
-                }}
-              >
-                Logs sources {d.log_sources?.length ? `(${d.log_sources.length})` : ""}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-2)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Logs sources {d.log_sources?.length ? `(${d.log_sources.length})` : ""}
+                </div>
+                {d.log_sources && d.log_sources.length > 0 && (
+                  <button
+                    className="btn"
+                    style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                    onClick={() => router.push(buildLogsUrl(d))}
+                    title="Ouvrir ces logs dans la page Événements & logs, filtrés par IP source et fenêtre temporelle"
+                  >
+                    <ExternalLink size={12} />
+                    Voir dans Logs
+                  </button>
+                )}
               </div>
               {d.log_sources && d.log_sources.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 440, overflow: "auto" }}>
-                  {d.log_sources.map((log, i) => (
+                  {d.log_sources.slice(0, LOG_SOURCES_LIMIT).map((log, i) => (
                     <LogSourceItem key={log.id} log={log} defaultOpen={i === 0} />
                   ))}
+                  {d.log_sources.length > LOG_SOURCES_LIMIT && (
+                    <button
+                      className="btn"
+                      style={{ fontSize: 11.5, justifyContent: "center", gap: 6 }}
+                      onClick={() => router.push(buildLogsUrl(d))}
+                    >
+                      Voir les {d.log_sources.length - LOG_SOURCES_LIMIT} logs supplémentaires
+                      <ExternalLink size={12} />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <JSONPretty

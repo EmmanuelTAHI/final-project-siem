@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, Fragment, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, Fragment, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Download,
@@ -159,7 +160,9 @@ function toDatetimeLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function LogsPage() {
+function LogsPageInner() {
+  const searchParams = useSearchParams();
+
   /* ── View state ─────────────────────────────────────────────── */
   const [view, setView] = useState<View>("table");
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -192,6 +195,25 @@ export default function LogsPage() {
   const [ordering, setOrdering] = useState("-event_time");
   const [page, setPage] = useState(1);
   const pageSize = 50;
+
+  /* ── Filtres initiaux depuis l'URL (ex: pivot "Voir dans Logs" ─
+     depuis une alerte) : IP source + fenêtre temporelle précise. ── */
+  useEffect(() => {
+    const ip = searchParams.get("source_ip");
+    const user = searchParams.get("user_email");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (ip) setFilterIP(ip);
+    if (user) setFilterUser(user);
+    if (from && to) {
+      setCustomFrom(toDatetimeLocal(from));
+      setCustomTo(toDatetimeLocal(to));
+      setRangePreset("custom");
+      setLastNonCustomPreset("custom");
+    }
+    if (ip || user || (from && to)) setShowAdvanced(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Debounce search 300ms, puis parse champ:valeur ──────────── */
   useEffect(() => {
@@ -796,5 +818,13 @@ export default function LogsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LogsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LogsPageInner />
+    </Suspense>
   );
 }
