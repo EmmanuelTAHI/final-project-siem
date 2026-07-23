@@ -10,8 +10,23 @@ interface GeoTableProps {
   subtitle?: string;
 }
 
+const TOP_LIMIT = 10;
+
 export function GeoTable({ data, subtitle = "Dernières 24 heures" }: GeoTableProps) {
-  const maxCount = Math.max(1, ...data.map((d) => d.count));
+  const top = data.slice(0, TOP_LIMIT);
+  const rest = data.slice(TOP_LIMIT);
+  const other: GeoData | null =
+    rest.length > 0
+      ? {
+          country: `Autres (${rest.length} pays)`,
+          country_code: "",
+          count: rest.reduce((sum, d) => sum + d.count, 0),
+          percentage: Math.round(rest.reduce((sum, d) => sum + d.percentage, 0) * 10) / 10,
+          threat_count: rest.reduce((sum, d) => sum + d.threat_count, 0),
+        }
+      : null;
+  const rows = other ? [...top, other] : top;
+  const maxCount = Math.max(1, ...rows.map((d) => d.count));
 
   return (
     <motion.div
@@ -27,7 +42,7 @@ export function GeoTable({ data, subtitle = "Dernières 24 heures" }: GeoTablePr
       </div>
 
       <div className="space-y-3">
-        {data.map((item, i) => (
+        {rows.map((item, i) => (
           <motion.div
             key={item.country_code}
             initial={{ opacity: 0, x: -20 }}
@@ -93,7 +108,7 @@ export function GeoTable({ data, subtitle = "Dernières 24 heures" }: GeoTablePr
             )}
           </motion.div>
         ))}
-        {data.length === 0 && (
+        {rows.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée géographique sur cette période</p>
         )}
       </div>
