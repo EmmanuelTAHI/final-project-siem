@@ -67,11 +67,18 @@ app.conf.beat_schedule = {
         "task": "apps.collectors.tasks.refresh_expiring_tokens",
         "schedule": crontab(minute=0),
     },
-    # Enrichissement CTI — toutes les 15 minutes
-    "enrich-logs-with-cti": {
-        "task": "apps.threat_intel.tasks.enrich_logs_with_cti",
-        "schedule": crontab(minute="*/15"),
-    },
+    # Enrichissement CTI — DÉSACTIVÉ COMPLÈTEMENT à la demande de l'utilisateur
+    # (2026-07-23), pas seulement la création d'alertes qui en découlait (déjà
+    # coupée avant dans apps/threat_intel/tasks.py::_create_cti_alert).
+    # Effet de bord assumé : plus d'appels AbuseIPDB/VirusTotal, ET plus de
+    # géolocalisation automatique des nouveaux logs (le géolookup IP était
+    # fait dans cette même tâche) — "Connexions par pays" ne se peuplera plus
+    # pour les nouveaux logs tant que ceci reste désactivé.
+    # Pour réactiver : décommenter ce bloc.
+    # "enrich-logs-with-cti": {
+    #     "task": "apps.threat_intel.tasks.enrich_logs_with_cti",
+    #     "schedule": crontab(minute="*/15"),
+    # },
     # Nettoyage indicateurs CTI anciens — chaque lundi à 04h00
     "cleanup-old-indicators": {
         "task": "apps.threat_intel.tasks.cleanup_old_indicators",
