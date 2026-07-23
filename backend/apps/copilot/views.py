@@ -53,7 +53,7 @@ class CopilotAskView(APIView):
 
         CopilotMessage.objects.create(conversation=conversation, role="user", content=question)
 
-        result = agent.ask(question, request.user.organization_id, history=history)
+        result = agent.ask(question, request.user.organization_id, user=request.user, history=history)
 
         CopilotMessage.objects.create(
             conversation=conversation,
