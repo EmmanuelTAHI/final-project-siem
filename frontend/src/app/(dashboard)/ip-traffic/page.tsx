@@ -51,7 +51,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 function IPTrafficPageInner() {
   const searchParams = useSearchParams();
   const [period, setPeriod] = useState<IPTrafficPeriod>((searchParams.get("period") as IPTrafficPeriod) || "24h");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [selectedEntry, setSelectedEntry] = useState<IPTrafficEntry | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
