@@ -41,7 +41,13 @@ def _to_gemini_contents(messages: list[dict]) -> list[dict]:
                 parts.append({"text": block.get("text", "")})
             elif btype == "tool_use":
                 tool_id_to_name[block.get("id")] = block.get("name")
-                parts.append({"functionCall": {"name": block.get("name"), "args": block.get("input", {})}})
+                part = {"functionCall": {"name": block.get("name"), "args": block.get("input", {})}}
+                # Les modèles Gemini "thinking" exigent que la signature reçue
+                # avec chaque functionCall soit renvoyée telle quelle, sinon
+                # l'API répond 400 "missing a thought_signature".
+                if block.get("_gemini_thought_signature"):
+                    part["thoughtSignature"] = block["_gemini_thought_signature"]
+                parts.append(part)
             elif btype == "tool_result":
                 # Cette version de l'API Gemini rejette le rôle "function"
                 # ("Role 'function' is not supported") — les réponses d'outils
@@ -122,12 +128,15 @@ def call_gemini(
             content_blocks.append({"type": "text", "text": part["text"]})
         elif "functionCall" in part:
             fc = part["functionCall"]
-            content_blocks.append({
+            block = {
                 "type": "tool_use",
                 "id": f"call_{uuid.uuid4().hex[:12]}",
                 "name": fc.get("name"),
                 "input": fc.get("args", {}),
-            })
+            }
+            if part.get("thoughtSignature"):
+                block["_gemini_thought_signature"] = part["thoughtSignature"]
+            content_blocks.append(block)
 
     stop_reason = "tool_use" if any(b["type"] == "tool_use" for b in content_blocks) else "end_turn"
     return {"content": content_blocks, "stop_reason": stop_reason}
