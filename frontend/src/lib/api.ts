@@ -76,6 +76,11 @@ const api: AxiosInstance = axios.create({
   baseURL: API_BASE,
   headers: {
     "Content-Type": "application/json",
+    // Marque tout le trafic émis par ce client comme "app SPA officielle" —
+    // nginx s'en sert pour exclure le polling interne (refetchInterval) de
+    // l'ingestion syslog vers le pipeline SIEM, sans dépendre d'une IP qui
+    // change au quotidien (voir nginx/nginx.conf, map $http_x_argus_ui).
+    "X-Argus-UI": "1",
   },
   timeout: 30000,
 });
