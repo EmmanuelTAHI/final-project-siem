@@ -114,10 +114,39 @@ class BaseCollector(ABC):
         )
         normalizer = LogNormalizer()
         count = 0
+        ips_needing_geo: set[str] = set()
         for raw_log in raw_logs:
             try:
-                normalizer.normalize(raw_log)
+                normalized = normalizer.normalize(raw_log)
                 count += 1
+                if normalized and normalized.source_ip and not normalized.geo_country:
+                    ips_needing_geo.add(normalized.source_ip)
             except Exception as exc:
                 logger.warning("Impossible de normaliser RawLog %s : %s", raw_log.id, exc)
+
+        if ips_needing_geo:
+            self._geo_tag_ips(ips_needing_geo)
+
         return count
+
+    def _geo_tag_ips(self, ips: set[str]) -> None:
+        """
+        Géolocalise immédiatement les IP nouvellement vues (une requête par IP
+        unique, pas par log) pour que "Trafic & IP" affiche les pays même sur
+        un lot d'un seul log, sans attendre la tâche périodique d'enrichissement
+        CTI (désactivée) qui ne géolocalisait qu'en lot toutes les 15 min.
+        """
+        from apps.logs.models import NormalizedLog
+        from apps.threat_intel.services import ip_enrichment
+
+        for ip in ips:
+            try:
+                geo = ip_enrichment.geo_lookup(ip)
+            except Exception as exc:
+                logger.warning("Géolookup impossible pour %s : %s", ip, exc)
+                continue
+            country_code = geo.get("countryCode")
+            if country_code:
+                NormalizedLog.objects.filter(
+                    source_ip=ip, geo_country__isnull=True
+                ).update(geo_country=country_code, geo_city=geo.get("city") or None)
