@@ -251,9 +251,6 @@ function AlertCard({
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
             {alert.rule_name}
-            <span className="badge badge-info font-mono" style={{ fontSize: 10 }}>
-              R-{alert.rule_id}
-            </span>
           </div>
           <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 3, display: "flex", gap: 14, flexWrap: "wrap" }}>
             {alert.source_ip && (
