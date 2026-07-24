@@ -42,7 +42,11 @@ export function useNotifications() {
   const syncAlertCaches = useCallback(
     (alert: Partial<Alert> | undefined, created: boolean) => {
       if (alert?.id) {
-        if (created) pushRecentAlert(String(alert.id));
+        // Anime aussi les mises à jour (attaque en cours fusionnée dans une
+        // alerte déjà ouverte) — sinon un test répété contre une IP déjà
+        // connue est invisible pour l'utilisateur alors qu'il a bien été pris
+        // en compte (voir engine._create_alert_if_new).
+        pushRecentAlert(String(alert.id));
 
         // Insertion/màj optimiste dans les listes déjà en cache → affichage
         // instantané ; le refetch d'invalidation réconcilie juste après.
@@ -59,12 +63,15 @@ export function useNotifications() {
                 results: [alert as Alert, ...old.results],
               };
             }
-            return {
-              ...old,
-              results: old.results.map((a) =>
-                String(a.id) === String(alert.id) ? { ...a, ...alert } : a
-              ),
-            };
+            // Mise à jour (ex: une attaque en cours fusionnée dans une alerte
+            // déjà ouverte, voir engine._create_alert_if_new) : la liste est
+            // triée par updated_at côté serveur, donc on la remonte aussi en
+            // tête ici plutôt que de la laisser à sa position d'origine.
+            const idx = old.results.findIndex((a) => String(a.id) === String(alert.id));
+            if (idx === -1) return old;
+            const merged = { ...old.results[idx], ...alert };
+            const rest = old.results.filter((_, i) => i !== idx);
+            return { ...old, results: [merged, ...rest] };
           }
         );
       }
@@ -141,6 +148,7 @@ export function useNotifications() {
           });
           syncAlertCaches(msg.alert, true);
         } else if ((msg as { type?: string }).type === "alert_updated" && msg.alert) {
+          toast(`↻ Attaque toujours active : ${msg.alert.title}`, { duration: 4000, icon: "🔁" });
           syncAlertCaches(msg.alert, false);
         } else if (msg.type === "cti_threat") {
           toast.error(`⚠ CTI: Menace détectée — ${(msg.data as { title?: string })?.title || "IP malveillante"}`, {

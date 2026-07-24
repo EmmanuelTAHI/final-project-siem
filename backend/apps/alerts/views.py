@@ -59,8 +59,14 @@ class AlertViewSet(ModelViewSet):
     ]
     filterset_fields = ["status", "severity", "assigned_to", "rule"]
     search_fields = ["title", "description"]
-    ordering_fields = ["created_at", "severity", "status"]
-    ordering = ["-created_at"]
+    ordering_fields = ["created_at", "updated_at", "severity", "status"]
+    # Tri par updated_at (pas created_at) : une attaque en cours qui matche une
+    # alerte déjà ouverte est fusionnée dedans (voir engine._create_alert_if_new,
+    # pas de nouvelle ligne créée) — sans ça, une alerte "vieille" de plusieurs
+    # heures mais dont l'IP attaque encore À L'INSTANT reste invisible en bas
+    # de liste, donnant l'impression trompeuse qu'un nouveau test ne déclenche
+    # rien.
+    ordering = ["-updated_at"]
     http_method_names = ["get", "patch", "post", "head", "options"]
 
     def get_serializer_class(self):
