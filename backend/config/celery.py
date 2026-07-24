@@ -27,21 +27,26 @@ app.conf.beat_schedule = {
         "task": "apps.collectors.tasks.collect_all_google_connectors",
         "schedule": crontab(minute="*/5"),
     },
-    # Collecte Wazuh — toutes les 2 minutes
+    # Collecte Wazuh — toutes les minutes (manager local, pas d'API externe
+    # à ménager — resserré depuis 2 min pour réduire la latence log → alerte)
     "collect-wazuh-logs": {
         "task": "apps.collectors.tasks.collect_all_wazuh_connectors",
-        "schedule": crontab(minute="*/2"),
+        "schedule": crontab(minute="*"),
     },
-    # Normalisation syslog — toutes les 2 minutes (push-based : logs déjà en RawLog)
+    # Normalisation syslog — filet de sécurité en complément du flush temps
+    # réel (5s) du récepteur syslog — resserré depuis 2 min à 30s.
     "normalize-syslog-logs": {
         "task": "apps.collectors.tasks.collect_all_syslog_connectors",
-        "schedule": crontab(minute="*/2"),
+        "schedule": timedelta(seconds=30),
     },
-    # Moteur de corrélation — toutes les 20s (crontab ne descend pas sous la
+    # Moteur de corrélation — toutes les 5s (crontab ne descend pas sous la
     # minute, on utilise donc un timedelta pour un quasi temps-réel côté SOC).
+    # Requête incrémentale (depuis le dernier run) donc peu coûteuse même à
+    # cette fréquence — resserré depuis 20s pour réduire la latence des
+    # alertes (ex. brute force détecté quelques secondes après le scan).
     "run-correlation-engine": {
         "task": "apps.correlation.tasks.run_correlation_engine",
-        "schedule": timedelta(seconds=20),
+        "schedule": timedelta(seconds=5),
     },
     # Inférence ML — DÉSACTIVÉE à la demande de l'utilisateur (2026-07-23) :
     # trop de faux positifs / bruit, alertes "Anomalie ML" plus voulues pour

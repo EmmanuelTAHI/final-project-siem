@@ -152,7 +152,7 @@ class Command(BaseCommand):
         # Flush temporel : normalise les logs en attente même sous le seuil de
         # batch, pour que les alertes (brute force…) sortent en quelques secondes
         # au lieu d'attendre l'accumulation de `batch_size` messages.
-        FLUSH_INTERVAL = 5.0  # secondes
+        FLUSH_INTERVAL = 2.0  # secondes (resserré depuis 5s pour réduire la latence)
         RELOAD_INTERVAL = 30  # ~60s d'inactivité (2s de select() par itération)
         last_flush = time.monotonic()
 
