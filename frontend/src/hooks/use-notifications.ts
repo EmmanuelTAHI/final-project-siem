@@ -148,7 +148,9 @@ export function useNotifications() {
           });
           syncAlertCaches(msg.alert, true);
         } else if ((msg as { type?: string }).type === "alert_updated" && msg.alert) {
-          toast(`↻ Attaque toujours active : ${msg.alert.title}`, { duration: 4000, icon: "🔁" });
+          // Pas de toast ici (désactivé à la demande) : la liste d'alertes
+          // remonte quand même l'alerte en tête (voir syncAlertCaches) et
+          // l'heure affichée se met à jour, sans notification intrusive.
           syncAlertCaches(msg.alert, false);
         } else if (msg.type === "cti_threat") {
           toast.error(`⚠ CTI: Menace détectée — ${(msg.data as { title?: string })?.title || "IP malveillante"}`, {
