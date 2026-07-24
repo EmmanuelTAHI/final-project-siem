@@ -252,6 +252,7 @@ def _create_soar_playbook(tool_input: dict, organization_id, user) -> dict:
 
 
 def _block_ip(tool_input: dict, organization_id, user) -> dict:
+    from django.conf import settings
     from django.utils import timezone
     from datetime import timedelta
 
@@ -263,12 +264,16 @@ def _block_ip(tool_input: dict, organization_id, user) -> dict:
     if duration_hours:
         expires_at = timezone.now() + timedelta(hours=float(duration_hours))
 
+    # Coupe-circuit global (période de tests/démo) : voir SOAR_BLOCKING_ENABLED.
+    is_active = settings.SOAR_BLOCKING_ENABLED
+
     blocked = BlockedIP.objects.create(
         organization_id=organization_id,
         ip_address=tool_input["ip_address"],
         reason=tool_input.get("reason", "Bloqué via SOC Copilot"),
         source="manual",
         expires_at=expires_at,
+        is_active=is_active,
     )
     network_result = _apply_real_block(blocked)
     return {"blocked_ip": blocked.ip_address, "network_block": network_result}

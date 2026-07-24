@@ -62,6 +62,13 @@ def execute(params: dict, alert) -> dict:
         logger.info("[DEMO] Blocage IP simulé pour %s (alerte %s)", target_ips, alert.id)
         return {"status": "simulated", "blocked_ips": target_ips}
 
+    if not settings.SOAR_BLOCKING_ENABLED:
+        # Coupe-circuit global (période de tests/démo) : l'alerte et le
+        # playbook s'exécutent normalement, mais aucun blocage réel n'est
+        # appliqué.
+        logger.info("[SOAR_BLOCKING_ENABLED=False] Blocage IP simulé pour %s (alerte %s)", target_ips, alert.id)
+        return {"status": "simulated", "reason": "blocking_disabled", "blocked_ips": target_ips}
+
     duration_hours = params.get("block_duration_hours", 24)
     expires_at = (
         timezone.now() + timezone.timedelta(hours=duration_hours) if duration_hours else None

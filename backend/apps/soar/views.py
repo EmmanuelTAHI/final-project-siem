@@ -25,6 +25,9 @@ def _apply_real_block(blocked: BlockedIP) -> str:
     """
     from django.conf import settings
 
+    if not settings.SOAR_BLOCKING_ENABLED:
+        return "disabled"
+
     if not settings.HOST_FIREWALL_URL:
         return "unavailable"
 
@@ -99,7 +102,15 @@ class BlockedIPViewSet(ModelViewSet):
     ordering = ["-created_at"]
 
     def perform_create(self, serializer):
-        blocked = serializer.save(organization=self.request.user.organization, source="manual")
+        from django.conf import settings
+
+        # Coupe-circuit global (période de tests/démo) : la ligne est créée
+        # pour la traçabilité mais jamais active, donc jamais appliquée par
+        # `BlockedIPMiddleware` — et aucun appel au démon réseau réel.
+        extra = {} if settings.SOAR_BLOCKING_ENABLED else {"is_active": False}
+        blocked = serializer.save(
+            organization=self.request.user.organization, source="manual", **extra
+        )
         self._network_block_result = _apply_real_block(blocked)
 
     def create(self, request, *args, **kwargs):

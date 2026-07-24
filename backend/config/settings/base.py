@@ -296,6 +296,13 @@ GOOGLE_AI_MODEL = env("GOOGLE_AI_MODEL", default="gemini-flash-lite-latest")
 HOST_FIREWALL_URL = env("HOST_FIREWALL_URL", default="")
 HOST_FIREWALL_TOKEN = env("HOST_FIREWALL_TOKEN", default="")
 
+# Coupe-circuit global pour le blocage d'IP (dashboard manuel, SOC Copilot,
+# playbooks SOAR) — utile pendant une période de tests/démo où l'on veut que
+# les alertes continuent de se lever normalement mais qu'aucune IP ne soit
+# jamais réellement bloquée (ni applicativement ni au niveau réseau), pour ne
+# pas risquer de se bloquer soi-même. Détection/alerting non affectés.
+SOAR_BLOCKING_ENABLED = env.bool("SOAR_BLOCKING_ENABLED", default=True)
+
 # ─── Frontend ─────────────────────────────────────────────────────────────────
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 BACKEND_URL = env("BACKEND_URL", default="http://localhost:8000")
