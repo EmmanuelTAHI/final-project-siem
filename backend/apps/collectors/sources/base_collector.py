@@ -127,7 +127,25 @@ class BaseCollector(ABC):
         if ips_needing_geo:
             self._geo_tag_ips(ips_needing_geo)
 
+        if count > 0:
+            self._trigger_correlation_now()
+
         return count
+
+    @staticmethod
+    def _trigger_correlation_now() -> None:
+        """
+        Déclenche immédiatement une passe du moteur de corrélation dès que de
+        nouveaux logs viennent d'être normalisés, au lieu d'attendre le prochain
+        tick périodique (Celery Beat) — c'est ce qui rend la détection quasi
+        instantanée (ex. scan de test) plutôt que bornée par l'intervalle de
+        polling. Le tick périodique reste en place comme filet de sécurité.
+        """
+        try:
+            from apps.correlation.tasks import run_correlation_engine
+            run_correlation_engine.delay()
+        except Exception as exc:
+            logger.warning("Déclenchement immédiat de la corrélation impossible : %s", exc)
 
     def _geo_tag_ips(self, ips: set[str]) -> None:
         """
