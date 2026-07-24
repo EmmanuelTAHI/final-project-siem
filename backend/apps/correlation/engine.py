@@ -164,9 +164,21 @@ class CorrelationEngine:
         matchés sont ajoutés à l'alerte déjà ouverte (le badge "×N" du
         frontend grandit, la preuve d'attaque continue s'accumule).
 
-        `settings.ALERT_DEDUP_ENABLED = False` désactive complètement cette
-        déduplication (mode démo/tests) : chaque correspondance de règle crée
-        alors sa propre alerte, même si une alerte similaire est déjà ouverte.
+        `settings.ALERT_MERGE_COOLDOWN_SECONDS` (0 = désactivé, comportement
+        par défaut) borne la durée de vie de cette fusion : si l'alerte
+        existante n'a plus été mise à jour depuis plus longtemps que ce délai,
+        elle est considérée "refroidie" et une NOUVELLE alerte est créée au
+        lieu d'y fusionner. Sert en mode démo/tests pour que des commandes de
+        test espacées produisent chacune leur propre alerte visible, sans
+        réintroduire le bug d'une désactivation totale de la dédup : une
+        règle à fenêtre glissante (ex. brute force, 300s) matche sur CHAQUE
+        tick de corrélation tant que la fenêtre reste pleine — sans cooldown
+        mini, un seul burst de test crée une alerte par tick (des dizaines en
+        quelques minutes). Avec un cooldown de quelques dizaines de secondes,
+        les ticks rapprochés d'un même burst continuent de fusionner (ils
+        rafraîchissent `updated_at` à chaque fois, donc restent sous le
+        délai), et seule une attaque vraiment relancée après une pause cesse
+        de fusionner.
         """
         from apps.alerts.models import Alert
         from apps.correlation.models import RuleMatch as RuleMatchModel
@@ -177,33 +189,37 @@ class CorrelationEngine:
         country_1 = match.context.get("country_1", "")
         country_2 = match.context.get("country_2", "")
 
+        # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/attaque.
+        existing = Alert.objects.filter(
+            rule=rule,
+            status__in=("open", "in_progress"),
+        )
+        if source_ip:
+            existing = existing.filter(description__icontains=source_ip)
+        elif user_email:
+            existing = existing.filter(description__icontains=user_email)
+
+        # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
+        # pour permettre plusieurs alertes différentes pour le même user
+        if wazuh_rule_id and existing.exists():
+            existing = existing.filter(description__icontains=wazuh_rule_id)
+
+        # Pour Impossible Travel, affiner par la paire de pays concernée :
+        # FR↔US et US↔DE sont deux évènements distincts pour le même user.
+        if country_1 and country_2 and existing.exists():
+            existing = existing.filter(
+                description__icontains=country_1
+            ).filter(description__icontains=country_2)
+
+        existing_alert = existing.order_by("-created_at").first()
+
         from django.conf import settings
 
-        existing_alert = None
-        if getattr(settings, "ALERT_DEDUP_ENABLED", True):
-            # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/attaque.
-            existing = Alert.objects.filter(
-                rule=rule,
-                status__in=("open", "in_progress"),
-            )
-            if source_ip:
-                existing = existing.filter(description__icontains=source_ip)
-            elif user_email:
-                existing = existing.filter(description__icontains=user_email)
-
-            # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
-            # pour permettre plusieurs alertes différentes pour le même user
-            if wazuh_rule_id and existing.exists():
-                existing = existing.filter(description__icontains=wazuh_rule_id)
-
-            # Pour Impossible Travel, affiner par la paire de pays concernée :
-            # FR↔US et US↔DE sont deux évènements distincts pour le même user.
-            if country_1 and country_2 and existing.exists():
-                existing = existing.filter(
-                    description__icontains=country_1
-                ).filter(description__icontains=country_2)
-
-            existing_alert = existing.order_by("-created_at").first()
+        cooldown = getattr(settings, "ALERT_MERGE_COOLDOWN_SECONDS", 0)
+        if existing_alert and cooldown:
+            age = (now - existing_alert.updated_at).total_seconds()
+            if age > cooldown:
+                existing_alert = None
 
         if existing_alert:
             self._merge_into_existing_alert(existing_alert, rule, match, now)

@@ -303,14 +303,17 @@ HOST_FIREWALL_TOKEN = env("HOST_FIREWALL_TOKEN", default="")
 # pas risquer de se bloquer soi-même. Détection/alerting non affectés.
 SOAR_BLOCKING_ENABLED = env.bool("SOAR_BLOCKING_ENABLED", default=True)
 
-# Coupe-circuit de la déduplication d'alertes (mode démo/tests) — quand une
-# règle matche à nouveau une IP/utilisateur pour lequel une alerte est déjà
-# "open"/"in_progress", le comportement normal FUSIONNE les nouveaux logs
-# dedans (évite le spam en usage réel). Pendant une démo/soutenance où chaque
-# commande de test doit produire sa propre alerte visible, mettre à False :
-# chaque correspondance crée alors une alerte distincte. Voir
-# apps.correlation.engine.CorrelationEngine._create_alert_if_new.
-ALERT_DEDUP_ENABLED = env.bool("ALERT_DEDUP_ENABLED", default=True)
+# Cooldown de fusion d'alertes (mode démo/tests), en secondes. 0 = désactivé
+# (comportement par défaut : une alerte "open" absorbe indéfiniment les
+# nouveaux matches de la même règle/IP tant qu'elle n'est pas résolue).
+# ATTENTION : ne jamais mettre à 0 SANS jamais désactiver complètement la
+# dédup (essayé et immédiatement reverté le 2026-07-24 — une règle à fenêtre
+# glissante matche à CHAQUE tick de corrélation, donc désactiver complètement
+# la dédup crée une alerte par tick = des milliers d'alertes en quelques
+# minutes). Une valeur de quelques dizaines de secondes (ex. 45) permet à des
+# commandes de test espacées de produire chacune leur propre alerte visible,
+# sans ce risque. Voir apps.correlation.engine.CorrelationEngine._create_alert_if_new.
+ALERT_MERGE_COOLDOWN_SECONDS = env.int("ALERT_MERGE_COOLDOWN_SECONDS", default=0)
 
 # ─── Frontend ─────────────────────────────────────────────────────────────────
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
