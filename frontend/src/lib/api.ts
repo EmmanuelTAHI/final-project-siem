@@ -785,6 +785,15 @@ export const threatIntelApi = {
     const { data } = await api.post("/api/threat-intel/indicators/trigger_community_sync/");
     return unwrap<{ task_id: string; status: string }>(data);
   },
+
+  getGeoFlags: async (
+    ips: string[]
+  ): Promise<Record<string, { country_code: string | null; country: string | null }>> => {
+    const { data } = await api.get("/api/threat-intel/geo-flags/", {
+      params: { ips: ips.join(",") },
+    });
+    return unwrap<Record<string, { country_code: string | null; country: string | null }>>(data);
+  },
 };
 
 // ─── CVE / Vulnérabilités & Actifs ─────────────────────────────────────────────

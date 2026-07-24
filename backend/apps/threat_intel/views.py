@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.views import APIView
 
-from utils.permissions import IsAnalyst
+from utils.permissions import IsAnalyst, IsViewer
 from .models import Asset, AssetVulnerability, CVERecord, EnrichedLog, ThreatIndicator
 from .serializers import (
     AssetSerializer,
@@ -258,6 +258,46 @@ class EnrichedLogViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAnalyst]
     filterset_fields = ["is_threat"]
     ordering = ["-enriched_at"]
+
+
+class GeoFlagsView(APIView):
+    """
+    Géolocalisation légère (code pays uniquement) pour afficher un drapeau à
+    côté d'une IP dans l'UI (alertes, logs, trafic…). Volontairement séparée
+    du lookup CTI complet (`ThreatIndicatorViewSet.lookup`, POST, lourd —
+    AbuseIPDB/VirusTotal/CriminalIP/Shodan) : ici on ne veut que le pays, vite
+    et pour beaucoup d'IP à la fois, donc mise en cache longue durée par IP
+    (ip-api.com est limité à 45 req/min sans clé).
+    GET /api/threat-intel/geo-flags/?ips=1.2.3.4,5.6.7.8
+    """
+    permission_classes = [IsViewer]
+
+    def get(self, request):
+        from django.core.cache import cache
+        from apps.threat_intel.services import ip_enrichment
+
+        raw = request.query_params.get("ips", "")
+        ips = [ip.strip() for ip in raw.split(",") if ip.strip()][:100]
+
+        result = {}
+        for ip in ips:
+            cache_key = f"geo_flag:{ip}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                result[ip] = cached
+                continue
+
+            geo = ip_enrichment.geo_lookup(ip)
+            entry = {
+                "country_code": geo.get("countryCode") or None,
+                "country": geo.get("country") or None,
+            }
+            # 7 jours : le pays d'une IP ne change quasiment jamais, inutile
+            # de re-taper ip-api.com à chaque rechargement de page.
+            cache.set(cache_key, entry, timeout=60 * 60 * 24 * 7)
+            result[ip] = entry
+
+        return Response(result)
 
 
 class CTIStatsView(APIView):

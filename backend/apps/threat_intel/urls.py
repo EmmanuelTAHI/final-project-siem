@@ -6,6 +6,7 @@ from .views import (
     CTIStatsView,
     CVERecordViewSet,
     EnrichedLogViewSet,
+    GeoFlagsView,
     ThreatIndicatorViewSet,
 )
 
@@ -19,4 +20,5 @@ router.register("asset-vulnerabilities", AssetVulnerabilityViewSet, basename="as
 urlpatterns = [
     path("", include(router.urls)),
     path("stats/", CTIStatsView.as_view(), name="cti-stats"),
+    path("geo-flags/", GeoFlagsView.as_view(), name="geo-flags"),
 ]

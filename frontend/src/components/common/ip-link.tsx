@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ScanSearch, Ban, ShieldOff, Copy, Radar } from "lucide-react";
 import toast from "react-hot-toast";
-import { soarApi } from "@/lib/api";
+import { soarApi, threatIntelApi } from "@/lib/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+/** Code pays ISO 3166-1 alpha-2 ("FR") → emoji drapeau ("🇫🇷"). */
+function countryCodeToFlag(code: string): string {
+  return code
+    .toUpperCase()
+    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+}
 
 /**
  * Affiche une IP cliquable qui ouvre un menu d'actions rapides
@@ -64,10 +71,20 @@ export function IpLink({
     onError: () => toast.error("Erreur lors du déblocage de l'IP"),
   });
 
-  if (!ip || ip === "—") return <span className={className}>—</span>;
-
-  const isPrivate =
+  const isPrivate = !!ip &&
     /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fe80:)/.test(ip);
+
+  const { data: geo } = useQuery({
+    queryKey: ["ip-geo-flag", ip],
+    queryFn: () => threatIntelApi.getGeoFlags([ip as string]).then((r) => r[ip as string]),
+    enabled: !!ip && ip !== "—" && !isPrivate,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: false,
+  });
+  const flag = geo?.country_code ? countryCodeToFlag(geo.country_code) : null;
+
+  if (!ip || ip === "—") return <span className={className}>—</span>;
 
   const blockedEntry = blockedData?.results.find((b) => b.ip_address === ip);
   const isBlocked = !!blockedEntry;
@@ -85,16 +102,17 @@ export function IpLink({
           onPointerDown={stop}
           title={
             isBlocked
-              ? `${ip} — bloquée sur la plateforme`
+              ? `${ip} — bloquée sur la plateforme${geo?.country ? ` (${geo.country})` : ""}`
               : isPrivate
                 ? `${ip} — IP privée (analyse limitée)`
-                : `Actions sur ${ip}`
+                : `Actions sur ${ip}${geo?.country ? ` (${geo.country})` : ""}`
           }
           className={`group inline-flex items-center gap-1 font-mono transition-colors cursor-pointer ${
             isBlocked ? "text-red-400/80 hover:text-red-400" : "hover:text-primary"
           } ${className}`}
           style={{ background: "transparent", border: "none", padding: 0 }}
         >
+          {flag && <span aria-hidden="true">{flag}</span>}
           <span
             className={`underline decoration-dotted decoration-transparent group-hover:decoration-current underline-offset-2 ${
               isBlocked ? "opacity-60 line-through decoration-solid decoration-red-400/60" : ""
@@ -114,7 +132,9 @@ export function IpLink({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" onClick={stop}>
         <DropdownMenuLabel className="font-mono flex items-center gap-1.5">
+          {flag && <span aria-hidden="true">{flag}</span>}
           {ip}
+          {geo?.country && <span className="text-muted-foreground font-sans text-[11px]">({geo.country})</span>}
           {isBlocked && <Ban className="w-3 h-3 text-red-400" />}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
