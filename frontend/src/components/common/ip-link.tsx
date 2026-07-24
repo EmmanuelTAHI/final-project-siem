@@ -13,13 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-/** Code pays ISO 3166-1 alpha-2 ("FR") → emoji drapeau ("🇫🇷"). */
-function countryCodeToFlag(code: string): string {
-  return code
-    .toUpperCase()
-    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
-}
+import { CountryFlag } from "@/components/common/country-flag";
 
 /**
  * Affiche une IP cliquable qui ouvre un menu d'actions rapides
@@ -82,7 +76,6 @@ export function IpLink({
     gcTime: 24 * 60 * 60 * 1000,
     retry: false,
   });
-  const flag = geo?.country_code ? countryCodeToFlag(geo.country_code) : null;
 
   if (!ip || ip === "—") return <span className={className}>—</span>;
 
@@ -112,7 +105,7 @@ export function IpLink({
           } ${className}`}
           style={{ background: "transparent", border: "none", padding: 0 }}
         >
-          {flag && <span aria-hidden="true">{flag}</span>}
+          {geo?.country_code && <CountryFlag code={geo.country_code} size="sm" />}
           <span
             className={`underline decoration-dotted decoration-transparent group-hover:decoration-current underline-offset-2 ${
               isBlocked ? "opacity-60 line-through decoration-solid decoration-red-400/60" : ""
@@ -132,7 +125,7 @@ export function IpLink({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" onClick={stop}>
         <DropdownMenuLabel className="font-mono flex items-center gap-1.5">
-          {flag && <span aria-hidden="true">{flag}</span>}
+          {geo?.country_code && <CountryFlag code={geo.country_code} size="sm" />}
           {ip}
           {geo?.country && <span className="text-muted-foreground font-sans text-[11px]">({geo.country})</span>}
           {isBlocked && <Ban className="w-3 h-3 text-red-400" />}
