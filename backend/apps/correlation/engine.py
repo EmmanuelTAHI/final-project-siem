@@ -163,6 +163,10 @@ class CorrelationEngine:
         silencieusement les correspondances suivantes, les nouveaux logs
         matchés sont ajoutés à l'alerte déjà ouverte (le badge "×N" du
         frontend grandit, la preuve d'attaque continue s'accumule).
+
+        `settings.ALERT_DEDUP_ENABLED = False` désactive complètement cette
+        déduplication (mode démo/tests) : chaque correspondance de règle crée
+        alors sa propre alerte, même si une alerte similaire est déjà ouverte.
         """
         from apps.alerts.models import Alert
         from apps.correlation.models import RuleMatch as RuleMatchModel
@@ -173,29 +177,34 @@ class CorrelationEngine:
         country_1 = match.context.get("country_1", "")
         country_2 = match.context.get("country_2", "")
 
-        # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/attaque.
-        existing = Alert.objects.filter(
-            rule=rule,
-            status__in=("open", "in_progress"),
-        )
-        if source_ip:
-            existing = existing.filter(description__icontains=source_ip)
-        elif user_email:
-            existing = existing.filter(description__icontains=user_email)
+        from django.conf import settings
 
-        # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
-        # pour permettre plusieurs alertes différentes pour le même user
-        if wazuh_rule_id and existing.exists():
-            existing = existing.filter(description__icontains=wazuh_rule_id)
+        existing_alert = None
+        if getattr(settings, "ALERT_DEDUP_ENABLED", True):
+            # Déduplication : vérifier s'il existe déjà une alerte ouverte pour cette règle/attaque.
+            existing = Alert.objects.filter(
+                rule=rule,
+                status__in=("open", "in_progress"),
+            )
+            if source_ip:
+                existing = existing.filter(description__icontains=source_ip)
+            elif user_email:
+                existing = existing.filter(description__icontains=user_email)
 
-        # Pour Impossible Travel, affiner par la paire de pays concernée :
-        # FR↔US et US↔DE sont deux évènements distincts pour le même user.
-        if country_1 and country_2 and existing.exists():
-            existing = existing.filter(
-                description__icontains=country_1
-            ).filter(description__icontains=country_2)
+            # Pour les règles Wazuh, affiner la dédup par wazuh_rule_id
+            # pour permettre plusieurs alertes différentes pour le même user
+            if wazuh_rule_id and existing.exists():
+                existing = existing.filter(description__icontains=wazuh_rule_id)
 
-        existing_alert = existing.order_by("-created_at").first()
+            # Pour Impossible Travel, affiner par la paire de pays concernée :
+            # FR↔US et US↔DE sont deux évènements distincts pour le même user.
+            if country_1 and country_2 and existing.exists():
+                existing = existing.filter(
+                    description__icontains=country_1
+                ).filter(description__icontains=country_2)
+
+            existing_alert = existing.order_by("-created_at").first()
+
         if existing_alert:
             self._merge_into_existing_alert(existing_alert, rule, match, now)
             logger.debug(

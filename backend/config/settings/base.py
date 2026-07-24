@@ -303,6 +303,15 @@ HOST_FIREWALL_TOKEN = env("HOST_FIREWALL_TOKEN", default="")
 # pas risquer de se bloquer soi-même. Détection/alerting non affectés.
 SOAR_BLOCKING_ENABLED = env.bool("SOAR_BLOCKING_ENABLED", default=True)
 
+# Coupe-circuit de la déduplication d'alertes (mode démo/tests) — quand une
+# règle matche à nouveau une IP/utilisateur pour lequel une alerte est déjà
+# "open"/"in_progress", le comportement normal FUSIONNE les nouveaux logs
+# dedans (évite le spam en usage réel). Pendant une démo/soutenance où chaque
+# commande de test doit produire sa propre alerte visible, mettre à False :
+# chaque correspondance crée alors une alerte distincte. Voir
+# apps.correlation.engine.CorrelationEngine._create_alert_if_new.
+ALERT_DEDUP_ENABLED = env.bool("ALERT_DEDUP_ENABLED", default=True)
+
 # ─── Frontend ─────────────────────────────────────────────────────────────────
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 BACKEND_URL = env("BACKEND_URL", default="http://localhost:8000")
