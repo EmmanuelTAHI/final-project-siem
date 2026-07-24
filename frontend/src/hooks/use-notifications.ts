@@ -136,21 +136,22 @@ export function useNotifications() {
         const msg = JSON.parse(event.data) as WSNotification;
         const withTs = { ...msg, timestamp: msg.timestamp || new Date().toISOString() };
 
-        // Garde les 50 derniers évènements transitoires
-        setTransient((prev) => [withTs, ...prev.slice(0, 49)]);
+        // Notifications d'alertes désactivées à la demande (toast + cloche) :
+        // l'alerte continue d'apparaître/se mettre à jour normalement dans
+        // la liste des alertes (syncAlertCaches tourne toujours), seule la
+        // notification est coupée. Ne pas l'ajouter aux évènements
+        // transitoires de la cloche non plus, sinon elle y apparaît quand
+        // même sans toast.
+        const isAlertEvent = msg.type === "new_alert" || (msg as { type?: string }).type === "alert_updated";
+        if (!isAlertEvent) {
+          // Garde les 50 derniers évènements transitoires
+          setTransient((prev) => [withTs, ...prev.slice(0, 49)]);
+        }
 
         // Toasts contextuels + synchronisation live des caches
         if (msg.type === "new_alert" && msg.alert) {
-          const sev = msg.alert.severity;
-          const toastFn = sev === "critical" || sev === "high" ? toast.error : toast;
-          toastFn(`🚨 Nouvelle alerte ${sev?.toUpperCase()}: ${msg.alert.title}`, {
-            duration: sev === "critical" ? 8000 : 5000,
-          });
           syncAlertCaches(msg.alert, true);
         } else if ((msg as { type?: string }).type === "alert_updated" && msg.alert) {
-          // Pas de toast ici (désactivé à la demande) : la liste d'alertes
-          // remonte quand même l'alerte en tête (voir syncAlertCaches) et
-          // l'heure affichée se met à jour, sans notification intrusive.
           syncAlertCaches(msg.alert, false);
         } else if (msg.type === "cti_threat") {
           toast.error(`⚠ CTI: Menace détectée — ${(msg.data as { title?: string })?.title || "IP malveillante"}`, {
