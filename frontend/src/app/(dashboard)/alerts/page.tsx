@@ -245,8 +245,12 @@ function AlertCard({
         style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", flexWrap: "wrap" }}
       >
         <SeverityBadge sev={alert.severity} />
-        <span className="font-mono" style={{ fontSize: 12, color: "var(--text-2)", minWidth: 140 }}>
-          {formatDate(alert.created_at, "dd/MM HH:mm:ss")}
+        <span
+          className="font-mono"
+          style={{ fontSize: 12, color: "var(--text-2)", minWidth: 140 }}
+          title={`Première détection : ${formatDate(alert.created_at, "dd/MM HH:mm:ss")}`}
+        >
+          {formatDate(alert.updated_at, "dd/MM HH:mm:ss")}
         </span>
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
@@ -542,7 +546,7 @@ export default function AlertsPage() {
       const order: Record<Alert["severity"], number> = { critical: 0, high: 1, medium: 2, low: 3 };
       return order[a.severity] - order[b.severity];
     }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 
   const clearFilters = () => {
